@@ -9,9 +9,6 @@ function Home() {
             <h2>ยินดีต้อนรับ</h2>
 
             <p>นี่คือเว็บ React แรกของฉัน</p>
-            <NewsCard  />
-            <NewsCard  />
-            <NewsCard  />
         </home>
 
     )
