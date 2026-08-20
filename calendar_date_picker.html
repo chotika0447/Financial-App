@@ -1,0 +1,67 @@
+<div style="max-width:340px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <button id="prevBtn" aria-label="เดือนก่อนหน้า"><i class="ti ti-chevron-left" style="font-size:16px" aria-hidden="true"></i></button>
+    <span id="monthLabel" style="font-size:15px;font-weight:500"></span>
+    <button id="nextBtn" aria-label="เดือนถัดไป"><i class="ti ti-chevron-right" style="font-size:16px" aria-hidden="true"></i></button>
+  </div>
+  <div id="grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center"></div>
+  <div style="margin-top:14px;padding-top:12px;border-top:0.5px solid var(--border);font-size:13px;color:var(--text-secondary)">
+    เลือกแล้ว: <span id="selectedLabel" style="color:var(--text-primary);font-weight:500">ยังไม่ได้เลือก</span>
+  </div>
+</div>
+<script>
+(function(){
+  var weekdays = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+  var months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  var today = new Date();
+  var view = new Date(today.getFullYear(), today.getMonth(), 1);
+  var selected = null;
+
+  function render(){
+    document.getElementById('monthLabel').textContent = months[view.getMonth()] + ' ' + (view.getFullYear()+543);
+    var grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    weekdays.forEach(function(w){
+      var el = document.createElement('div');
+      el.textContent = w;
+      el.style.cssText = 'font-size:12px;color:var(--text-muted);padding:4px 0';
+      grid.appendChild(el);
+    });
+    var firstDay = new Date(view.getFullYear(), view.getMonth(), 1).getDay();
+    var daysInMonth = new Date(view.getFullYear(), view.getMonth()+1, 0).getDate();
+    for (var i=0; i<firstDay; i++){
+      grid.appendChild(document.createElement('div'));
+    }
+    for (var d=1; d<=daysInMonth; d++){
+      (function(d){
+        var cell = document.createElement('button');
+        cell.textContent = d;
+        var isToday = d===today.getDate() && view.getMonth()===today.getMonth() && view.getFullYear()===today.getFullYear();
+        var isSelected = selected && d===selected.getDate() && view.getMonth()===selected.getMonth() && view.getFullYear()===selected.getFullYear();
+        var bg = isSelected ? 'var(--fill-accent)' : 'transparent';
+        var color = isSelected ? 'var(--on-accent)' : 'var(--text-primary)';
+        var border = isToday && !isSelected ? '0.5px solid var(--border-accent)' : '0.5px solid transparent';
+        cell.style.cssText = 'aspect-ratio:1;border-radius:50%;font-size:13px;background:'+bg+';color:'+color+';border:'+border+';cursor:pointer';
+        cell.onclick = function(){
+          selected = new Date(view.getFullYear(), view.getMonth(), d);
+          render();
+          var label = d + ' ' + months[view.getMonth()] + ' ' + (view.getFullYear()+543);
+          document.getElementById('selectedLabel').textContent = label;
+        };
+        grid.appendChild(cell);
+      })(d);
+    }
+  }
+
+  document.getElementById('prevBtn').onclick = function(){
+    view = new Date(view.getFullYear(), view.getMonth()-1, 1);
+    render();
+  };
+  document.getElementById('nextBtn').onclick = function(){
+    view = new Date(view.getFullYear(), view.getMonth()+1, 1);
+    render();
+  };
+
+  render();
+})();
+</script>

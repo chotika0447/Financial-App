@@ -1,0 +1,22 @@
+ตอนพัฒนา จะเปิด 2 Terminal
+
+Terminal 1:
+
+(สำหรับclone โปรเจคครั้งแรก)
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+cd C:\FinalProject\backend
+.\.venv\Scripts\Activate.ps1
+python manage.py runserver
+
+ออกจาก .venv ให้พิมพ์ deactivate
+________________________________________________________________
+Terminal 2: 
+
+cd frontend
+cd C:\FinalProject\frontend
+ืnpm install
+npm run dev
