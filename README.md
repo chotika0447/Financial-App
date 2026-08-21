@@ -1,5 +1,5 @@
 คำสั่งโคลนโปรเจคจาก Terminal
-git clone <repository-url>
+=> git clone https://github.com/chotika0447/Financial-App.git
 ____________________________________________________________________________
 # เริ่มรันโปรเจค
 ตอนพัฒนา จะเปิด 2 Terminal
