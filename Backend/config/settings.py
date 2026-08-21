@@ -10,10 +10,9 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
-from pathlib import Path
-
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -34,7 +33,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 
-# บอก Django ว่ามี App อะไรบ้าง
+# บอก Django ว่ามี App อะไรบ้าง *สำคัญ*ต้องใส่ App ที่เราสร้างขึ้นเองด้วย
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -42,6 +41,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'users',
+    'transactions',
 ]
 
 MIDDLEWARE = [
