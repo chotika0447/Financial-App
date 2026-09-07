@@ -1,32 +1,44 @@
 from django.db import models #เอาไว้กำหนดประเภทของข้อมูลที่จะเก็บในฐานข้อมูล
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+import random
 
 """
 ใช้  AbstractBaseUser  ในการสร้าง Custom User แทนแบบ Default ของ Django  
     BaseUserManager สร้าง User Manager
     PermissionsMixin สำหรับระบบ Admin และ Permission ของ Django 
 """
+def generate_user_id():
+    return random.randint(1000000000, 9999999999)
 
 class UserManager(BaseUserManager):
 
+    #ใช้สำหรับสร้าง User ปกติ
     def create_user(self, email, username, password=None, **extra_fields):
+
         if not email:
             raise ValueError("Email is required")
 
-        email = self.normalize_email(email)#จัดรูปแบบ Email ให้เป็นมาตรฐาน  
+        email = self.normalize_email(email)
 
-        #สร้าง Object ของ User โดย self.model คือการบอกว่า Manager นี้ถูกผูกกับ Model Userที่ใช้อยู่ตอนนี้
+        while True:
+            user_id = generate_user_id()
+            #เช็คว่ามี user_id นี้อยู่ในฐานข้อมูลอยู่แล้สมั้ย ถ้าไม่มีให้ break ออกจาก loop
+            if not self.model.objects.filter(id=user_id).exists():
+                break
+
+        #สร้าง object ของ User โดยใช้ self.model ซึ่งจะชี้ไปที่โมเดล User ที่เราสร้างขึ้น
         user = self.model(
+            id=user_id,
             email=email,
             username=username,
             **extra_fields
         )
 
-        user.set_password(password) #Hash Password ก่อนเก็บ
+        user.set_password(password)
         user.save(using=self._db)
 
         return user
-
+    
     #ใช้สำหรับสร้าง Admin ของ Django
     def create_superuser(self, email, username, password=None, **extra_fields):
         #กำหนดสิทธิ์ Admin  
@@ -40,8 +52,14 @@ class UserManager(BaseUserManager):
             **extra_fields
         )
 
-#ตัวโมเดล
+#ตัวโมเดลเป็น Custom User Model ที่สร้างจาก AbstractBaseUser
 class User(AbstractBaseUser, PermissionsMixin):
+
+    id = models.BigIntegerField(
+        primary_key=True,
+        default=generate_user_id,
+        editable=False,
+    )
 
     username = models.CharField(
         max_length=50,
@@ -53,6 +71,10 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     created_at = models.DateTimeField(
         auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
     )
 
     is_active = models.BooleanField(

@@ -80,13 +80,15 @@ class GoogleJWTView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        refresh = RefreshToken.for_user(request.user)
+        user = request.user
 
-        # return Response({
-        #     'refresh': str(refresh),
-        #     'access': str(refresh.access_token),
-        # })
-    
+        # ถ้าเป็น User ที่สมัครผ่าน Google และยังไม่มี username ให้ใช้ User ID เป็น username ชั่วคราว
+        if not user.username:
+            user.username = str(user.id)
+            user.save(update_fields=['username'])
+
+        refresh = RefreshToken.for_user(user)
+
         params = urlencode({
             'access': str(refresh.access_token),
             'refresh': str(refresh),

@@ -16,6 +16,10 @@ DEBUG = True
 #กำหนดว่า Host ไหนเข้าถึง Django ได้
 ALLOWED_HOSTS = []
 
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
 
 # บอก Django ว่ามี App อะไรบ้าง *สำคัญ*ต้องใส่ App ที่เราสร้างขึ้นเองด้วย
 INSTALLED_APPS = [
@@ -27,6 +31,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
+    'corsheaders',
 
     'allauth',
     'allauth.account',
@@ -38,6 +43,25 @@ INSTALLED_APPS = [
 ]
 
 AUTH_USER_MODEL = 'users.User'
+
+
+# django-allauth
+ACCOUNT_USER_MODEL_EMAIL_FIELD = 'email'
+ACCOUNT_USER_MODEL_USERNAME_FIELD = 'username'
+
+ACCOUNT_LOGIN_METHODS = {'email'}
+
+ACCOUNT_SIGNUP_FIELDS = [
+    'email*',
+    'username*',
+    'password1*',
+    'password2*',
+]
+
+# ให้ allauth ขอ email จาก Google  
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_LOGIN_ON_GET = True # ตั้งค่าให้กด ดำเนินการต่อด้วยGoogle ในหน้า log in แล้วเข้าสู่ Google OAuth ทันที
 
 #มีทั้งการauthenแบบปกติ กับ การauthenแบบใช้social account (google, facebook, etc.) โดยใช้ django-allauth
 AUTHENTICATION_BACKENDS = [
@@ -56,6 +80,9 @@ LOGIN_REDIRECT_URL = '/api/users/google-token/'
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+
+    'corsheaders.middleware.CorsMiddleware',
+
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
 
@@ -69,10 +96,11 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'config.urls'
 
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [],  # ใช้templates ที่สร้างเอง BASE_DIR / 'templates'
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -135,9 +163,8 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
-
-STATIC_URL = 'static/'
-
+ 
+STATIC_URL = 'static/' 
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
