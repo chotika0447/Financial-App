@@ -1,0 +1,86 @@
+.custom-header {
+  height: 104px;
+  background: #cdb0f7;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 24px;
+}
+.custom-header h1{
+  font-size: 20px;
+  font-weight: 700;
+  color: Black;
+}
+/*Home Header*/
+.home-header {
+  height: 104px;
+  background: #cdb0f7;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 24px;
+}
+
+.welcome {
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+.welcome strong {
+  font-weight: 700;
+}
+
+.welcome span {
+  display: block;
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.header-icons {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon-button,
+.profile-button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.icon-button svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: white;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.profile-button {
+  width: 50px;
+  height: 50px;
+  background: white;
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-button svg {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: #222;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

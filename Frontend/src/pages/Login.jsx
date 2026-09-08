@@ -50,8 +50,8 @@ function Login() {
         data.refresh
       );
 
-      // ไปหน้า Profile
-      navigate('/profile/');
+      // พอ log in เสร็จไปหน้าที่อยู่ตาม route ที่กำหนดไว้ใน App.jsx
+      navigate('/home/');
 
     } catch (error) {
       console.error(error);

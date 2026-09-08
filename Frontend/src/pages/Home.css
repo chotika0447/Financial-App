@@ -1,0 +1,414 @@
+/* =========================
+   GENERAL
+========================= */
+
+* {
+  box-sizing: border-box;
+}
+
+.home-page {
+  min-height: 100vh;
+  background: #ffffff;
+  font-family: Arial, "Noto Sans Thai", sans-serif;
+  color: #111;
+  padding-bottom: 90px;
+}
+
+/* =========================
+   CONTENT
+========================= */
+
+.home-content {
+  padding: 32px 13px 20px;
+  max-width: 600px;
+  margin: auto;
+}
+
+
+/* =========================
+   SUMMARY CARDS
+========================= */
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 6px;
+}
+
+.summary-card {
+  height: 84px;
+  border: 1px solid;
+  border-radius: 5px;
+
+  padding: 10px 12px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card-title {
+  font-size: 14px;
+}
+
+.card-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 5px;
+}
+
+.card-bottom span {
+  font-size: 10px;
+}
+
+.card-bottom strong {
+  font-size: 21px;
+  white-space: nowrap;
+}
+
+
+/* Income */
+
+.income-card {
+  border-color: #2ebbc8;
+  color: #2ebbc8;
+}
+
+
+/* Expense */
+
+.expense-card {
+  border-color: #2ebbc8;
+  color: #2ebbc8;
+}
+
+
+/* Debt */
+
+.debt-card {
+  border-color: #ff4d52;
+  color: #ff4d52;
+}
+
+
+/* Saving */
+
+.receivable-card {
+  border-color: #ffb52e;
+  color: #ffb52e;
+}
+
+
+/* =========================
+   SECTION TITLE
+========================= */
+
+.news-section,
+.dashboard-section {
+  margin-top: 20px;
+}
+
+.news-section h3,
+.dashboard-section h3 {
+  font-size: 15px;
+  margin: 0 0 12px 13px;
+  font-weight: 700;
+}
+
+
+/* =========================
+   NEWS
+========================= */
+
+.news-card {
+  padding: 0 11px;
+}
+
+.news-image {
+  height: 140px;
+  border-radius: 6px;
+
+  overflow: hidden;
+
+  background:
+    linear-gradient(
+      120deg,
+      rgba(255,255,255,0.3),
+      rgba(80,80,80,0.35)
+    ),
+    linear-gradient(
+      135deg,
+      #d8d8d8,
+      #777,
+      #ddd,
+      #555
+    );
+
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.25);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.news-overlay {
+  color: #5e668c;
+  font-size: 46px;
+  font-weight: 800;
+  transform: rotate(-7deg);
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.25);
+}
+
+.news-overlay span {
+  display: block;
+  font-size: 36px;
+  margin-top: -12px;
+}
+
+.news-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.news-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #999;
+}
+
+.news-dots span.active {
+  width: 6px;
+  height: 6px;
+  background: #222;
+}
+
+
+/* =========================
+   DASHBOARD
+========================= */
+
+.dashboard-section {
+  margin-top: 21px;
+}
+
+.dashboard-tabs {
+  height: 38px;
+
+  margin: 0 12px;
+
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+
+  background: #ddd;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.dashboard-tabs button {
+  border: none;
+  background: transparent;
+
+  font-size: 13px;
+  color: #111;
+
+  cursor: pointer;
+}
+
+.dashboard-tabs button.active {
+  background: white;
+  border-radius: 5px;
+
+  box-shadow:
+    0 1px 3px rgba(0,0,0,0.25);
+}
+
+
+/* =========================
+   DONUT CHART
+========================= */
+
+.chart-container {
+  margin-top: 22px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.donut-chart {
+  width: 160px;
+  height: 160px;
+
+  border-radius: 50%;
+
+  background:
+    conic-gradient(
+      #a8dfe1 0deg 208.8deg,
+      white 208.8deg 211deg,
+
+      #ff7fa4 211deg 265deg,
+      white 265deg 267deg,
+
+      #78c4df 267deg 303deg,
+      white 303deg 305deg,
+
+      #ffd166 305deg 334deg,
+      white 334deg 336deg,
+
+      #ff6262 336deg 357.6deg,
+      white 357.6deg 359deg,
+
+      #72c99a 359deg 360deg
+    );
+
+  position: relative;
+}
+
+.donut-chart::after {
+  content: "";
+
+  position: absolute;
+
+  width: 96px;
+  height: 96px;
+
+  background: white;
+
+  border-radius: 50%;
+
+  top: 50%;
+  left: 50%;
+
+  transform: translate(-50%, -50%);
+}
+
+
+/* =========================
+   LEGEND
+========================= */
+
+.chart-legend {
+  width: 261px;
+
+  background: #a9dfe2;
+
+  border-radius: 5px;
+
+  padding: 11px 18px;
+
+  margin-top: 28px;
+
+  font-size: 13px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.chart-legend div {
+  display: flex;
+  align-items: center;
+}
+
+.legend-color {
+  width: 15px;
+  height: 15px;
+
+  border-radius: 50%;
+
+  border: 1px solid #222;
+
+  margin-right: 8px;
+}
+
+.food {
+  background: #a8dfe1;
+}
+
+.saving {
+  background: #ff7fa4;
+}
+
+.rent {
+  background: #78c4df;
+}
+
+.travel {
+  background: #ffd166;
+}
+
+.debt {
+  background: #ff6262;
+}
+
+.other {
+  background: #72c99a;
+}
+
+
+/* =========================
+   FINANCIAL HEALTH
+========================= */
+
+.financial-health-button {
+  width: 290px;
+  height: 57px;
+
+  margin: 27px auto 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 14px 0 32px;
+
+  background: white;
+
+  border: 2px solid #58df3d;
+  border-radius: 5px;
+
+  color: #397c32;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.financial-health-button .arrow {
+  font-size: 30px;
+  font-weight: 300;
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 380px) {
+
+  .home-header {
+    padding: 0 20px;
+  }
+
+  .welcome {
+    font-size: 18px;
+  }
+
+  .summary-card {
+    padding: 9px;
+  }
+
+  .card-bottom strong {
+    font-size: 18px;
+  }
+
+  .chart-legend {
+    width: 260px;
+  }
+
+}

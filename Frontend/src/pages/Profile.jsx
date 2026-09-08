@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import './Profile.css'
 
 function Profile() {
 
@@ -30,12 +31,21 @@ function Profile() {
   }
 
   return (
-    <div>
+    <div className="profile-page">
+
       <h1>Profile</h1>
 
       <p>ID: {user.id}</p>
       <p>Username: {user.username}</p>
       <p>Email: {user.email}</p>
+
+      <button className='btn' onClick={() => window.location.href = '/home'}>Back to Home</button>
+      {/* <CustomHeader title="โปรไฟล์" color="var(--color-profile)" />
+
+      <div className="profile-card">
+
+      </div> */}
+
     </div>
   );
 }

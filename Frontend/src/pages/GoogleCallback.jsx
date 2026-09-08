@@ -42,7 +42,7 @@ function GoogleCallback() {
         refresh
       );
 
-      navigate('/profile/');
+      navigate('/home/');
     }
 
   }, [navigate]);

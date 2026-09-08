@@ -5,51 +5,39 @@
 /* Main Theme*/
 
 @theme {
-
-    /* ---------- Primary ---------- */
-
-    --color-primary: #8B7EC8;
-    --color-primary-light: #EDE9FE;
-    --color-primary-dark: #7164AA;
-
-
-    /* ---------- Income ---------- */
-
-    --color-income: #7BC9A4;
-    --color-income-light: #E5F5EC;
-    --color-income-dark: #4FA77D;
-
-
-    /* ---------- Expense ---------- */
-
-    --color-expense: #E89A9A;
-    --color-expense-light: #FCEAEA;
-    --color-expense-dark: #C96F6F;
-
-
-    /* ---------- Warning ---------- */
-
-    --color-warning: #E8C66A;
-    --color-warning-light: #FFF7D6;
-    --color-warning-dark: #C59D38;
-
-
-    /* ---------- Background ---------- */
-
     --color-background: #F8F7FC;
     --color-surface: #FFFFFF;
-
-
-    /* ---------- Text ---------- */
 
     --color-text-primary: #3F3B4A;
     --color-text-secondary: #7A7585;
     --color-text-muted: #A39EAD;
 
-
-    /* ---------- Border ---------- */
-
     --color-border: #E8E5EF;
+
+    --color-primary: #8B7EC8;
+    /* --color-primary-light: #EDE9FE;
+    --color-primary-dark: #7164AA;
+    */
+    --color-home: #c6a0ff; /*ม่วงอ่อน*/
+    --color-transactions: #7fa8ff; /*ฟ้า*/
+    --color-saving: #ff8b91; /*ชมพู*/
+    --color-debts: #ffb62e; /*เหลือง*/
+    --color-notifications: #70c95b; /*เขียว*/
+
+    --color-profile: #FFF957; /*เหลือง*/
+
+    --color-income: #7BC9A4;
+    /* --color-income-light: #E5F5EC;
+    --color-income-dark: #4FA77D; */
+
+    --color-expense: #E89A9A;
+    /* --color-expense-light: #FCEAEA;
+    --color-expense-dark: #C96F6F; */
+
+    --color-warning: #E8C66A;
+    /* --color-warning-light: #FFF7D6;
+    --color-warning-dark: #C59D38; */
+    
 }
 
 body {
@@ -140,6 +128,27 @@ body {
   color: #dc2626;
   font-size: 14px;
   text-align: center;
+}
+
+.btn{
+  width: 45%;
+  padding: 13px;
+
+  border: none;
+  border-radius: 8px;
+
+  background: #12a743;
+
+  color: white;
+
+  font-size: 15px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s,
+    transform 0.1s;
 }
 
 .btn-login, .btn-register{
