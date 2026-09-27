@@ -8,4 +8,33 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    port: 5173,
+
+    allowedHosts: [
+      'glimmer-grunt-obstruct.ngrok-free.dev',
+    ],
+
+    proxy: {
+      '/users': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+
+      '/transactions': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+
+      '/line': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+
+      '/accounts': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+    },
+  },
 })

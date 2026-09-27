@@ -2,11 +2,11 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# =================== Base ===================
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / '.env')
-
+# =================== Security ===================
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY')
 
@@ -14,13 +14,32 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = True
 
 #กำหนดว่า Host ไหนเข้าถึง Django ได้
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "pine-commissioners-uniform-middle.trycloudflare.com"
+]
 
+# =================== LINE ===================
+LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")#LINE Messaging API / LINE OA
+LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")#ตรวจสอบ webhook signature
+LINE_LOGIN_CHANNEL_ID = os.getenv("LINE_LOGIN_CHANNEL_ID")#LINE Login
+
+# =================== CORS / CSRF ===================
+#ส่วนนี้ใช้กับ React ที่เป็นระบบ frontend
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
+    'https://glimmer-grunt-obstruct.ngrok-free.dev',
+]
+#URL ที่ Django ยอมให้ส่ง POST/CSRF
+CSRF_TRUSTED_ORIGINS = [
+    'https://glimmer-grunt-obstruct.ngrok-free.dev',
+    'https://pine-commissioners-uniform-middle.trycloudflare.com',
 ]
 
+
+# =================== Applications ===================
 # บอก Django ว่ามี App อะไรบ้าง *สำคัญ*ต้องใส่ App ที่เราสร้างขึ้นเองด้วย
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -33,50 +52,32 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
 
-    'allauth',
-    'allauth.account',
-    'allauth.socialaccount',
-    'allauth.socialaccount.providers.google',
-
     'users',
     'transactions',
+    'debts',
+    'friends',
+    'notifications',
+    'savings',
+    'line_bot',
 ]
-
-AUTH_USER_MODEL = 'users.User'
-
-
-# django-allauth
-ACCOUNT_USER_MODEL_EMAIL_FIELD = 'email'
-ACCOUNT_USER_MODEL_USERNAME_FIELD = 'username'
-
-ACCOUNT_LOGIN_METHODS = {'email'}
-
-ACCOUNT_SIGNUP_FIELDS = [
-    'email*',
-    'username*',
-    'password1*',
-    'password2*',
-]
-
-# ให้ allauth ขอ email จาก Google  
-SOCIALACCOUNT_QUERY_EMAIL = True
-SOCIALACCOUNT_EMAIL_REQUIRED = True
-SOCIALACCOUNT_LOGIN_ON_GET = True # ตั้งค่าให้กด ดำเนินการต่อด้วยGoogle ในหน้า log in แล้วเข้าสู่ Google OAuth ทันที
-
-#มีทั้งการauthenแบบปกติ กับ การauthenแบบใช้social account (google, facebook, etc.) โดยใช้ django-allauth
+# =================== Authentication ===================
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
-    'allauth.account.auth_backends.AuthenticationBackend',
 ]
-
+# =========================== Django REST Framework ===========================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'users.authentication.LineJWTAuthentication',
     ),
 }
 
-LOGIN_REDIRECT_URL = '/api/users/google-token/'
+# =========================== JWT: JSON WEB TOKEN ===========================
+SIMPLE_JWT = {
+    'USER_ID_FIELD': 'uid',
+    'USER_ID_CLAIM': 'uid',
+}
 
+# =========================== Middleware ===========================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -87,20 +88,19 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
 
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'allauth.account.middleware.AccountMiddleware',
-
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     
 ]
 
-ROOT_URLCONF = 'config.urls'
 
+# =========================== URLs / Templates ===========================
+ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],  # ใช้templates ที่สร้างเอง BASE_DIR / 'templates'
+        'DIRS': [],  # ถ้าจะใช้ templates ที่สร้างเอง ใส่ BASE_DIR / 'templates'
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -112,10 +112,10 @@ TEMPLATES = [
     },
 ]
 
+# =========================== WSGI ===========================
 WSGI_APPLICATION = 'config.wsgi.application'
 
-
-# Database
+# =========================== Database ===========================
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
 DATABASES = {
@@ -129,8 +129,8 @@ DATABASES = {
     }
 }
 
+# =========================== Password validation ===========================
 
-# Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -148,25 +148,23 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
-# Internationalization
+# =========================== Internationalization ===================================
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Bangkok'
 
 USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
+# =================== Static files (CSS, JavaScript, Images) ===================
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
  
 STATIC_URL = 'static/' 
 
-# Email
+# =========================== Email ===========================================
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
 MAILERS = {

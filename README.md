@@ -13,6 +13,7 @@ pip install -r requirements.txt (ติดตั้งไฟล์ทั้ง�
 
 ในส่วนของไฟล์.env (สร้างเองได้เลย เอาไว้ที่ Backend/.env)
 -ให้ copy ค่าในไฟล์ backend/.env.example มาใส่ .env ของตัวเองแล้วใส่ข้อมูลจริงของ supabase 
+-สำหรับสมัครสมาชิกด้วย LINE ให้เพิ่ม `LINE_LOGIN_CHANNEL_ID` ใน `Backend/.env` โดยใช้ Channel ID ของ LINE Login channel ที่เชื่อมกับ LIFF
 -ทดสอบว่า Django เชื่อม Supabase แล้ว:  python manage.py migrate
 
 python manage.py runserver (รันbackend ตอนนี้ยังไม่มีข้อมูลจ่ะอิอิ)

@@ -1,40 +1,32 @@
+from decimal import Decimal
+
 from rest_framework import serializers
-from .models import User
 
-# เอาไว้ส่งข้อมูล User ออกไป
-class UserSerializer(serializers.ModelSerializer):
+from .models import PersonalProfile
+
+
+class PersonalProfileSerializer(serializers.ModelSerializer):
+    
+    email = serializers.EmailField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
+    age = serializers.IntegerField(min_value=1)
+    occupation = serializers.CharField(max_length=100, trim_whitespace=True)
+    monthly_income = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=Decimal('0'),
+    )
 
     class Meta:
-        model = User
+        model = PersonalProfile
         fields = [
-            'id',
-            'username',
+            'profile_id',
             'email',
-            'created_at',
+            'age',
+            'occupation',
+            'monthly_income',
+            'profile_img',
         ]
-# เอาไว้รับข้อมูลตอนสมัครสมาชิก 
-class RegisterSerializer(serializers.ModelSerializer):
-
-    email = serializers.EmailField()
-
-    class Meta:
-        model = User
-        fields = [
-            'username',
-            'email',
-            'password',
-        ]
-        extra_kwargs = {
-            'password': {
-                'write_only': True
-            }
-        }
-    #override method create เพื่อสร้าง User ใหม่โดยใช้ create_user ของ UserManager
-    def create(self, validated_data):
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password'],
-        )
-
-        return user

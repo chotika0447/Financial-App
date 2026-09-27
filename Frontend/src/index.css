@@ -46,11 +46,21 @@ body {
     color: var(--color-text-primary);
 }
 
+.entry-route {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
 
 /* ========================================
-  LOG IN
+  REGISTER
 ======================================== */
-.login-page, .register-page {
+.register-page {
   min-height: 100vh;
   display: flex;
   justify-content: center;
@@ -61,7 +71,7 @@ body {
   padding: 24px;
 }
 
-.login-card, .register-card {
+.register-card {
   width: 100%;
   max-width: 420px;
 
@@ -75,11 +85,11 @@ body {
     0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
-.login-header, .register-header {
+.register-header {
   text-align: center;
   margin-bottom: 32px;
 }
-.login-header h1, .register-header h1{
+.register-header h1{
   font-weight: 700;
 }
 
@@ -123,7 +133,7 @@ body {
     0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
-.login-error, .register-error {
+.register-error {
   margin: -5px 0 16px;
   color: #dc2626;
   font-size: 14px;
@@ -151,7 +161,7 @@ body {
     transform 0.1s;
 }
 
-.btn-login, .btn-register{
+.btn-register{
 
   width: 100%;
 
@@ -174,96 +184,55 @@ body {
     transform 0.1s;
 }
 
-.btn-login:hover, .btn-register:hover {
+.btn-register:hover {
   background: #1d4ed8;
 }
 
-.btn-login:active, .btn-register:active {
+.btn-register:active {
   transform: scale(0.98);
 }
 
-.btn-login:disabled, .btn-register:disabled {
+.btn-register:disabled {
   background: #93c5fd;
   cursor: not-allowed;
 }
-/* =========================
-   Divider
-========================= */
 
-.divider {
+.line-connect-button {
+  width: 100%;
+  margin-bottom: 18px;
+  padding: 12px;
+  border: 0;
+  border-radius: 8px;
+  background: #06c755;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.line-connect-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.line-profile-preview {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 24px 0;
-}
-
-.divider::before,
-.divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: #e5e7eb;
-}
-
-.divider span {
-  font-size: 12px;
-  color: #9ca3af;
-  font-weight: 500;
-}
-/* =========================
-   Google Button
-========================= */
-
-.btn-google {
-  width: 100%;
-
+  margin: 0 0 20px;
   padding: 12px;
-
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-
-  background: white;
-
-  color: #374151;
-
-  font-size: 15px;
-  font-weight: 600;
-
-  cursor: pointer;
-
-  transition:
-    background 0.2s,
-    border-color 0.2s;
 }
 
-.btn-google:hover {
-  background: #f9fafb;
-
-  border-color: #9ca3af;
+.line-profile-preview img,
+.profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
-/* =========================
-   Register
-========================= */
-
-.register-text, .login-text {
-  margin-top: 24px;
-
-  text-align: center;
-
-  font-size: 14px;
-
-  color: #6b7280;
-}
-
-.register-text a, .login-text a {
-  color: #2563eb;
-
-  font-weight: 600;
-
-  text-decoration: none;
-}
-
-.register-text a:hover, .login-text a:hover {
-  text-decoration: underline;
+.profile-avatar {
+  margin: 8px 0 16px;
 }
