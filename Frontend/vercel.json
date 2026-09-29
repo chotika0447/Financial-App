@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/users/:path*",
+      "destination": "https://financial-app-fjs6.onrender.com/users/:path*"
+    },
+    {
+      "source": "/transactions/:path*",
+      "destination": "https://financial-app-fjs6.onrender.com/transactions/:path*"
+    },
+    {
+      "source": "/line/:path*",
+      "destination": "https://financial-app-fjs6.onrender.com/line/:path*"
+    }
+  ]
+}
