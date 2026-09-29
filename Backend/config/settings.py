@@ -17,7 +17,8 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    ".onrender.com",
+    "financial-app-fjs6.onrender.com",
+    'glimmer-grunt-obstruct.ngrok-free.dev',
 ]
 
 # =================== LINE ===================
@@ -31,10 +32,12 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'https://financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
+    'https://glimmer-grunt-obstruct.ngrok-free.dev',
 ]
 #URL ที่ Django ยอมให้ส่ง POST/CSRF
 CSRF_TRUSTED_ORIGINS = [
     'https://financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
+    'https://glimmer-grunt-obstruct.ngrok-free.dev',
 ]
 
 

@@ -12,7 +12,7 @@ export default defineConfig({
     port: 5173,
 
     allowedHosts: [
-      'financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
+      'glimmer-grunt-obstruct.ngrok-free.dev',
     ],
 
     proxy: {
