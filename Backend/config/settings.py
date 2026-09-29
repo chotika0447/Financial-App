@@ -11,13 +11,13 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
 #กำหนดว่า Host ไหนเข้าถึง Django ได้
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "pine-commissioners-uniform-middle.trycloudflare.com"
+    ".onrender.com",
 ]
 
 # =================== LINE ===================
@@ -30,12 +30,11 @@ LINE_LOGIN_CHANNEL_ID = os.getenv("LINE_LOGIN_CHANNEL_ID")#LINE Login
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    'https://glimmer-grunt-obstruct.ngrok-free.dev',
+    'https://financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
 ]
 #URL ที่ Django ยอมให้ส่ง POST/CSRF
 CSRF_TRUSTED_ORIGINS = [
-    'https://glimmer-grunt-obstruct.ngrok-free.dev',
-    'https://pine-commissioners-uniform-middle.trycloudflare.com',
+    'https://financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
 ]
 
 
