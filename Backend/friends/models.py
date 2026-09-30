@@ -10,7 +10,7 @@ class Friends(models.Model):
         ('rejected', 'ปฏิเสธ'),
     ]
 
-    requester = models.ForeignKey(
+    sender = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='sender_friend_requests'
@@ -28,9 +28,18 @@ class Friends(models.Model):
         default='pending'
     )
 
-    created_at = models.DateTimeField(
-        auto_now_add=True
-    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # กำหนดไม่ให้รายการซํ้ากัน 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["sender", "receiver"],
+                name="unique_friend_request"
+            )
+        ]
 
     def __str__(self):
-        return f"{self.requester} → {self.receiver}"
+        return f"{self.sender} → {self.receiver}"

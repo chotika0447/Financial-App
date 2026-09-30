@@ -11,7 +11,8 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "False") == "True"
+DEBUG=True
+# DEBUG = os.getenv("DEBUG", "False") == "True"
 
 #กำหนดว่า Host ไหนเข้าถึง Django ได้
 ALLOWED_HOSTS = [
@@ -55,12 +56,14 @@ INSTALLED_APPS = [
     'corsheaders',
 
     'users',
-    'transactions',
+    'line_bot',
     'debts',
     'friends',
+    
     'notifications',
     'savings',
-    'line_bot',
+    'transactions',
+    
 ]
 # =================== Authentication ===================
 AUTHENTICATION_BACKENDS = [
