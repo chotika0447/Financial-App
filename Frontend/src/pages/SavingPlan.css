@@ -1,0 +1,50 @@
+.saving-plan-page{
+    min-height: 100vh;
+    padding: 30px;
+    background-color: #eeeeee;
+}
+.saving-plan-title {
+    text-align: left;
+    margin-bottom: 20px;
+    font-size: 28px;
+    background-color: #fdc8f2;
+    color: black;
+    padding: 40px;
+}
+.saving-plan-subtitle {
+    text-align: left;
+    margin-bottom: 20px;
+    font-size: 16px;
+    color: black;
+}
+.saving-plan-label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 18px;
+    color: black;
+}
+.saving-plan-input {
+    display: block;
+    width: 200px;
+    padding: 10px;
+    margin-top: 10px;
+    margin-bottom: 20px;
+    font-size: 16px;
+    border: 2px solid #000000;
+    border-radius: 10px;
+    box-sizing: border-box;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+.saving-plan-result {
+    margin-top: 20px;
+    font-size: 18px;
+    font-weight: bold;
+    color: black;
+}
+
+.saving-plan-chart {
+    display: block;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 200px;
+}
