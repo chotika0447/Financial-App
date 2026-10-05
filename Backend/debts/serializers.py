@@ -17,26 +17,29 @@ class DebtSerializer(serializers.ModelSerializer):
     class Meta:
         model = Debts
         fields = [
-            'debt_id',
-            'debt_name',
+            'id',
+            'name',
             'user',
             'counterparty',
             'counterparty_name',
-            'debt_type',
+            'type',
             'total_amount',
             'remaining_amount',
             'payment_type',
             'payment_amount',
             'due_date',
-            'payment_day',
+            'payment_date',
             'status',
             'note',
+            'icon',
+            'color',
+            'image',
             'created_at',
             'updated_at',
         ]
 
         read_only_fields = [
-            'debt_id',
+            'id',
             'user',
             'remaining_amount',
             'status',
@@ -60,9 +63,9 @@ class DebtSerializer(serializers.ModelSerializer):
             getattr(self.instance, 'payment_amount', None)
         )
 
-        payment_day = data.get(
-            'payment_day',
-            getattr(self.instance, 'payment_day', None)
+        payment_date = data.get(
+            'payment_date',
+            getattr(self.instance, 'payment_date', None)
         )
 
         # จำนวนหนี้ต้องมากกว่า 0
@@ -71,19 +74,19 @@ class DebtSerializer(serializers.ModelSerializer):
                 'total_amount': 'จำนวนหนี้ต้องมากกว่า 0'
             })
 
-        # flexible ไม่ควรมี payment_amount/payment_day
+        # flexible ไม่ควรมี payment_amount/payment_date
         if payment_type == 'flexible':
             if payment_amount is not None:
                 raise serializers.ValidationError({
                     'payment_amount': 'หนี้แบบทยอยชำระไม่ควรกำหนดจำนวนเงินรายเดือน'
                 })
 
-            if payment_day is not None:
+            if payment_date is not None:
                 raise serializers.ValidationError({
-                    'payment_day': 'หนี้แบบทยอยชำระไม่ควรกำหนดวันชำระรายเดือน'
+                    'payment_date': 'หนี้แบบทยอยชำระไม่ควรกำหนดวันชำระรายเดือน'
                 })
 
-        # monthly ต้องมี payment_amount และ payment_day
+        # monthly ต้องมี payment_amount และ payment_date
         if payment_type == 'monthly':
             if payment_amount is None:
                 raise serializers.ValidationError({
@@ -95,14 +98,14 @@ class DebtSerializer(serializers.ModelSerializer):
                     'payment_amount': 'จำนวนเงินต่อเดือนต้องมากกว่า 0'
                 })
 
-            if payment_day is None:
+            if payment_date is None:
                 raise serializers.ValidationError({
-                    'payment_day': 'หนี้แบบรายเดือนต้องระบุวันชำระ'
+                    'payment_date': 'หนี้แบบรายเดือนต้องระบุวันชำระ'
                 })
 
-            if not 1 <= payment_day <= 31:
+            if not 1 <= payment_date <= 31:
                 raise serializers.ValidationError({
-                    'payment_day': 'วันชำระต้องอยู่ระหว่าง 1-31'
+                    'payment_date': 'วันชำระต้องอยู่ระหว่าง 1-31'
                 })
 
         return data
@@ -132,7 +135,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             'scheduled_amount',
             'paid_amount',
             'due_date',
-            'payment_date',
+            'paid_date',
             'proof_image',
             'note',
             'payment_status',

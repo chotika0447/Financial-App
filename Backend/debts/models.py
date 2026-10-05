@@ -82,7 +82,7 @@ class Debts(models.Model):
     # วันครบกำหนดสุดท้ายในการชำระหนี้ก้อนนี้
     due_date = models.DateField()
     # วันครบกำหนดชำระเงินในแต่ละเดือน (สำหรับ monthly)
-    payment_day = models.PositiveSmallIntegerField(
+    payment_date = models.PositiveSmallIntegerField(
         null=True,
         blank=True
     )
@@ -94,6 +94,24 @@ class Debts(models.Model):
     )
     
     note = models.TextField(
+        blank=True
+    )
+
+    # ไอคอนของรายการหนี้
+    icon = models.CharField(
+        max_length=30,
+        default='school'
+    )
+
+    # สีพื้นหลังไอคอน
+    color = models.CharField(
+        max_length=30,
+        default='purple'
+    )
+
+    image = models.URLField(
+        max_length=500,
+        null=True,
         blank=True
     )
 
@@ -147,13 +165,13 @@ class Payments(models.Model):
     # วันครบกำหนดของงวด
     due_date = models.DateField()
     # วันที่จ่ายจริง
-    payment_date = models.DateField(
+    paid_date = models.DateField(
         null=True,
         blank=True
     )
     
-    proof_image = models.ImageField(
-        upload_to='payment_proofs/',
+    proof_image = models.URLField(
+        max_length=500,
         null=True,
         blank=True
     )
