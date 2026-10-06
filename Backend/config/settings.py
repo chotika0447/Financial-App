@@ -6,6 +6,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / '.env')
+
 # =================== Security ===================
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY')
@@ -13,7 +14,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-#กำหนดว่า Host ไหนเข้าถึง Django ได้
+# กำหนดว่า Host ไหนเข้าถึง Django ได้
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
@@ -21,20 +22,28 @@ ALLOWED_HOSTS = [
     'glimmer-grunt-obstruct.ngrok-free.dev',
 ]
 
+
 # =================== LINE ===================
-LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")#LINE Messaging API / LINE OA
-LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")#ตรวจสอบ webhook signature
-LINE_LOGIN_CHANNEL_ID = os.getenv("LINE_LOGIN_CHANNEL_ID")#LINE Login
+LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
+LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
+
+# รองรับ line_bot/views.py
+LINE_BOT_CHANNEL_ACCESS_TOKEN = LINE_CHANNEL_ACCESS_TOKEN
+LINE_BOT_CHANNEL_SECRET = LINE_CHANNEL_SECRET
+
+LINE_LOGIN_CHANNEL_ID = os.getenv("LINE_LOGIN_CHANNEL_ID")
+
 
 # =================== CORS / CSRF ===================
-#ส่วนนี้ใช้กับ React ที่เป็นระบบ frontend
+# ส่วนนี้ใช้กับ React ที่เป็นระบบ Frontend
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'https://financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
 ]
-#URL ที่ Django ยอมให้ส่ง POST/CSRF
+
+# URL ที่ Django ยอมให้ส่ง POST/CSRF
 CSRF_TRUSTED_ORIGINS = [
     'https://financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
@@ -42,7 +51,6 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 # =================== Applications ===================
-# บอก Django ว่ามี App อะไรบ้าง *สำคัญ*ต้องใส่ App ที่เราสร้างขึ้นเองด้วย
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -56,30 +64,37 @@ INSTALLED_APPS = [
 
     'users',
     'transactions',
+    'categories',
     'debts',
     'friends',
     'notifications',
     'savings',
     'line_bot',
 ]
+
+
 # =================== Authentication ===================
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
-# =========================== Django REST Framework ===========================
+
+
+# =================== Django REST Framework ===================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'users.authentication.LineJWTAuthentication',
     ),
 }
 
-# =========================== JWT: JSON WEB TOKEN ===========================
+
+# =================== JWT: JSON WEB TOKEN ===================
 SIMPLE_JWT = {
     'USER_ID_FIELD': 'uid',
     'USER_ID_CLAIM': 'uid',
 }
 
-# =========================== Middleware ===========================
+
+# =================== Middleware ===================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -92,17 +107,16 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    
 ]
 
 
-# =========================== URLs / Templates ===========================
+# =================== URLs / Templates ===================
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],  # ถ้าจะใช้ templates ที่สร้างเอง ใส่ BASE_DIR / 'templates'
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -114,12 +128,12 @@ TEMPLATES = [
     },
 ]
 
-# =========================== WSGI ===========================
+
+# =================== WSGI ===================
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# =========================== Database ===========================
-# https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
+# =================== Database ===================
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -131,10 +145,8 @@ DATABASES = {
     }
 }
 
-# =========================== Password validation ===========================
 
-# https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
-
+# =================== Password validation ===================
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -150,9 +162,8 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# =========================== Internationalization ===================================
-# https://docs.djangoproject.com/en/6.1/topics/i18n/
 
+# =================== Internationalization ===================
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'Asia/Bangkok'
@@ -161,14 +172,18 @@ USE_I18N = True
 
 USE_TZ = True
 
-# =================== Static files (CSS, JavaScript, Images) ===================
-# https://docs.djangoproject.com/en/6.1/howto/static-files/
- 
-STATIC_URL = 'static/' 
 
-# =========================== Email ===========================================
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
+# =================== Static files ===================
+STATIC_URL = 'static/'
 
+
+# =================== Media files ===================
+# ใช้สำหรับรูปใบเสร็จของ Transaction
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+
+# =================== Email ===================
 MAILERS = {
     'default': {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',

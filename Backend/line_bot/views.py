@@ -1,23 +1,36 @@
 import json
-import hmac #ใช้ตรวจสอบความถูกต้องของ Webhook
-import hashlib #ใช้เลือก algorithm สำหรับการสร้าง hash
-import base64 #หลังจากสร้าง hash แล้วจะแปลงเป็น Base64:
-import requests
+import hmac
+import hashlib
+import base64
+import traceback
+import httpx
 
-from django.conf import settings #เอาไว้เข้าถึงค่าที่เราตั้งไว้ใน settings.py เช่น LINE_CHANNEL_ACCESS_TOKEN และ LINE_CHANNEL_SECRET
-from django.http import JsonResponse #เอาไว้ให้ Django ส่ง response กลับไปเป็น JSON + HTTP status เพื่อให้ LINE รู้ว่าเราได้รับข้อความแล้ว
-from django.views.decorators.csrf import csrf_exempt 
+
+from django.conf import settings
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
+
 
 from .parser import parse_financial_message
-from users.models import User, PersonalProfile
+from transactions.models import Transaction
+from categories.models import Category
+from users.models import User
+
+
+# ==========================================
+# ตอบข้อความกลับ LINE
+# ==========================================
 
 def reply_to_line(reply_token, message_text):
-    # LINE Messaging API
+
     url = "https://api.line.me/v2/bot/message/reply"
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {settings.LINE_CHANNEL_ACCESS_TOKEN}",
+        "Authorization": (
+            f"Bearer {settings.LINE_BOT_CHANNEL_ACCESS_TOKEN}"
+        ),
     }
 
     data = {
@@ -29,128 +42,594 @@ def reply_to_line(reply_token, message_text):
             }
         ],
     }
-    #Django ส่ง HTTP POST ไปที่ LINE Reply API เพื่อให้ LINE ส่งข้อความกลับไปยังผู้ใช้
-    response = requests.post(
+
+    response = httpx.post(
         url,
         headers=headers,
-        json=data
+        json=data,
+        timeout=10,
     )
 
-    print("LINE Reply Status:", response.status_code)
-    print("LINE Reply Response:", response.text)
-
-
-def get_line_profile(line_user_id):
-    url = f"https://api.line.me/v2/bot/profile/{line_user_id}"
-
-    headers = {
-        "Authorization": f"Bearer {settings.LINE_CHANNEL_ACCESS_TOKEN}"
-    }
-
-    response = requests.get(
-        url,
-        headers=headers
+    print(
+        "LINE REPLY STATUS:",
+        response.status_code
     )
 
-    print("LINE Profile Status:", response.status_code)
-    print("LINE Profile Response:", response.text)
+    print(
+        "LINE REPLY RESPONSE:",
+        response.text
+    )
 
-    if response.status_code == 200:
-        return response.json()
+    return response
 
-    return None
 
-"""
-ยกเว้น CSRF protection ของdjango สำหรับ webhook ของ LINE 
-เพราะLINE เป็น external service ที่ยิง request เข้ามา และไม่ได้ส่ง Django CSRF token
-"""
+# ==========================================
+# LINE Webhook
+# ==========================================
+
 @csrf_exempt
 def line_webhook(request):
 
-    if request.method != "POST":
-        return JsonResponse(
-            {"message": "LINE Webhook is working"},
-            status=200
+    print(
+        "\n========== LINE WEBHOOK START =========="
+    )
+
+    try:
+
+        # ------------------------------------------
+        # เปิด URL ผ่าน browser
+        # ------------------------------------------
+
+        if request.method != "POST":
+
+            return JsonResponse(
+                {
+                    "message":
+                    "LINE Webhook is working"
+                },
+                status=200,
+            )
+
+
+        # ------------------------------------------
+        # ตรวจ LINE credentials
+        # ------------------------------------------
+
+        if not settings.LINE_BOT_CHANNEL_SECRET:
+
+            print(
+                "ERROR: LINE_BOT_CHANNEL_SECRET ไม่มีค่า"
+            )
+
+            return JsonResponse(
+                {
+                    "error":
+                    "LINE channel secret not configured"
+                },
+                status=503,
+            )
+
+
+        if not settings.LINE_BOT_CHANNEL_ACCESS_TOKEN:
+
+            print(
+                "ERROR: LINE_BOT_CHANNEL_ACCESS_TOKEN ไม่มีค่า"
+            )
+
+            return JsonResponse(
+                {
+                    "error":
+                    "LINE access token not configured"
+                },
+                status=503,
+            )
+
+
+        # ------------------------------------------
+        # Signature
+        # ------------------------------------------
+
+        body = request.body
+
+        signature = request.headers.get(
+            "X-Line-Signature"
         )
 
-    #เอา Body และ Signature(จาก HTTP Header)เพื่อเอาไปตรวจสอบความถูกต้องของ Webhook
-    body = request.body
-    signature = request.headers.get("X-Line-Signature")
-
-    #ถ้าไม่มี Signature จะไม่รับ request นี้ เพราะไม่สามารถตรวจสอบความถูกต้องได้
-    if not signature:
-        return JsonResponse(
-            {"error": "Missing X-Line-Signature"},
-            status=400
+        print(
+            "STEP 1: CHECK SIGNATURE"
         )
 
-    #เอา Channel Secret + ข้อมูลที่ LINE ส่งมา ไปสร้าง HMAC-SHA256 เพื่อเอา hash มาเปรียบเทียบกับ Signature ที่ LINE ส่งมา
-    hash_value = hmac.new(
-        settings.LINE_CHANNEL_SECRET.encode("utf-8"),
-        body,
-        hashlib.sha256 #ใช้ SHA256 ในการสร้าง hash
-    ).digest()
 
-    expected_signature = base64.b64encode(hash_value).decode("utf-8")
+        if not signature:
 
-    #ใช้ hmac.compare_digest() เพื่อเปรียบเทียบ Signature ที่ LINE ส่งมา กับ Signature ที่เราสร้างขึ้นเอง
-    if not hmac.compare_digest(signature, expected_signature):
-        return JsonResponse(
-            {"error": "Invalid signature"},
-            status=400
+            print(
+                "ERROR: Missing X-Line-Signature"
+            )
+
+            return JsonResponse(
+                {
+                    "error":
+                    "Missing X-Line-Signature"
+                },
+                status=400,
+            )
+
+
+        hash_value = hmac.new(
+            settings.LINE_BOT_CHANNEL_SECRET.encode(
+                "utf-8"
+            ),
+            body,
+            hashlib.sha256,
+        ).digest()
+
+
+        expected_signature = base64.b64encode(
+            hash_value
+        ).decode(
+            "utf-8"
         )
 
-    data = json.loads(body)
 
-    print("LINE WEBHOOK:")
-    print(json.dumps(data, indent=2, ensure_ascii=False))
+        if not hmac.compare_digest(
+            signature,
+            expected_signature,
+        ):
 
-    #ดึงรายการ Event ออกมาโดยยใช้ []list เพราะ LINE Webhook สามารถส่งหลาย events มาใน request เดียวได้
-    events = data.get("events", [])
+            print(
+                "SIGNATURE NOT MATCH"
+            )
 
-    #วนตรวจทุก Event ที่ LINE ส่งมา
-    for event in events:
+            return JsonResponse(
+                {
+                    "error":
+                    "Invalid signature"
+                },
+                status=400,
+            )
 
-        if event.get("type") == "message":
 
-            message = event.get("message", {})
+        print(
+            "SIGNATURE MATCH"
+        )
 
-            #กรองเฉพาะข้อความที่เป็น type "text" เท่านั้น
-            if message.get("type") == "text":
 
-                text = message.get("text")
-                reply_token = event.get("replyToken")
-                #replyTokenคือสิทธิ์สำหรับตอบกลับข้อความนี้ที่ LINE ส่งมาให้ แล้วต้องเอา token นี้ไปให้ LINE Reply API ตอบกลับผู้ใช้
-                result = parse_financial_message(text)#ส่งข้อความเข้า Parser
+        # ------------------------------------------
+        # JSON
+        # ------------------------------------------
 
-                line_user_id = event.get("source", {}).get("userId")
-                line_profile = get_line_profile(line_user_id)
-                if line_profile:
-                    print("LINE USER ID:", line_profile.get("userId"))
-                    print("LINE NAME:", line_profile.get("displayName"))
-                    print("LINE PICTURE:", line_profile.get("pictureUrl"))
-                    print("ข้อความจาก LINE:", text)
+        print(
+            "STEP 2: READ JSON"
+        )
 
-                
-                #ถ้ามีresult แสดงว่าข้อความนี้สามารถแยกประเภทและจำนวนเงินได้
-                if result and result.get("success"):
+        data = json.loads(
+            body.decode(
+                "utf-8"
+            )
+        )
+
+
+        print(
+            json.dumps(
+                data,
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+
+
+        events = data.get(
+            "events",
+            []
+        )
+
+
+        print(
+            "EVENT COUNT:",
+            len(events)
+        )
+
+
+        # LINE Verify อาจไม่มี event
+        if not events:
+
+            print(
+                "NO EVENT - VERIFY REQUEST"
+            )
+
+            print(
+                "========== LINE WEBHOOK END ==========\n"
+            )
+
+            return JsonResponse(
+                {
+                    "status":
+                    "ok"
+                },
+                status=200,
+            )
+
+
+        # ------------------------------------------
+        # Event
+        # ------------------------------------------
+
+        for event in events:
+
+            print(
+                "STEP 3: EVENT"
+            )
+
+            print(
+                "EVENT TYPE:",
+                event.get(
+                    "type"
+                )
+            )
+
+
+            if event.get(
+                "type"
+            ) != "message":
+
+                continue
+
+
+            message = event.get(
+                "message",
+                {},
+            )
+
+
+            if message.get(
+                "type"
+            ) != "text":
+
+                continue
+
+
+            text = message.get(
+                "text",
+                "",
+            )
+
+
+            reply_token = event.get(
+                "replyToken"
+            )
+
+
+            line_user_id = event.get(
+                "source",
+                {},
+            ).get(
+                "userId"
+            )
+
+
+            print(
+                "MESSAGE:",
+                text
+            )
+
+            print(
+                "LINE USER ID:",
+                line_user_id
+            )
+
+
+            # ------------------------------------------
+            # Parser
+            # ------------------------------------------
+
+            print(
+                "STEP 4: PARSER"
+            )
+
+
+            result = parse_financial_message(
+                text
+            )
+
+
+            print(
+                "PARSE RESULT:",
+                result
+            )
+
+
+            # ------------------------------------------
+            # Parser สำเร็จ
+            # ------------------------------------------
+
+            if result and result.get(
+                "success"
+            ):
+
+                print(
+                    "STEP 5: FIND USER"
+                )
+
+
+                user = User.objects.filter(
+                    line_uid=line_user_id
+                ).first()
+
+
+                print(
+                    "USER FOUND:",
+                    user is not None,
+                )
+
+
+                # --------------------------------------
+                # ยังไม่ได้เชื่อม LINE
+                # --------------------------------------
+
+                if user is None:
 
                     reply_message = (
-                        f"ตรวจพบรายการค่ะ\n"
-                        f"ประเภท: {'รายรับ' if result['type'] == 'income' else 'รายจ่าย'}\n"
-                        f"จำนวน: {result['amount']:,.2f} บาท\n"
-                        f"หมวดหมู่: {result['category']}\n"
-                        f"รายละเอียด: {result['description']}"
+                        "ยังไม่พบบัญชีที่เชื่อมกับ LINE นี้ค่ะ "
+                        "กรุณาสมัครหรือเข้าสู่ระบบ"
+                        "ด้วยบัญชี LINE เดียวกันก่อน"
                     )
+
 
                 else:
 
-                    reply_message = (
-                        "ขอโทษค่ะ ยังไม่เข้าใจรายการนี้ 😅\n"
-                        "ลองพิมพ์ เช่น\n"
-                        "กินข้าว 60 บาท"
+                    # ----------------------------------
+                    # Category
+                    # ----------------------------------
+
+                    print(
+                        "STEP 6: CATEGORY"
                     )
 
-                reply_to_line(reply_token, reply_message)
 
-    return JsonResponse({"status": "ok"}, status=200)
+                    category_name = result.get(
+                        "category",
+                        "อื่นๆ",
+                    )
+
+
+                    transaction_type = result.get(
+                        "type"
+                    )
+
+
+                    print(
+                        "CATEGORY:",
+                        category_name,
+                    )
+
+
+                    print(
+                        "TRANSACTION TYPE:",
+                        transaction_type,
+                    )
+
+
+                    category = Category.objects.filter(
+                        name=category_name,
+                        transaction_type=transaction_type,
+                    ).first()
+
+
+                    if category is None:
+
+                        print(
+                            "CATEGORY NOT FOUND -> CREATE"
+                        )
+
+
+                        category = Category.objects.create(
+                            name=category_name,
+                            transaction_type=transaction_type,
+                        )
+
+
+                    print(
+                        "CATEGORY ID:",
+                        category.id,
+                    )
+
+
+                    # ----------------------------------
+                    # Transaction
+                    # ----------------------------------
+
+                    print(
+                        "STEP 7: CREATE TRANSACTION"
+                    )
+
+
+                    now = timezone.localtime()
+
+
+                    transaction = Transaction.objects.create(
+
+                        user=user,
+
+                        amount=result.get(
+                            "amount"
+                        ),
+
+                        transaction_type=transaction_type,
+
+                        description=result.get(
+                            "description",
+                            "",
+                        ),
+
+                        category=category,
+
+                        sub_category=result.get(
+                            "sub_category",
+                            "",
+                        ),
+
+                        account=result.get(
+                            "account",
+                            "",
+                        ),
+
+                        transaction_date=now.date(),
+
+                        transaction_time=(
+                            now.time().replace(
+                                microsecond=0
+                            )
+                        ),
+                    )
+
+
+                    print(
+                        "TRANSACTION CREATED ID:",
+                        transaction.id,
+                    )
+
+
+                    # ----------------------------------
+                    # ข้อความตอบ
+                    # ----------------------------------
+
+                    if transaction_type == "income":
+
+                        type_text = "รายรับ"
+
+                    else:
+
+                        type_text = "รายจ่าย"
+
+
+                    # ถ้าไม่ได้ระบุบัญชี
+                    # หรือช่องทางชำระ
+                    # ให้แสดงเป็น "-"
+                    account_text = (
+                        result.get(
+                            "account"
+                        )
+                        or "-"
+                    )
+
+
+                    reply_message = (
+                        f"บันทึกรายการแล้วค่ะ\n"
+                        f"ประเภท: {type_text}\n"
+                        f"จำนวน: "
+                        f"{result.get('amount', 0):,.2f} บาท\n"
+                        f"หมวดหมู่: {category_name}\n"
+                        f"หมวดหมู่ย่อย: "
+                        f"{result.get('sub_category', '')}\n"
+                        f"บัญชี: {account_text}\n"
+                        f"รายละเอียด: "
+                        f"{result.get('description', '')}"
+                    )
+
+
+            # ------------------------------------------
+            # Parser ไม่เข้าใจ
+            # ------------------------------------------
+
+            else:
+
+                print(
+                    "PARSER FAILED"
+                )
+
+
+                reply_message = (
+                    "ขอโทษค่ะ ยังไม่เข้าใจรายการนี้ 😅\n"
+                    "ลองพิมพ์ เช่น\n"
+                    "กินข้าว 60 บาท"
+                )
+
+
+            # ------------------------------------------
+            # Reply LINE
+            # ------------------------------------------
+
+            print(
+                "STEP 8: REPLY LINE"
+            )
+
+
+            if reply_token:
+
+                reply_to_line(
+                    reply_token,
+                    reply_message,
+                )
+
+
+            print(
+                "STEP 8 COMPLETE"
+            )
+
+
+        print(
+            "========== LINE WEBHOOK SUCCESS ==========\n"
+        )
+
+
+        return JsonResponse(
+            {
+                "status":
+                "ok"
+            },
+            status=200,
+        )
+
+
+    except Exception as error:
+
+        print(
+            "\n"
+        )
+
+        print(
+            "!!!!!!!!!! WEBHOOK ERROR !!!!!!!!!!"
+        )
+
+        print(
+            "ERROR TYPE:",
+            type(error).__name__
+        )
+
+        print(
+            "ERROR MESSAGE:",
+            str(error)
+        )
+
+        print(
+            ""
+        )
+
+        print(
+            "TRACEBACK:"
+        )
+
+        traceback.print_exc()
+
+        print(
+            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        )
+
+        print(
+            "\n"
+        )
+
+
+        return JsonResponse(
+            {
+                "status":
+                "error",
+
+                "error_type":
+                type(error).__name__,
+
+                "error":
+                str(error),
+            },
+            status=500,
+        )

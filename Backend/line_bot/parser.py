@@ -1,121 +1,289 @@
-import re
+import pandas as pd
 
-from django.utils import text
 
-#แปลงข้อความจาก Line มาเก็บใส่ตัวแปร
+EXCEL_FILE = "financial_data.xlsx"
+
+
+# ==================================================
+# อ่าน Brand Database จาก Excel
+# ==================================================
+
+def load_brand_database():
+
+    try:
+
+        df = pd.read_excel(
+            EXCEL_FILE,
+            sheet_name="Brand_Database"
+        )
+
+        brands = {}
+
+        for index, row in df.iterrows():
+
+            # ถ้าไม่มี Keyword ให้ข้าม
+            if pd.isna(row["Keyword"]):
+                continue
+
+            keyword = str(
+                row["Keyword"]
+            ).strip().lower()
+
+            brands[keyword] = {
+                "type": str(
+                    row["Type"]
+                ).strip().lower(),
+
+                "category": str(
+                    row["Category"]
+                ).strip(),
+
+                "sub_category": str(
+                    row["Sub_Category"]
+                ).strip(),
+            }
+
+        return brands
+
+    except Exception as error:
+
+        print(
+            "Cannot read Brand_Database:",
+            error
+        )
+
+        return {}
+
+
+# ==================================================
+# วิเคราะห์ข้อความทางการเงิน
+# ==================================================
+
 def parse_financial_message(text):
 
-    # 1.ใช้ regex เพื่อค้นหาจำนวนเงินในข้อความ
-    amount_match = re.search(
-        r'(\d+(?:\.\d{1,2})?)\s*(?:บาท|บ\.?)?',
-        text
-    )
-    if not amount_match:
-        return None
-    
-    amount = float(amount_match.group(1))
+    # -------------------------
+    # 1. หาจำนวนเงิน
+    # -------------------------
 
-    # 2. ตรวจสอบประเภทโดยใช้ keywords ระบุว่าเป็นรายรับหรือรายจ่าย
-    income_keywords = [
-        "เงินเดือน",
-        "รายรับ",
-        "ได้เงิน",
-        "รับเงิน",
-        "โบนัส",
-        "ค่าจ้าง",
-        "ขายของ",
-        "ได้เงินมา",
-    ]
+    amount = 0
 
-    expense_keywords = [
-        "กิน",
-        "อาหาร",
-        "ข้าว",
-        "ซื้อ",
-        "จ่าย",
-        "ค่า",
-        "เดินทาง",
-        "กาแฟ",
-        "ช้อป",
-        "เติมน้ำมัน",
-    ]
+    words = text.split()
 
-    transaction_type = None
+    for word in words:
 
-    for keyword in income_keywords:
-        if keyword in text:
-            transaction_type = "income"
+        clean_word = (
+            word
+            .replace("บาท", "")
+            .replace("บ.", "")
+            .replace(",", "")
+            .strip()
+        )
+
+        try:
+
+            amount = float(clean_word)
+
             break
 
-    if transaction_type is None:
-        for keyword in expense_keywords:
-            if keyword in text:
-                transaction_type = "expense"
-                break
-            
-    # 3. กรณีที่ระบุไม่ได้
-    if transaction_type is None:
-        transaction_type = "expense"
+        except ValueError:
 
-    # 3. กรณีที่ระบุไม่ได้
-    if transaction_type is None:
+            continue
+
+    # ถ้าหาจำนวนเงินไม่เจอ
+    if amount <= 0:
+
         return {
             "success": False,
-            "message": "ไม่สามารถระบุได้ว่าเป็นรายรับหรือรายจ่าย"
+            "message": "ไม่พบจำนวนเงิน"
         }
 
-    # 4. กำหนดหมวดหมู่
-    #ค่าเริ่มต้น
+
+    # -------------------------
+    # 2. เตรียมข้อความ
+    # -------------------------
+
+    text_lower = text.lower()
+
+    description = (
+        text
+        .replace("บาท", "")
+        .replace("บ.", "")
+        .strip()
+    )
+
+
+    # -------------------------
+    # 3. หา Account / ช่องทางชำระ
+    # -------------------------
+
+    # ถ้าไม่ได้ระบุช่องทางชำระ
+    # ให้เป็นค่าว่าง ไม่เดาว่าเป็นเงินสด
+    account = ""
+
+
+    account_keywords = {
+
+        # -------------------------
+        # ShopeePay
+        # ต้องไว้ก่อน "shopeepay"
+        # เพื่อไม่ให้ ShopeePay Later
+        # ถูกจับเป็น ShopeePay ก่อน
+        # -------------------------
+
+        "shopeepay later": "ShopeePay Later",
+        "shopee pay later": "ShopeePay Later",
+        "ช้อปปี้เพย์ later": "ShopeePay Later",
+        "ช้อปปี้เพย์เลเทอร์": "ShopeePay Later",
+        "spaylater": "ShopeePay Later",
+        "spay later": "ShopeePay Later",
+
+        "shopeepay": "ShopeePay",
+        "shopee pay": "ShopeePay",
+        "ช้อปปี้เพย์": "ShopeePay",
+
+
+        # -------------------------
+        # ธนาคาร
+        # -------------------------
+
+        "กสิกร": "กสิกร",
+        "kbank": "กสิกร",
+
+        "ไทยพาณิชย์": "ไทยพาณิชย์",
+        "scb": "ไทยพาณิชย์",
+
+        "กรุงเทพ": "กรุงเทพ",
+        "bbl": "กรุงเทพ",
+
+        "กรุงไทย": "กรุงไทย",
+        "ktb": "กรุงไทย",
+
+        "กรุงศรี": "กรุงศรี",
+        "bay": "กรุงศรี",
+
+
+        # -------------------------
+        # บัตร
+        # -------------------------
+
+        "บัตรเครดิต": "บัตรเครดิต",
+        "credit card": "บัตรเครดิต",
+
+
+        # -------------------------
+        # เงินสด
+        # -------------------------
+
+        "เงินสด": "เงินสด",
+        "cash": "เงินสด",
+
+
+        # -------------------------
+        # TrueMoney
+        # -------------------------
+
+        "truemoney": "TrueMoney",
+        "true money": "TrueMoney",
+        "ทรูมันนี่": "TrueMoney",
+
+
+        # -------------------------
+        # PromptPay
+        # -------------------------
+
+        "พร้อมเพย์": "พร้อมเพย์",
+        "promptpay": "พร้อมเพย์",
+        "prompt pay": "พร้อมเพย์",
+    }
+
+
+    for keyword, account_name in account_keywords.items():
+
+        if keyword in text_lower:
+
+            account = account_name
+
+            break
+
+
+    # -------------------------
+    # 4. ค่าเริ่มต้น
+    # -------------------------
+
+    transaction_type = "expense"
+
     category = "อื่นๆ"
 
-    if any(keyword in text for keyword in [
-        "กิน",
-        "ข้าว",
-        "อาหาร",
-        "กาแฟ",
-    ]):
-        category = "อาหาร"
+    sub_category = "ทั่วไป"
 
-    elif any(keyword in text for keyword in [
-        "รถ",
-        "น้ำมัน",
-        "แท็กซี่",
-        "เดินทาง",
-        "รถไฟ",
-        "รถเมล์",
-    ]):
-        category = "การเดินทาง"
+    is_known_brand = False
 
-    elif any(keyword in text for keyword in [
-        "ค่าไฟ",
-        "ค่าน้ำ",
-        "ค่าโทรศัพท์",
-        "ค่าเน็ต",
-        "อินเทอร์เน็ต",
-    ]):
-        category = "สาธารณูปโภค"
 
-    elif any(keyword in text for keyword in [
-        "ซื้อ",
-        "ช้อป",
-        "เสื้อ",
-        "รองเท้า",
-    ]):
-        category = "ช้อปปิ้ง"
+    # -------------------------
+    # 5. หา Brand จาก Excel
+    # -------------------------
 
-    elif any(keyword in text for keyword in [
+    brands = load_brand_database()
+
+    for keyword, brand in brands.items():
+
+        if keyword in text_lower:
+
+            transaction_type = brand["type"]
+
+            category = brand["category"]
+
+            sub_category = brand["sub_category"]
+
+            is_known_brand = True
+
+            break
+
+
+    # -------------------------
+    # 6. ตรวจว่าเป็นรายรับหรือไม่
+    # -------------------------
+
+    income_words = [
         "เงินเดือน",
         "โบนัส",
-        "ค่าจ้าง",
-    ]):
-        category = "เงินเดือน"
+        "ขายได้",
+        "รายรับ",
+        "รับเงิน",
+        "ได้เงิน",
+        "ปันผล",
+        "ดอกเบี้ย",
+        "cashback",
+        "เงินคืน",
+    ]
 
 
-    # 5. return ข้อมูลที่จะเอาไปแสดง
+    for word in income_words:
+
+        if word in text_lower:
+
+            transaction_type = "income"
+
+            if category == "อื่นๆ":
+
+                category = "รายได้"
+
+                sub_category = "ทั่วไป"
+
+            break
+
+
+    # -------------------------
+    # 7. ส่งข้อมูลกลับ
+    # -------------------------
+
     return {
         "success": True,
         "type": transaction_type,
         "amount": amount,
         "category": category,
-        "description": text,
+        "sub_category": sub_category,
+        "account": account,
+        "description": description,
+        "is_known_brand": is_known_brand,
     }
