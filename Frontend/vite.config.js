@@ -8,6 +8,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+
   server: {
     port: 5173,
 
@@ -22,6 +23,11 @@ export default defineConfig({
       },
 
       '/transactions': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+
+      '/debts': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
