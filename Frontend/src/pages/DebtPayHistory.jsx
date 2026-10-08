@@ -42,7 +42,12 @@ function DebtPaymentHistory({ debt, onBack }) {
                     );
                 }
 
-                setPayments(data);
+                // เอารายการทั้งหมดมาเรียงตามวันที่ชำระจากใหม่ไปเก่า
+                const sortedPayments = [...data].sort(
+                    (a, b) => new Date(b.paid_date) - new Date(a.paid_date)
+                );
+
+                setPayments(sortedPayments);
 
             } catch (error) {
                 console.error(
@@ -85,13 +90,13 @@ function DebtPaymentHistory({ debt, onBack }) {
 
     const statusText = {
         pending: "กำลังรอยืนยัน",
-        approved: "ยืนยันแล้ว",
+        confirmed: "ยืนยันแล้ว",
         rejected: "ไม่อนุมัติ",
     };
 
     const statusClass = {
-        pending: "bg-gray-100 text-gray-500",
-        approved: "bg-green-500 text-white",
+        pending: "bg-yellow-100 text-black",
+        confirmed: "bg-green-500 text-white",
         rejected: "bg-red-500 text-white",
     };
 
@@ -140,7 +145,7 @@ function DebtPaymentHistory({ debt, onBack }) {
                             {/* ชื่อและวันที่ */}
                             <div className="flex items-center gap-2 mb-3">
                                 <div className="bg-[#252525] text-white text-xs px-2 py-2 -ml-[14px]">
-                                    งวดที่ {index + 1}
+                                    งวดที่ {payments.length - index}
                                 </div>
 
                                 <label className="flex items-center gap-1 border border-gray-400 rounded-full px-2 py-1 text-[10px] text-gray-500">
@@ -152,7 +157,7 @@ function DebtPaymentHistory({ debt, onBack }) {
                                             value={payment.date}
                                             onChange={(e) =>
                                                 updatePayment(payment.id, {
-                                                    date: e.target.value,
+                                                    paid_date: e.target.value,
                                                 })
                                             }
                                             className="w-[120px] outline-none bg-transparent"
@@ -264,18 +269,18 @@ function DebtPaymentHistory({ debt, onBack }) {
                                     )}
 
                                     {/* ปุ่มตรวจสอบสำหรับหนี้ที่เราให้ยืม */}
-                                    {!isBorrow && (
+                                    {/* ถ้าเป็นการยืมและมีการเชื่อมบัญชีเพื่อน ให้แสดงปุ่มยืนยัน/ไม่อนุมัติ */}
+                                    {!isBorrow && debt.counterparty && (
                                         <div className="flex gap-1 mt-2">
                                             <button
                                                 disabled={payment.confirm_status !== "pending"}
                                                 onClick={() =>
                                                     updatePayment(payment.id, {
-                                                        status: "approved",
+                                                        confirm_status: "confirmed",
                                                     })
                                                 }
-                                                className="flex-1 rounded-md bg-green-500 text-white text-[10px] py-2 disabled:bg-gray-300"
-                                            >
-                                                {payment.confirm_status === "approved"
+                                                className="flex-1 rounded-md bg-green-500 text-white text-[10px] py-2 disabled:bg-gray-300">
+                                                {payment.confirm_status === "confirmed"
                                                     ? "ยืนยันรับทราบแล้ว"
                                                     : "ยืนยันรับทราบ"}
                                             </button>
@@ -284,15 +289,15 @@ function DebtPaymentHistory({ debt, onBack }) {
                                                 disabled={payment.confirm_status !== "pending"}
                                                 onClick={() =>
                                                     updatePayment(payment.id, {
-                                                        status: "rejected",
+                                                        confirm_status: "rejected",
                                                     })
                                                 }
-                                                className="flex-1 rounded-md bg-red-500 text-white text-[10px] py-2 disabled:bg-gray-300"
-                                            >
+                                                className="flex-1 rounded-md bg-red-500 text-white text-[10px] py-2 disabled:bg-gray-300">
                                                 {payment.confirm_status === "rejected"
                                                     ? "ไม่อนุมัติแล้ว"
                                                     : "ไม่อนุมัติ"}
                                             </button>
+
                                         </div>
                                     )}
                                 </div>

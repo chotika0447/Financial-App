@@ -15,11 +15,12 @@ import {
   Image,
 } from "lucide-react";
 
-function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDebt, onSubmit }) {
+function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDebt, onSubmit, friends = [], }) {
 
   const initialForm = {
     name: "",
     counterparty: "",
+    counterpartyId: null,
     totalAmount: "",
     remainingAmount: "",
     paymentType: "monthly",
@@ -36,19 +37,22 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);//ข้อความแจ้งเตือนก่อนปิดหน้าต่าง
   const [saving, setSaving] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
+  const [showFriendPicker, setShowFriendPicker] = useState(false);//สถานะแสดงหน้าต่างเลือกบัญชีเพื่อน
+  const [counterpartyMode, setCounterpartyMode] = useState("manual"); //สถานะการเลือกบัญชีเพื่อนหรือใส่ชื่อเฉยๆ
 
   useEffect(() => {
     if (editingDebt) {
       setForm({
         name: editingDebt.name || "",
         counterparty: editingDebt.counterparty_name || "",
+        counterpartyId: editingDebt.counterparty || null,
         totalAmount: editingDebt.total_amount || "",
         remainingAmount: editingDebt.remaining_amount || "",
         paymentType: editingDebt.payment_type || "monthly",
         paymentAmount: editingDebt.payment_amount || "",
         paymentDate: editingDebt.payment_date || "",
         dueDate: editingDebt.due_date || "",
-        description: editingDebt.description || "",
+        description: editingDebt.note || "",
         icon: editingDebt.icon || "school",
         color: editingDebt.color || "purple",
         image: editingDebt.image || null,
@@ -57,10 +61,13 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
       // แสดงรูปเดิมตอนเปิดแก้ไข
       setImagePreview(editingDebt.image || null);
       setIconMode(editingDebt.image ? "upload" : "icon");
+      setCounterpartyMode(editingDebt.counterparty ? "friend" : "manual");
+
     } else {
       setForm(initialForm);// ล้างฟอร์มตอนเพิ่มรายการใหม่
       setImagePreview(null);// ล้าง preview ตอนเพิ่มรายการใหม่
       setIconMode("icon");
+      setCounterpartyMode("manual");
     }
   }, [editingDebt]);
 
@@ -156,7 +163,14 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
       const formData = new FormData();
 
       formData.append("name", form.name);
-      formData.append("counterparty_name", form.counterparty);
+      formData.append("counterparty_name", form.counterparty)
+      // ถ้ามีการเลือกบัญชีเพื่อน ให้ส่งค่า counterpartyId ไปด้วย
+      if (form.counterpartyId) {
+        formData.append("counterparty", form.counterpartyId);
+      } else {
+        formData.append("counterparty", "");
+      }
+
       formData.append("type", currentDebtType === "borrow" ? "borrowed" : "lent");
       formData.append("total_amount", form.totalAmount);
       formData.append("payment_type", form.paymentType);
@@ -466,7 +480,7 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                                   : ""
                                 }`}
                             >
-                              <span className={`h-[22px] w-[22px] rounded-full ${item.className}`}/>
+                              <span className={`h-[22px] w-[22px] rounded-full ${item.className}`} />
                             </button>
                           );
                         })}
@@ -561,16 +575,42 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
 
               <button
                 type="button"
-                className="
-                  rounded-full
-                  bg-green-500
-                  px-2
-                  py-[2px]
-                  text-[9px]
-                  text-white
-                "
-              >
+                onClick={() => setShowFriendPicker(true)}
+                className="rounded-full bg-green-500 px-2 py-[2px] text-[9px] text-white">
                 + เลือกเพื่อน
+              </button>
+
+            </div>
+
+            {/* แสดงว่าเลือกเพื่อนหรือกรอกเอง */}
+            <div className="mb-2 flex h-[30px] overflow-hidden rounded-full border border-gray-300">
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCounterpartyMode("friend");
+                  setShowFriendPicker(true);
+                }}
+                className={`flex-1 text-[10px] ${counterpartyMode === "friend" ? "bg-gray-800 text-white" : "bg-white text-gray-500"}`}
+              >
+                เลือกเพื่อน
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCounterpartyMode("manual");
+
+                  handleChange("counterpartyId", null);
+                  handleChange("counterparty", "");
+                }}
+                className={`flex-1 text-[10px]
+        ${counterpartyMode === "manual"
+                    ? "bg-gray-800 text-white"
+                    : "bg-white text-gray-500"
+                  }`}
+              >
+                ระบุชื่อเอง
               </button>
 
             </div>
@@ -578,23 +618,25 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
             <input
               type="text"
               value={form.counterparty}
-              onChange={(e) =>
-                handleChange(
-                  "counterparty",
-                  e.target.value
-                )
+              disabled={counterpartyMode === "friend"}
+              placeholder={
+                counterpartyMode === "friend"
+                  ? "เลือกเพื่อนจากปุ่มด้านบน"
+                  : "กรอกชื่อเจ้าหนี้ / ลูกหนี้"
               }
-              className="
-                h-[30px]
-                w-full
-                rounded-[9px]
-                border border-gray-300
-                bg-gray-100
-                px-2
-                text-[12px]
-                outline-none
-              "
-            />
+              onChange={(e) => {
+                handleChange("counterparty", e.target.value);
+
+                // ถ้าพิมพ์เอง ต้องยกเลิกการผูกบัญชีเพื่อน
+                handleChange("counterpartyId", null);
+              }}
+              className="h-[30px] w-full rounded-[9px] border border-gray-300 bg-gray-100 px-2 text-[12px] outline-none disabled:text-gray-500" />
+
+            {counterpartyMode === "friend" && form.counterparty && (
+              <p className="mt-1 text-[9px] text-green-600">
+                ✓ เชื่อมโยงกับบัญชีผู้ใช้แล้ว
+              </p>
+            )}
 
           </div>
 
@@ -745,28 +787,8 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                   งวดชำระทุกวันที่
                 </label>
 
-                <input
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={form.paymentDay}
-                  onChange={(e) =>
-                    handleChange(
-                      "paymentDay",
-                      e.target.value
-                    )
-                  }
-                  className="
-                    h-[30px]
-                    w-full
-                    rounded-[8px]
-                    border border-gray-300
-                    bg-white
-                    px-2
-                    text-[12px]
-                  "
-                />
-
+                <input type="number" min="1" max="31" value={form.paymentDate} onChange={(e) => handleChange("paymentDate", e.target.value)}
+                       className="h-[30px] w-full rounded-[8px] border border-gray-300 bg-white px-2 text-[12px]"/>
               </div>
 
             </div>
@@ -870,6 +892,109 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
 
       </div>
 
+
+      {showFriendPicker && (
+        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/40">
+
+          <div className="w-[300px] max-h-[70vh] overflow-y-auto rounded-[14px] bg-white p-4 shadow-xl">
+
+            <div className="mb-3 flex items-center justify-between">
+
+              <h3 className="text-[14px] font-semibold text-gray-800">
+                เลือกเพื่อน
+              </h3>
+
+              <button
+                type="button"
+                onClick={() => setShowFriendPicker(false)}
+                className="text-gray-500"
+              >
+                <X size={18} />
+              </button>
+
+            </div>
+
+            {friends.length === 0 ? (
+
+              <div className="py-8 text-center">
+
+                <p className="text-[11px] text-gray-500">
+                  ยังไม่มีรายชื่อเพื่อน
+                </p>
+
+              </div>
+
+            ) : (
+
+              <div className="space-y-2">
+
+                {friends.map((friend) => (
+
+                  <button
+                    key={friend.uid || friend.id}
+                    type="button"
+                    onClick={() => {
+
+                      handleChange(
+                        "counterpartyId",
+                        friend.uid || friend.id
+                      );
+
+                      handleChange(
+                        "counterparty",
+                        friend.username
+                      );
+
+                      setCounterpartyMode("friend");
+                      setShowFriendPicker(false);
+
+                    }}
+                    className="
+                flex
+                w-full
+                items-center
+                justify-between
+                rounded-[10px]
+                border
+                border-gray-200
+                bg-gray-50
+                px-3
+                py-2
+                text-left
+                hover:bg-gray-100
+              "
+                  >
+
+                    <div>
+
+                      <p className="text-[11px] font-medium text-gray-800">
+                        {friend.username}
+                      </p>
+
+                      <p className="text-[9px] text-gray-500">
+                        UID: {friend.uid}
+                      </p>
+
+                    </div>
+
+                    {form.counterpartyId === (friend.uid || friend.id) && (
+                      <span className="text-[10px] text-green-500">
+                        ✓
+                      </span>
+                    )}
+
+                  </button>
+
+                ))}
+
+              </div>
+
+            )}
+
+          </div>
+
+        </div>
+      )}
       {showCloseConfirm && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/30">
           <div className="w-[280px] rounded-[12px] bg-white p-5 shadow-lg">

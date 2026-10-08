@@ -9,8 +9,10 @@ import Transactions from './pages/Transactions';
 import Saving from './pages/Saving';
 import Debts from './pages/Debts';
 import Notifications from './pages/Notifications';
-
 import Profile from './pages/Profile';
+import Settings from './pages/Settings';
+import AddFriend from './pages/AddFriend';
+
 import { initializeLineLiff, liff, readLineIdentity } from './lineAuth';
 
 function EntryRoute() {
@@ -139,7 +141,16 @@ function App() {
           path="/notifications/"
           element={<Notifications />}
         />
-        
+
+        <Route
+          path="/settings"
+          element={<Settings />}
+        />
+
+        <Route
+          path="/friends/add"
+          element={<AddFriend />}
+        />
 
       </Routes>
 

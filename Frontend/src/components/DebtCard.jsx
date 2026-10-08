@@ -176,22 +176,41 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit }) {
         {/* Action */}
         {isBorrow ? (
           <div className="flex flex-1 h-[30px] gap-2">
-            <button onClick={onViewHistory} className="flex-1 border border-gray-300 rounded-md text-[11px] text-gray-600 bg-white">
+            <button
+              onClick={onViewHistory}
+              className="flex-1 border border-gray-300 rounded-md text-[11px] text-gray-600 bg-white"
+            >
               ดูประวัติการชำระหนี้
             </button>
 
-            <button onClick={onPayment} className="flex-1 rounded-md bg-green-500 text-white text-[11px] font-medium">
+            <button
+              onClick={onPayment}
+              className="flex-1 rounded-md bg-green-500 text-white text-[11px] font-medium"
+            >
               ชำระหนี้
             </button>
           </div>
-        )
-          :
-          (
-            <button onClick={onCheckPayment} className="flex-1 rounded-md bg-[#202020] text-white text-[11px] font-medium">
-              ตรวจสอบการชำระหนี้
-            </button>
-          )}
+        ) : debt.counterparty ? (
+          <button
+            onClick={onCheckPayment}
+            className="flex-1 rounded-md bg-[#202020] text-white text-[11px] font-medium"
+          >
+            ตรวจสอบการชำระหนี้
+          </button>
+        ) : (
+            <div className="flex flex-1 h-[30px] gap-2">
+              <button onClick={onViewHistory} className="flex-1 border border-gray-300 rounded-md text-[11px] text-gray-600 bg-white">
+                ดูประวัติการได้รับเงินคืน
+              </button>
 
+              <button
+                onClick={onPayment}
+                className="flex-1 rounded-md bg-green-500 text-white text-[11px] font-medium"
+              >
+                บันทึกการได้รับเงินคืน
+              </button>
+            </div>
+        )}
       </div>
 
     </div>
