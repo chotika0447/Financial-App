@@ -2,6 +2,7 @@ import { useState } from "react";
 import './CompoundInterest.css'
 import CalNavbar from "../components/CalNavbar";
 import CompoundInterestChart from "../components/CompoundInterestChart";
+import Navbar from '../components/Navbar';
 
 function CompoundInterest() {
     const [presentValue, setPresentValue] = useState(localStorage.getItem('compoundPresentValue') || '');
@@ -75,6 +76,7 @@ function CompoundInterest() {
                 numberOfPeriods={numberOfPeriods}
                 frequency={frequency}
             />
+            <Navbar />
         </div>
     );
 }

@@ -6,12 +6,19 @@ import './App.css'
 
 import Home from './pages/Home';
 import Transactions from './pages/Transactions';
-import Saving from './pages/Saving';
 import Debts from './pages/Debts';
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import AddFriend from './pages/AddFriend';
+
+import Wallet from './pages/Wallet';
+import SavingPlan from './pages/SavingPlan';
+import Retirement from './pages/Retirement';
+import CompoundInterest from './pages/CompoundInterest';
+
+
+
 
 import { initializeLineLiff, liff, readLineIdentity } from './lineAuth';
 
@@ -131,7 +138,7 @@ function App() {
         />
         <Route
           path="/saving/"
-          element={<Saving />}
+          element={<SavingPlan />}
         />
         <Route
           path="/debts/"
@@ -151,6 +158,19 @@ function App() {
           path="/friends/add"
           element={<AddFriend />}
         />
+        <Route
+          path="/retirement"
+          element={<Retirement />}
+        />
+        <Route
+          path="/compound-interest"
+          element={<CompoundInterest />}
+        />
+        <Route
+          path="/saving-plan"
+          element={<SavingPlan />}
+        />
+        
 
       </Routes>
 
