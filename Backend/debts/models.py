@@ -19,23 +19,22 @@ class Debts(models.Model):
         ('monthly', 'รายเดือน'),
     ]
 
-    debt_id = models.AutoField(
+    id = models.AutoField(
         primary_key=True
     )
-
-    debt_name = models.CharField(
+    # ชื่อรายการ
+    name = models.CharField(
         max_length=100
     )
-
-    uid = models.ForeignKey(
+    # ผู้ใช้ที่ทำรายการ
+    user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='debts'
     )
 
-    # ถ้าเป็น User ในระบบ จะเก็บ User ไว้ตรงนี้
-    # ถ้าเป็นคนนอกระบบ จะเป็น NULL
-    counterparty_uid = models.ForeignKey(
+    #ข้อมูลบัญชีของเพื่อน *สามารถเป็น NULL ได้
+    counterparty = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
@@ -43,13 +42,13 @@ class Debts(models.Model):
         related_name='debts_counterparty'
     )
 
-    # ชื่อคนที่เกี่ยวข้องกับหนี้
+    # ชื่อคนที่เกี่ยวข้องกับหนี้/คู่สัญญา
     counterparty_name = models.CharField(
         max_length=100
     )
 
     # เราเป็นคนยืม หรือเป็นคนให้ยืม
-    debt_type = models.CharField(
+    type = models.CharField(
         max_length=10,
         choices=DEBT_TYPE_CHOICES
     )
@@ -65,14 +64,14 @@ class Debts(models.Model):
         max_digits=12,
         decimal_places=2
     )
-
+    #ทยอยชำระ/รายเดือน
     payment_type = models.CharField(
         max_length=20,
         choices=PAYMENT_TYPE_CHOICES
     )
     
-    # จำนวนเงินที่ต้องจ่ายในแต่ละงวด
-    # กรณี flexible สามารถเป็น NULL ได้
+    # จำนวนเงินที่ต้องจ่ายรายเดือนจะแบ่งงวดเท่าๆกัน
+    # แต่ถ้า payment_type = ทยอยชำระ จะเป็น NULL
     payment_amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -80,21 +79,39 @@ class Debts(models.Model):
         blank=True
     )
 
-    # วันครบกำหนด(สำหรับ flexible) 
+    # วันครบกำหนดสุดท้ายในการชำระหนี้ก้อนนี้
     due_date = models.DateField()
     # วันครบกำหนดชำระเงินในแต่ละเดือน (สำหรับ monthly)
-    payment_day = models.PositiveSmallIntegerField(
+    payment_date = models.PositiveSmallIntegerField(
         null=True,
         blank=True
     )
-
+    #สถานะว่าปิดหนี้ก้อนนี้ไปรึยัง
     status = models.CharField(
         max_length=20,
         choices=DEBT_STATUS_CHOICES,
         default='ongoing'
     )
-   
+    
     note = models.TextField(
+        blank=True
+    )
+
+    # ไอคอนของรายการหนี้
+    icon = models.CharField(
+        max_length=30,
+        default='school'
+    )
+
+    # สีพื้นหลังไอคอน
+    color = models.CharField(
+        max_length=30,
+        default='purple'
+    )
+
+    image = models.URLField(
+        max_length=500,
+        null=True,
         blank=True
     )
 
@@ -107,7 +124,7 @@ class Debts(models.Model):
     )
 
     def __str__(self):
-        return f"{self.debt_name} - {self.counterparty_name}"
+        return f"{self.name} - {self.counterparty_name}"
 
 
 class Payments(models.Model):
@@ -124,7 +141,7 @@ class Payments(models.Model):
         ('confirmed', 'ยืนยันแล้ว'),
         ('rejected', 'ไม่ผ่านการตรวจสอบ'),
     ]
-
+    #รหัสหนี้สิน
     debt = models.ForeignKey(
         Debts,
         on_delete=models.CASCADE,
@@ -147,14 +164,14 @@ class Payments(models.Model):
 
     # วันครบกำหนดของงวด
     due_date = models.DateField()
-    # วันที่จ่าย
-    payment_date = models.DateField(
+    # วันที่จ่ายจริง
+    paid_date = models.DateField(
         null=True,
         blank=True
     )
     
-    proof_image = models.ImageField(
-        upload_to='payment_proofs/',
+    proof_image = models.URLField(
+        max_length=500,
         null=True,
         blank=True
     )
@@ -173,13 +190,9 @@ class Payments(models.Model):
         choices=CONFIRM_STATUS,
         default='pending'
     )
-    created_at = models.DateTimeField(
-            auto_now_add=True
-        )
+    created_at = models.DateTimeField(auto_now_add=True)
     
-    updated_at = models.DateTimeField(
-        auto_now=True
-    )
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.debt.debt_name} - {self.paid_amount} บาท - {self.payment_date}"
+        return f"{self.debt.name} - {self.paid_amount} บาท - {self.payment_date}"

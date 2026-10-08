@@ -1,0 +1,248 @@
+.settings-page {
+  min-height: 100vh;
+
+  background: #f7f7f7;
+
+  color: #222;
+}
+
+
+/* ================= HEADER ================= */
+
+.settings-header {
+  height: 80px;
+
+  background: #a6a6a6;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  position: relative;
+}
+
+
+.settings-header h1 {
+  margin: 0;
+
+  font-size: 22px;
+
+  font-weight: 600;
+}
+
+
+.settings-back {
+  position: absolute;
+
+  left: 18px;
+
+  border: none;
+
+  background: transparent;
+
+  color: white;
+
+  font-size: 38px;
+
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+
+/* ================= CONTENT ================= */
+
+.settings-content {
+  width: min(100% - 32px, 600px);
+
+  margin: 0 auto;
+
+  padding-top: 16px;
+}
+
+
+/* ================= SECTION ================= */
+
+.settings-section {
+  margin-bottom: 20px;
+}
+
+
+.settings-section h3 {
+  font-size: 13px;
+
+  font-weight: 600;
+
+  margin: 0 0 7px 3px;
+}
+
+
+/* ================= CARD ================= */
+
+.settings-card {
+  background: white;
+
+  border: 1px solid #cfcfcf;
+
+  border-radius: 7px;
+
+  overflow: hidden;
+}
+
+
+/* ================= ROW ================= */
+
+.settings-row {
+  min-height: 45px;
+
+  width: 100%;
+
+  padding: 0 13px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  box-sizing: border-box;
+}
+
+
+.settings-row + .settings-row {
+  border-top: 1px solid #eeeeee;
+}
+
+
+.settings-row span {
+  font-size: 13px;
+}
+
+
+/* ================= SWITCH ================= */
+
+.switch {
+  width: 38px;
+  height: 20px;
+
+  padding: 2px;
+
+  border: none;
+
+  border-radius: 20px;
+
+  background: #d7d7d7;
+
+  cursor: pointer;
+
+  position: relative;
+
+  transition: 0.2s;
+}
+
+
+.switch span {
+  display: block;
+
+  width: 16px;
+  height: 16px;
+
+  border-radius: 50%;
+
+  background: white;
+
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+
+  transition: 0.2s;
+}
+
+
+.switch.active {
+  background: #fff34d;
+}
+
+
+.switch.active span {
+  transform: translateX(18px);
+}
+
+
+/* ================= LINK ================= */
+
+.settings-link {
+  border: none;
+
+  background: white;
+
+  cursor: pointer;
+
+  text-align: left;
+}
+
+
+.settings-arrow {
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  color: #aaa;
+}
+
+
+.settings-arrow b {
+  font-size: 18px;
+
+  font-weight: normal;
+}
+
+
+/* ================= DELETE ================= */
+
+.delete-account {
+  display: block;
+
+  margin: 8px 0 0 auto;
+
+  border: none;
+
+  background: transparent;
+
+  color: #e53935;
+
+  font-size: 12px;
+
+  cursor: pointer;
+}
+
+
+/* ================= LOGOUT ================= */
+
+.logout-button {
+  display: block;
+
+  width: 135px;
+
+  height: 38px;
+
+  margin: 20px auto;
+
+  background: white;
+
+  border: 1px solid #ccc;
+
+  border-radius: 8px;
+
+  color: #555;
+
+  font-size: 13px;
+
+  cursor: pointer;
+}
+
+
+.logout-button:hover {
+  background: #eeeeee;
+}
