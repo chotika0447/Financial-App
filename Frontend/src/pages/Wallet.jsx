@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import WalletCard from '../components/WalletCard'
 import './Wallet.css'
+import Navbar from '../components/Navbar';
 
 function Wallet() {
 
@@ -299,7 +300,7 @@ function Wallet() {
         ))}
 
       </div>
-
+      <Navbar />
     </div>
   )
 }

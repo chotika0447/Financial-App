@@ -138,8 +138,9 @@ function App() {
         />
         <Route
           path="/saving/"
-          element={<SavingPlan />}
+          element={<Wallet />}
         />
+        {/* SavingPlan */}
         <Route
           path="/debts/"
           element={<Debts />}
@@ -166,10 +167,10 @@ function App() {
           path="/compound-interest"
           element={<CompoundInterest />}
         />
-        <Route
+        {/* <Route
           path="/saving-plan"
           element={<SavingPlan />}
-        />
+        /> */}
         
 
       </Routes>

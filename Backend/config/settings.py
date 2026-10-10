@@ -27,6 +27,9 @@ LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")#LINE Messagin
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")#ตรวจสอบ webhook signature
 LINE_LOGIN_CHANNEL_ID = os.getenv("LINE_LOGIN_CHANNEL_ID")#LINE Login
 
+# รองรับ line_bot/views.py
+LINE_BOT_CHANNEL_ACCESS_TOKEN = LINE_CHANNEL_ACCESS_TOKEN
+LINE_BOT_CHANNEL_SECRET = LINE_CHANNEL_SECRET
 # =================== CORS / CSRF ===================
 #ส่วนนี้ใช้กับ React ที่เป็นระบบ frontend
 CORS_ALLOWED_ORIGINS = [
@@ -63,6 +66,7 @@ INSTALLED_APPS = [
     'notifications',
     'savings',
     'transactions',
+    'categories',
     
 ]
 # =================== Authentication ===================
@@ -168,6 +172,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
  
 STATIC_URL = 'static/' 
+
+# =================== Media files ===================
+# ใช้สำหรับรูปใบเสร็จของ Transaction
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # =========================== Email ===========================================
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
