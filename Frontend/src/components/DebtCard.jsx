@@ -44,13 +44,10 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit }) {
   const isBorrow = debt.type === "borrowed";
 
   // จำนวนเงินที่ชำระ/ได้รับคืนแล้ว
-  const paidAmount =
-    Number(debt.total_amount) - Number(debt.remaining_amount);
+  const paidAmount = Number(debt.total_amount) - Number(debt.remaining_amount);
 
   // เปอร์เซ็นต์ความคืบหน้า
-  const progress = Math.round(
-    (paidAmount / Number(debt.total_amount)) * 100
-  );
+  const progress = Math.round((paidAmount / Number(debt.total_amount)) * 100);
 
   return (
     <div className="bg-white border border-gray-300 rounded-lg mb-3 px-4 pt-4 pb-2">
@@ -100,14 +97,18 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit }) {
 
           </div>
 
-          {/* Date */}
+          {/* Counterparty */}
           <p className="text-[9px] text-gray-500 mt-1">
-            ครบกำหนด: {debt.due_date}
+            คู่สัญญา: {debt.counterparty_name}
           </p>
 
-          {/* Counterparty */}
           <p className="text-[9px] text-gray-500">
-            คู่สัญญา: {debt.counterparty_name}
+            หมายเหตุ: {debt.note}
+          </p>
+
+          {/* Date */}
+          <p className="text-[9px] text-gray-500 ">
+            ครบกำหนด: {debt.due_date}
           </p>
 
         </div>
@@ -124,29 +125,16 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit }) {
 
           <span className="text-[10px] text-gray-600">
             THB {paidAmount.toLocaleString()} / {Number(debt.total_amount).toLocaleString()}
-
-            {/* THB{" "}
-            {isBorrow
-              ? Number(debt.remaining_amount).toLocaleString()
-              : paidAmount.toLocaleString()
-            }
-            ({progress}%) */}
           </span>
 
         </div>
 
-        {/* Progress */}
+        {/* Progress bar */}
         <div className="w-full h-[5px] bg-gray-300 rounded-full mt-1 overflow-hidden">
 
           <div
-            className={`
-              h-full
-              rounded-full
-              ${isBorrow ? "bg-red-500" : "bg-blue-600"}
-            `}
-            style={{
-              width: `${progress}%`,
-            }}
+            className={`h-full rounded-full ${isBorrow ? "bg-red-500" : "bg-blue-600"}`}
+            style={{ width: `${progress}%`}}
           />
 
         </div>

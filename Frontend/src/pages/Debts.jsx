@@ -73,6 +73,50 @@ function Debts() {
     fetchDebts();
   }, []);
 
+  //ฟังก์ชันรีเฟรชข้อมูลหนี้สิน
+  const refreshDebts = async () => {
+    const accessToken = sessionStorage.getItem("accessToken");
+
+    if (!accessToken) {
+      throw new Error("ไม่พบข้อมูลการเข้าสู่ระบบ");
+    }
+
+    const response = await fetch("/debts/", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.detail || "ไม่สามารถโหลดข้อมูลหนี้สินล่าสุดได้"
+      );
+    }
+
+    // API ต้องส่งรายการหนี้กลับมาเป็น Array
+    if (!Array.isArray(data)) {
+      console.error("Unexpected debts response:", data);
+      throw new Error("รูปแบบข้อมูลหนี้สินจาก API ไม่ถูกต้อง");
+    }
+
+    console.log("Refreshed debts:", data);
+
+    setDebts(data);
+
+    // อัปเดตหนี้ที่กำลังเลือกด้วย ป้องกันข้อมูลเก่าค้างอยู่
+    setSelectedDebt((previous) => {
+      if (!previous) return previous;
+
+      return data.find((debt) => debt.id === previous.id) || previous;
+    });
+
+    return data;
+  };
+
+
   //จัดการปุ่มเพิ่มรายการหนี้สินและแก้ไขรายการ
   const handleSaveDebt = async (debtData) => {
     const accessToken = sessionStorage.getItem("accessToken");
@@ -267,7 +311,19 @@ function Debts() {
   if (showDebtHistory && selectedDebt) {
     return (
       <>
-        <DebtPayHistory debt={selectedDebt} onBack={() => setShowDebtHistory(false)} />
+        <DebtPayHistory
+          debt={selectedDebt}
+          onBack={async () => {
+            try {
+              await refreshDebts();
+            } catch (error) {
+              console.error("Refresh debts error:", error);
+            }
+
+            setShowDebtHistory(false);
+          }}
+          onDebtUpdated={refreshDebts}
+        />
         <Navbar />
       </>
     );
