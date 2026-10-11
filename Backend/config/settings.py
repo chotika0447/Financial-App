@@ -37,11 +37,13 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:5173',
     'https://financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
+    'https://rogue-washer-cola.ngrok-free.dev',
 ]
 #URL ที่ Django ยอมให้ส่ง POST/CSRF
 CSRF_TRUSTED_ORIGINS = [
     'https://financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
+    'https://rogue-washer-cola.ngrok-free.dev',
 ]
 
 

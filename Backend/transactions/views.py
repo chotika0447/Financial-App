@@ -6,6 +6,10 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Transaction
 from .serializers import TransactionSerializer
 
+from rest_framework.parsers import MultiPartParser, FormParser
+from PIL import UnidentifiedImageError
+
+from .ocr import read_receipt, get_receipt_amount, extract_datetime
 
 # ดู Transaction ทั้งหมด
 # และเพิ่ม Transaction ใหม่
@@ -232,3 +236,58 @@ class TransactionDetailView(APIView):
         return Response(
             status=status.HTTP_204_NO_CONTENT
         )
+        
+
+# อ่านข้อมูลจากรูปใบเสร็จหรือสลิป
+class ReceiptOCRView(APIView):
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        image = request.FILES.get("image")
+
+        if not image:
+            return Response(
+                {"error": "กรุณาอัปโหลดรูปภาพ"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if image.content_type not in ["image/jpeg", "image/png"]:
+            return Response(
+                {"error": "รองรับเฉพาะไฟล์ JPG และ PNG"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if image.size > 5 * 1024 * 1024:
+            return Response(
+                {"error": "รูปภาพต้องมีขนาดไม่เกิน 5 MB"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # OCR อ่านไฟล์ที่อัปโหลดโดยตรง
+            text = read_receipt(image)
+
+            # ดึงยอดเงินและวันที่
+            amount, amount_status = get_receipt_amount(text)
+            transaction_datetime = extract_datetime(text)
+
+            return Response({
+                "amount": amount,
+                "amount_status": amount_status,
+                "transaction_datetime": transaction_datetime,
+                "raw_text": text,
+                "requires_confirmation": True
+            })
+
+        except (UnidentifiedImageError, OSError):
+            return Response(
+                {"error": "ไม่สามารถอ่านไฟล์รูปภาพได้"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception:
+            return Response(
+                {"error": "เกิดข้อผิดพลาดในการประมวลผล OCR"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

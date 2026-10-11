@@ -13,6 +13,7 @@ export default defineConfig({
 
     allowedHosts: [
       'glimmer-grunt-obstruct.ngrok-free.dev',
+      'rogue-washer-cola.ngrok-free.dev',
     ],
 
     proxy: {

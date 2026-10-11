@@ -43,6 +43,7 @@ function Transactions() {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterDate, setFilterDate] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -51,6 +52,8 @@ function Transactions() {
 
   // รูปใบเสร็จที่ผู้ใช้เลือกใหม่
   const [receiptFile, setReceiptFile] = useState(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrMessage, setOcrMessage] = useState(''); 
 
   // URL สำหรับ preview รูป
   const [receiptPreview, setReceiptPreview] = useState('');
@@ -247,6 +250,27 @@ function Transactions() {
   ]);
 
 
+  // เปลี่ยนวันที่ทีละ 1 วัน โดยยังใช้ตัวกรองวันที่เดิม
+  function moveDate(days) {
+    const date = filterDate ? new Date(`${filterDate}T12:00:00`) : new Date();
+    date.setDate(date.getDate() + days);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    setFilterDate(`${year}-${month}-${day}`);
+    setShowAll(false);
+  }
+
+  function dateLabel() {
+    if (!filterDate) return 'ทุกวัน';
+    return new Date(`${filterDate}T12:00:00`).toLocaleDateString('th-TH', {
+      day: 'numeric', month: 'long', year: 'numeric',
+    });
+  }
+
+  // แสดง 5 รายการแรกก่อน แล้วค่อยกดดูทั้งหมด
+  const visibleTransactions = showAll ? filtered : filtered.slice(0, 5);
+
   function clearReceiptPreview() {
     if (
       receiptPreview &&
@@ -359,6 +383,63 @@ function Transactions() {
     }));
   }
 
+  
+async function scanReceipt(file) {
+  setOcrLoading(true);
+  setOcrMessage('');
+
+  try {
+    const token = sessionStorage.getItem('accessToken');
+
+    if (!token) {
+      throw new Error('กรุณาเข้าสู่ระบบใหม่');
+    }
+
+    const payload = new FormData();
+    payload.append('image', file);
+
+    const response = await fetch('/transactions/ocr/', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: payload,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'ไม่สามารถอ่านใบเสร็จได้');
+    }
+
+    setForm((current) => {
+      const updated = { ...current };
+
+      if (data.amount != null && data.amount > 0) {
+        updated.amount = String(data.amount);
+      }
+
+      if (data.transaction_datetime) {
+        const [date, time] = data.transaction_datetime.split(' ');
+
+        updated.transaction_date = date;
+        updated.transaction_time = time?.slice(0, 5) || '';
+      }
+
+      return updated;
+    });
+
+    setOcrMessage(
+      data.amount_status === 'estimated_from_items'
+        ? 'OCR ประมาณยอดจากรายการสินค้า กรุณาตรวจสอบยอดก่อนบันทึก'
+        : 'อ่านใบเสร็จแล้ว กรุณาตรวจสอบข้อมูลก่อนบันทึก'
+    );
+  } catch (err) {
+    setOcrMessage(err.message);
+  } finally {
+    setOcrLoading(false);
+  }
+}
 
   function handleReceiptChange(event) {
     const file = event.target.files?.[0];
@@ -405,6 +486,8 @@ function Transactions() {
     setReceiptPreview(
       URL.createObjectURL(file)
     );
+    
+    scanReceipt(file);
   }
 
 
@@ -762,51 +845,28 @@ function Transactions() {
           </div>
 
 
-          {/* เลือกวันที่ */}
+          {/* เลื่อนวัน + ปฏิทินเดิม */}
           <div className="transaction-date-filter">
-
-            <div className="transaction-date-filter-title">
-
-              <div className="transaction-date-icon">
-                <CalendarDays size={20} />
-              </div>
-
-              <div>
-                <strong>
-                  ดูรายการตามวันที่
-                </strong>
-
-                <span>
-                  เลือกวันที่ที่ต้องการดูรายรับ-รายจ่าย
-                </span>
-              </div>
-
+            <div className="date-navigation">
+              <button type="button" onClick={() => moveDate(-1)} aria-label="วันก่อนหน้า">‹</button>
+              <strong>{dateLabel()}</strong>
+              <button type="button" onClick={() => moveDate(1)} aria-label="วันถัดไป">›</button>
             </div>
-
-
             <div className="transaction-date-filter-controls">
-
+              <CalendarDays size={19} />
               <input
                 type="date"
+                aria-label="เลือกวันที่จากปฏิทิน"
                 value={filterDate}
-                onChange={(event) =>
-                  setFilterDate(event.target.value)
-                }
+                onChange={(event) => {
+                  setFilterDate(event.target.value);
+                  setShowAll(false);
+                }}
               />
-
               {filterDate && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFilterDate('')
-                  }
-                >
-                  ดูทุกวัน
-                </button>
+                <button type="button" onClick={() => setFilterDate('')}>ทุกวัน</button>
               )}
-
             </div>
-
           </div>
 
         </section>
@@ -831,6 +891,17 @@ function Transactions() {
 
             </div>
 
+            <div className="transaction-list-buttons">
+              <button
+                type="button"
+                className="see-all-button"
+                onClick={() => {
+                  if (filterDate) setFilterDate('');
+                  setShowAll(!showAll || Boolean(filterDate));
+                }}
+              >
+                {showAll && !filterDate ? 'แสดงน้อยลง' : 'ดูทั้งหมด ›'}
+              </button>
             <button
               type="button"
               className="desktop-add-button"
@@ -839,6 +910,7 @@ function Transactions() {
               <Plus size={17} />
               เพิ่มรายการ
             </button>
+            </div>
 
           </div>
 
@@ -880,7 +952,7 @@ function Transactions() {
 
             <div className="transaction-card-list">
 
-              {filtered.map((transaction) => {
+              {visibleTransactions.map((transaction) => {
 
                 const income =
                   transaction.transaction_type ===
@@ -1188,39 +1260,23 @@ function Transactions() {
               </div>
 
 
-              {/* หมวดหมู่ */}
+              {/* หมวดหมู่แบบปุ่ม เลือกได้จากข้อมูล Backend เดิม */}
               <div className="form-group full">
-
-                <label htmlFor="category">
-                  หมวดหมู่
-                </label>
-
-                <select
-                  id="category"
-                  name="category"
-                  value={form.category}
-                  onChange={change}
-                >
-
-                  <option value="">
-                    เลือกหมวดหมู่
-                  </option>
-
-                  {categories.map(
-                    (category) => (
-                      <option
-                        value={category.id}
-                        key={category.id}
-                      >
-                        {category.name}
-                      </option>
-                    )
-                  )}
-
-                </select>
-
+                <label>หมวดหมู่</label>
+                <div className="category-choice-list">
+                  {categories.map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      className={String(form.category) === String(category.id) ? 'active' : ''}
+                      onClick={() => setForm({ ...form, category: category.id })}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                  {categories.length === 0 && <span>ยังไม่มีหมวดหมู่ให้เลือก</span>}
+                </div>
               </div>
-
 
               {/* หมวดย่อย */}
               <div className="form-group full">
