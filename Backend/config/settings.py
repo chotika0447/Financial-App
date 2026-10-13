@@ -11,14 +11,15 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG=True
+# DEBUG=True
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 # DEBUG = os.getenv("DEBUG", "False") == "True"
 
 #กำหนดว่า Host ไหนเข้าถึง Django ได้
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "financial-app-fjs6.onrender.com",
+    "financial-app-xgc0.onrender.com",
     'glimmer-grunt-obstruct.ngrok-free.dev',
 ]
 
