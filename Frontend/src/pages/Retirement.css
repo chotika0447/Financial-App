@@ -21,27 +21,27 @@
 }
 
 .retirement-input {
-    display: block;
-    width: 200px;
-    padding: 10px;
-    margin-top: 10px;
-    margin-bottom: 20px;
-    font-size: 16px;
-    border: 2px solid #000000;
-    border-radius: 10px;
-    box-sizing: border-box;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-} 
+  display: block;
+  width: 200px;
+  padding: 10px;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  font-size: 16px;
+  border: 2px solid #000000;
+  border-radius: 10px;
+  box-sizing: border-box;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
 
 .retirement-result {
-  //text
+  /* text */
   text-align: center;
   justify-content: center;
   align-items: center;
   display: flex;
   font-size: 24px;
   font-weight: bold;
-  //กรอบ
+  /* กรอบ */
   width: 500px;
   height: 100px;
   padding: 10px;
@@ -68,5 +68,5 @@
   margin-bottom: 10px;
   font-size: 16px;
   font-weight: normal;
-  color: black; 
+  color: black;
 }
