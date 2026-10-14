@@ -5,18 +5,18 @@ import base64
 import traceback
 import httpx
 
-
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 
-
 from .parser import parse_financial_message
+from urllib.parse import parse_qs
+
 from transactions.models import Transaction
 from categories.models import Category
 from users.models import User
-
+from friends.models import Friends
 
 # ==========================================
 # ตอบข้อความกลับ LINE
@@ -256,66 +256,101 @@ def line_webhook(request):
 
         for event in events:
 
-            print(
-                "STEP 3: EVENT"
-            )
-
-            print(
-                "EVENT TYPE:",
-                event.get(
-                    "type"
+            print("STEP 3: EVENT")
+            print("EVENT TYPE:", event.get("type"))
+            
+            # รับการกดปุ่ม ยอมรับ/ปฏิเสธ คำขอเป็นเพื่อนจากไลน์
+            if event.get("type") == "postback":
+                postback_data = parse_qs(
+                    event.get("postback", {}).get("data", "")
                 )
-            )
 
+                action = postback_data.get("action", [""])[0]
+                friend_id = postback_data.get("friend_id", [""])[0]
 
-            if event.get(
-                "type"
-            ) != "message":
+                line_user_id = event.get(
+                    "source", {}
+                ).get("userId")
+
+                print("FRIEND POSTBACK ACTION:", action)
+                print("FRIEND REQUEST ID:", friend_id)
+                print("LINE USER ID:", line_user_id)
+
+                # ค้นหาบัญชีของผู้ที่กดปุ่ม
+                recipient = User.objects.filter(
+                    line_uid=line_user_id
+                ).first()
+
+                if recipient is None:
+                    print("ไม่พบบัญชีผู้ใช้ที่เชื่อมกับ LINE นี้")
+
+                    if event.get("replyToken"):
+                        reply_to_line(
+                            event["replyToken"],
+                            "ไม่พบบัญชีผู้ใช้ กรุณาเข้าสู่ระบบด้วย LINE "
+                            "บัญชีที่ลงทะเบียนไว้ก่อนค่ะ"
+                        )
+
+                    continue
+
+                # ตรวจสอบว่าคำขอนี้ส่งถึงผู้ที่กดปุ่มจริง
+                friend_request = Friends.objects.filter(
+                    id=friend_id,
+                    receiver=recipient,
+                    status="pending",
+                ).first()
+
+                if friend_request is None:
+                    if event.get("replyToken"):
+                        reply_to_line(
+                            event["replyToken"],
+                            "คำขอนี้ไม่มีอยู่แล้ว หรือได้รับการตอบกลับไปแล้วค่ะ"
+                        )
+
+                    continue
+
+                if action == "friend_accept":
+                    friend_request.status = "accepted"
+                    friend_request.save()
+                    reply_message = (
+                        f"คุณเป็นเพื่อนกับ {friend_request.sender.username} "
+                        "เรียบร้อยแล้วค่ะ"
+                    )
+
+                elif action == "friend_reject":
+                    friend_request.status = "rejected"
+                    friend_request.save()
+                    reply_message = "ปฏิเสธคำขอเป็นเพื่อนเรียบร้อยแล้วค่ะ"
+
+                else:
+                    print("ไม่รู้จักคำสั่ง Postback:", action)
+                    continue
+
+                if event.get("replyToken"):
+                    reply_to_line(
+                        event["replyToken"],
+                        reply_message,
+                    )
 
                 continue
 
-
-            message = event.get(
-                "message",
-                {},
-            )
-
-
-            if message.get(
-                "type"
-            ) != "text":
-
+            if event.get("type") != "message":
                 continue
 
+            message = event.get("message", {})
 
-            text = message.get(
-                "text",
-                "",
-            )
+            if message.get("type") != "text":
+                continue
 
+            text = message.get("text", "")
 
-            reply_token = event.get(
-                "replyToken"
-            )
+            reply_token = event.get("replyToken")
 
+            line_user_id = event.get("source", {}).get("userId")
 
-            line_user_id = event.get(
-                "source",
-                {},
-            ).get(
-                "userId"
-            )
+            print("MESSAGE:", text)
 
-
-            print(
-                "MESSAGE:",
-                text
-            )
-
-            print(
-                "LINE USER ID:",
-                line_user_id
-            )
+            print("LINE USER ID:", line_user_id)
 
 
             # ------------------------------------------

@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from users.models import User
 from .models import Friends
 from .serializers import FriendRequestSerializer, FriendSerializer
-
+from line_bot.messaging import push_friend_request
 
 class SendFriendRequestView(APIView):
     permission_classes = [IsAuthenticated]
@@ -63,6 +63,13 @@ class SendFriendRequestView(APIView):
                 existing_friend.status = 'pending'
                 existing_friend.save()
 
+                #กรณีส่งคำขอใหม่หลังถูกปฏิเสธ
+                notification_sent = push_friend_request(
+                    receiver=receiver,
+                    sender=request.user,
+                    friend_request=existing_friend,
+                )
+
                 serializer = FriendSerializer(existing_friend)
 
                 return Response(
@@ -77,10 +84,20 @@ class SendFriendRequestView(APIView):
             status='pending'
         )
 
+        # ส่งข้อความแจ้งเตือนผ่าน LINE OA
+        notification_sent = push_friend_request(
+            receiver=receiver,
+            sender=request.user,
+            friend_request=friend_request,
+        )
+
         serializer = FriendSerializer(friend_request)
 
         return Response(
-            serializer.data,
+            {
+                "friend_request": serializer.data,
+                "notification_sent": notification_sent,
+            },
             status=status.HTTP_201_CREATED
         )
 
