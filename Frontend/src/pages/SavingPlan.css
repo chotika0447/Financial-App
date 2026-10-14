@@ -1,15 +1,14 @@
 .saving-plan-page{
     min-height: 100vh;
-    padding: 30px;
-    background-color: #eeeeee;
+    background-color: #f3f9f9;
 }
 .saving-plan-title {
     text-align: left;
     margin-bottom: 20px;
     font-size: 28px;
-    background-color: #fdc8f2;
+    background-color: #bbeceb;
     color: black;
-    padding: 40px;
+    padding: 30px;
 }
 .saving-plan-subtitle {
     text-align: left;
