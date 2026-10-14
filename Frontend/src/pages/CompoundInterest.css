@@ -1,15 +1,14 @@
 .compound-interest-page {
     min-height: 100vh;
-    padding: 30px;
-    background-color: #eeeeee;
+    background-color: #f3f9f9;
 }
 .compound-interest-title {
     text-align: left;
     margin-bottom: 20px;
     font-size: 28px;
-    background-color: #fdc8f2;
+    background-color: #bbeceb;
     color: black;
-    padding: 40px;
+    padding: 30px;
 }
 .compound-interest-label {
     text-align: left;
