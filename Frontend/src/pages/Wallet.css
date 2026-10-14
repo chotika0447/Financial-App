@@ -1,7 +1,7 @@
 .wallet-page {
   min-height: 100vh;
-  padding: 30px;
-  background-color: #eeeeee;
+  background-color: #ffffff;
+  padding-bottom: 60px;
 }
 
 .wallet-title {
@@ -10,7 +10,7 @@
   font-size: 28px;
   background-color: #ff9292;
   color: black;
-  padding: 40px;
+  padding: 30px;
 }
 
 .wallet-total {
@@ -21,24 +21,27 @@
   padding: 25px;
   background-color: white;
   border-radius: 20px;
+  border: 1px solid #ffb7b7;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  background-color: #fee8e8;
   position: relative;
 }
 
-.floating-add-button {
+.wallet-add-button {
   position: fixed;
   right: 30px;
-  bottom: 30px;
+  bottom: 90px;
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  border: none;
   background-color: #ff9292;
   color: white;
-  font-size: 25px;
+  font-size: 30px;
   cursor: pointer;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
 }
 
 .wallet-card {
