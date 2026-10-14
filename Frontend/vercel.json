@@ -1,16 +1,29 @@
+
 {
   "rewrites": [
     {
       "source": "/users/:path*",
-      "destination": "https://financial-app-fjs6.onrender.com/users/:path*"
+      "destination": "https://financial-app-xgc0.onrender.com/users/:path*"
     },
     {
       "source": "/transactions/:path*",
-      "destination": "https://financial-app-fjs6.onrender.com/transactions/:path*"
+      "destination": "https://financial-app-xgc0.onrender.com/transactions/:path*"
     },
     {
       "source": "/line/:path*",
-      "destination": "https://financial-app-fjs6.onrender.com/line/:path*"
+      "destination": "https://financial-app-xgc0.onrender.com/line/:path*"
+    },
+    {
+      "source": "/friends/:path*",
+      "destination": "https://financial-app-xgc0.onrender.com/friends/:path*"
+    },
+    {
+      "source": "/debts/:path*",
+      "destination": "https://financial-app-xgc0.onrender.com/debts/:path*"
+    },
+    {
+      "source": "/categories/:path*",
+      "destination": "https://financial-app-xgc0.onrender.com/categories/:path*"
     }
   ]
 }
