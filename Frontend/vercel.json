@@ -1,6 +1,9 @@
-
 {
   "rewrites": [
+    {
+      "source": "/users/line-login/",
+      "destination": "https://financial-app-xgc0.onrender.com/users/line-login/"
+    },
     {
       "source": "/users/:path*",
       "destination": "https://financial-app-xgc0.onrender.com/users/:path*"
