@@ -1,7 +1,7 @@
 
 .nav {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   
   position: fixed;
   bottom: 0;
@@ -31,6 +31,10 @@
 .nav-icon {
   font-size: 24px;
   line-height: 1;
+  
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
 }
 
 /* .nav-item.active {
@@ -54,4 +58,8 @@
 
 .nav-item:nth-child(5).active {
   color: var(--color-notifications);
+}
+
+.nav-item:nth-child(6).active {
+  color: var(--color-calculator);
 }
