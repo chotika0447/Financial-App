@@ -10,16 +10,16 @@ load_dotenv(BASE_DIR / '.env')
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG=True
-# DEBUG = os.getenv("DEBUG", "False") == "True"
+# เปิด DEBUG เฉพาะเมื่อกำหนด DEBUG=True ใน Environment
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 #กำหนดว่า Host ไหนเข้าถึง Django ได้
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
+    "financial-app-xgc0.onrender.com",
     'glimmer-grunt-obstruct.ngrok-free.dev',
-    "tammara-semivolcanic-randee.ngrok-free.dev"
+    "tammara-semivolcanic-randee.ngrok-free.dev",
 ]
 
 # =================== LINE ===================
@@ -35,14 +35,14 @@ LINE_BOT_CHANNEL_SECRET = LINE_CHANNEL_SECRET
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    'https://financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
+    'https://financial-app-delta-taupe.vercel.app',
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
 ]
 #URL ที่ Django ยอมให้ส่ง POST/CSRF
 CSRF_TRUSTED_ORIGINS = [
-    'https://financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
+    'https://financial-app-delta-taupe.vercel.app',
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
-    'https://tammara-semivolcanic-randee.ngrok-free.dev'
+    'https://tammara-semivolcanic-randee.ngrok-free.dev',
 ]
 
 
