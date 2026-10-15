@@ -4,8 +4,7 @@ import CalNavbar from "../components/CalNavbar";
 import SavingPlanChart from "../components/SavingPlanChart";
 import CustomHeader from '../components/CustomHeader';
 import Navbar from '../components/Navbar';
-import CustomHeader from '../components/CustomHeader';
-import Navbar from '../components/Navbar';
+
 
 function SavingPlan() {
     const [monthlyIncome, setMonthlyIncome] = useState(localStorage.getItem('savingPlanMonthlyIncome') || '');
