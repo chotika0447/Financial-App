@@ -18,7 +18,6 @@ DEBUG=True
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "financial-app-fjs6.onrender.com",
     'glimmer-grunt-obstruct.ngrok-free.dev',
     "tammara-semivolcanic-randee.ngrok-free.dev"
 ]
