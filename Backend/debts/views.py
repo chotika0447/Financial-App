@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from django.db import transaction
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404 
 #ฟังก์ชันของ Django ที่ใช้ตรวจว่าถ้าเจอข้อมูลให้ return obj ถ้าไม่เจอส่ง http 404
 
@@ -152,30 +153,50 @@ class DebtDetailView(APIView):
 
     # แก้ไขหนี้
     def put(self, request, debt_id):
-
+        
         debt = self.get_debt(request, debt_id)
-
         data = request.data.copy()
+
+        # ไม่รับยอดคงเหลือจาก Frontend
+        # เพราะ Backend จะคำนวณจาก Payments ใหม่
+        data.pop("remaining_amount", None)
 
         # ถ้ามีการเลือกรูปใหม่
         image_file = request.FILES.get("image")
-        # ถ้าได้รับไฟล์จริง มันจะอัปโหลดไป Supabase Storage และได้ URL ของรูปกลับมา
+
         if image_file:
             try:
                 image_url = upload_debt_image(image_file)
                 data["image"] = image_url
 
             except Exception as error:
-                return Response({"detail": str(error)},status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response(
+                    {"detail": str(error)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
         elif data.get("image") == "":
             data["image"] = None
 
-        serializer = DebtSerializer( debt, data=data)
-        serializer.is_valid( raise_exception=True )
+        serializer = DebtSerializer(
+            debt,
+            data=data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
         serializer.save()
 
+        # คำนวณยอดคงเหลือใหม่
+        recalculate_debt_remaining(debt)
+
+        # โหลดข้อมูลล่าสุดหลังคำนวณ
+        debt.refresh_from_db()
+
         return Response(
-            serializer.data,
+            DebtSerializer(debt).data,
             status=status.HTTP_200_OK
         )
 
@@ -258,7 +279,43 @@ def calculate_payment_due_date(debt):
     raise ValueError(
         "ไม่พบประเภทการชำระหนี้ที่ถูกต้อง"
     )
+#ฟังก์ชันคำนวณยอดหนี้คงเหลือ = ยอดทั้งหมด - ยอดที่ชำระ/ได้รับคืนจาก Payments ทั้งหมด
+def recalculate_debt_remaining(debt):
+    """
+    คำนวณยอดคงเหลือจากยอดทั้งหมด
+    หักด้วยยอดที่ชำระ/ได้รับคืนจาก Payments ทั้งหมด
+    """
 
+    paid_total = Payments.objects.filter(
+        debt=debt
+    ).aggregate(
+        total=Sum("paid_amount")
+    )["total"] or Decimal("0.00")
+
+    remaining = (
+        Decimal(debt.total_amount) -
+        Decimal(paid_total)
+    )
+
+    if remaining < 0:
+        remaining = Decimal("0.00")
+
+    debt.remaining_amount = remaining
+
+    if remaining == Decimal("0.00"):
+        debt.status = "paid"
+    else:
+        debt.status = "ongoing"
+
+    debt.save(
+        update_fields=[
+            "remaining_amount",
+            "status",
+            "updated_at",
+        ]
+    )
+
+    return remaining
 
 #รายการชำระหนี้
 class PaymentListCreateView(APIView):
@@ -366,17 +423,9 @@ class PaymentListCreateView(APIView):
         )
 
         # =========================
-        # คำนวณยอดหนี้คงเหลือ
+        # คำนวณยอดหนี้คงเหลือโดยเรียกใช้ฟังก์ชัน recalculate_debt_remaining
         # =========================
-        debt.remaining_amount -= paid_amount
-
-        if debt.remaining_amount <= 0:
-            debt.remaining_amount = Decimal('0.00')
-            debt.status = 'paid'
-        else:
-            debt.status = 'ongoing'
-
-        debt.save()
+        recalculate_debt_remaining(debt)
 
         return Response(
             PaymentSerializer(payment).data,
@@ -406,50 +455,92 @@ class PaymentDetailView(APIView):
         return Response(serializer.data)
 
     #อัพเดตยอดคงเหลือถ้ามีการแก้ไขยอดชำระหนี้
+    
     @transaction.atomic
     def put(self, request, payment_id):
-        payment = self.get_payment(
-            request,
-            payment_id
-        )
+        payment = self.get_payment(request, payment_id)
+        debt = payment.debt
 
         old_paid_amount = payment.paid_amount
+        data = request.data.copy()
+
+        # อัปโหลดรูปใหม่ไป Supabase Storage
+        proof_file = request.FILES.get("proof_image")
+
+        if proof_file:
+            try:
+                data["proof_image"] = upload_debt_image(proof_file)
+            except Exception as error:
+                return Response(
+                    {"detail": str(error)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        # ถ้าสั่งลบรูป และไม่ได้ส่งรูปใหม่มา
+        remove_proof_image = (
+            str(data.get("remove_proof_image", "")).lower()
+            in ("true", "1", "yes")
+        )
+
+        data.pop("remove_proof_image", None)
+
+        if remove_proof_image and not proof_file:
+            data["proof_image"] = None
 
         serializer = PaymentSerializer(
             payment,
-            data=request.data,
-            partial=True
+            data=data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        new_paid_amount = serializer.validated_data.get(
+            "paid_amount",
+            old_paid_amount,
         )
 
-        serializer.is_valid(
-            raise_exception=True
-        )
+        # ยอดชำระใหม่ต้องไม่เกินยอดหนี้ที่ยังมีอยู่
+        # ยอดคงเหลือปัจจุบัน + ยอดเดิมของรายการนี้
+        available_amount = debt.remaining_amount + old_paid_amount
 
+        if new_paid_amount < 0:
+            return Response(
+                {"detail": "ยอดชำระต้องไม่ติดลบ"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_paid_amount > available_amount:
+            return Response(
+                {"detail": "ยอดชำระเกินยอดหนี้คงเหลือ"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # บันทึกข้อมูล Payments
         updated_payment = serializer.save()
 
-        new_paid_amount = updated_payment.paid_amount
+        # คำนวณยอดหนี้คงเหลือใหม่จาก Payments ทั้งหมด
+        recalculate_debt_remaining(debt)
 
-        # หาส่วนต่างระหว่างยอดใหม่กับยอดเดิม
-        difference = new_paid_amount - old_paid_amount
-
-        debt = payment.debt
-
-        # ปรับยอดคงเหลือ
-        debt.remaining_amount -= difference
-
-        # ป้องกันยอดติดลบ
-        if debt.remaining_amount <= 0:
-            debt.remaining_amount = Decimal('0.00')
-            debt.status = 'paid'
+        # ปรับสถานะรายการชำระตามยอดที่บันทึก
+        if new_paid_amount <= 0:
+            updated_payment.payment_status = "pending"
+        elif (
+            updated_payment.scheduled_amount is not None
+            and new_paid_amount < updated_payment.scheduled_amount
+        ):
+            updated_payment.payment_status = "partial"
         else:
-            debt.status = 'ongoing'
+            updated_payment.payment_status = "paid"
 
-        debt.save()
+        updated_payment.save(
+            update_fields=["payment_status", "updated_at"]
+        )
 
         return Response(
             PaymentSerializer(updated_payment).data,
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
+
 
     # ลบรายการชำระ
     @transaction.atomic
@@ -461,15 +552,10 @@ class PaymentDetailView(APIView):
 
         debt = payment.debt
 
-        # คืนยอดที่เคยหักออกไป
-        debt.remaining_amount += payment.paid_amount
-
-        if debt.remaining_amount > 0:
-            debt.status = 'ongoing'
-
-        debt.save()
-
         payment.delete()
+
+        # คำนวณยอดคงเหลือใหม่จาก Payments ที่เหลือ
+        recalculate_debt_remaining(debt)
 
         return Response(
             {'detail': 'ลบรายการชำระเรียบร้อยแล้ว'},

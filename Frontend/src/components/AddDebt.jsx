@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   X,
+  Plus,
   GraduationCap,
   Gamepad2,
   Car,
@@ -27,11 +28,13 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
     paymentAmount: "",
     paymentDate: "",
     dueDate: "",
-    description: "",
+    note: "",
     icon: "school",
     color: "purple",
     image: null,
   };
+
+
   const [iconMode, setIconMode] = useState("icon");//สถานะการเลือกไอคอนหรืออัปโหลดรูป
   const [form, setForm] = useState(initialForm);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);//ข้อความแจ้งเตือนก่อนปิดหน้าต่าง
@@ -39,33 +42,47 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
   const [imagePreview, setImagePreview] = useState(null);
   const [showFriendPicker, setShowFriendPicker] = useState(false);//สถานะแสดงหน้าต่างเลือกบัญชีเพื่อน
   const [counterpartyMode, setCounterpartyMode] = useState("manual"); //สถานะการเลือกบัญชีเพื่อนหรือใส่ชื่อเฉยๆ
+  const [paidAmount, setPaidAmount] = useState(0);
 
   useEffect(() => {
     if (editingDebt) {
+
+      const totalAmount = Number(editingDebt.total_amount || 0);
+      const remainingAmount = Number(editingDebt.remaining_amount || 0);
+
+      const paid = Math.max(
+        0,
+        totalAmount - remainingAmount
+      );
+
+      setPaidAmount(paid);
+
       setForm({
         name: editingDebt.name || "",
         counterparty: editingDebt.counterparty_name || "",
         counterpartyId: editingDebt.counterparty || null,
         totalAmount: editingDebt.total_amount || "",
-        remainingAmount: editingDebt.remaining_amount || "",
+        remainingAmount: Math.max(0, totalAmount - paid),
         paymentType: editingDebt.payment_type || "monthly",
         paymentAmount: editingDebt.payment_amount || "",
         paymentDate: editingDebt.payment_date || "",
         dueDate: editingDebt.due_date || "",
-        description: editingDebt.note || "",
+        note: editingDebt.note || "",
         icon: editingDebt.icon || "school",
         color: editingDebt.color || "purple",
         image: editingDebt.image || null,
       });
 
-      // แสดงรูปเดิมตอนเปิดแก้ไข
       setImagePreview(editingDebt.image || null);
       setIconMode(editingDebt.image ? "upload" : "icon");
-      setCounterpartyMode(editingDebt.counterparty ? "friend" : "manual");
+      setCounterpartyMode(
+        editingDebt.counterparty ? "friend" : "manual"
+      );
 
     } else {
-      setForm(initialForm);// ล้างฟอร์มตอนเพิ่มรายการใหม่
-      setImagePreview(null);// ล้าง preview ตอนเพิ่มรายการใหม่
+      setForm(initialForm);
+      setPaidAmount(0);
+      setImagePreview(null);
       setIconMode("icon");
       setCounterpartyMode("manual");
     }
@@ -95,7 +112,7 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
       form.paymentAmount ||
       form.paymentDate ||
       form.dueDate ||
-      form.description ||
+      form.note ||
       form.image
     );
   };
@@ -207,7 +224,7 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
 
       formData.append(
         "note",
-        form.description || ""
+        form.note || ""
       );
 
       // ไอคอนและสี
@@ -559,85 +576,51 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
 
           </div>
 
-
-          {/* =========================
-              เจ้าหนี้ / ลูกหนี้
-          ========================= */}
+          {/* ช่องกรอกเจ้าหนี้ / ลูกหนี้ */}
           <div className="mb-3">
-
             <div className="mb-1 flex items-center justify-between">
-
               <label className="text-[12px]">
                 {currentDebtType === "borrow"
                   ? "เจ้าหนี้"
                   : "ลูกหนี้"}
               </label>
-
-              <button
-                type="button"
-                onClick={() => setShowFriendPicker(true)}
-                className="rounded-full bg-green-500 px-2 py-[2px] text-[9px] text-white">
-                + เลือกเพื่อน
-              </button>
-
             </div>
 
-            {/* แสดงว่าเลือกเพื่อนหรือกรอกเอง */}
-            <div className="mb-2 flex h-[30px] overflow-hidden rounded-full border border-gray-300">
+            <div className="flex items-center gap-2">
+              {/* ช่องกรอกชื่อ */}
+              <input
+                type="text"
+                value={form.counterparty}
+                placeholder="กรอกชื่อเจ้าหนี้ / ลูกหนี้"
+                onChange={(e) => {
+                  handleChange("counterparty", e.target.value);
 
+                  // ถ้าพิมพ์เอง ให้ยกเลิกการผูกบัญชีเพื่อน
+                  handleChange("counterpartyId", null);
+                  setCounterpartyMode("manual");
+                }}
+                className="h-[30px] w-full rounded-[9px] border border-gray-300 bg-gray-100 px-2 text-[12px] outline-none " />
+
+              {/* ปุ่ม + สำหรับเลือกเพื่อน */}
               <button
                 type="button"
+                title="เลือกเพื่อน"
                 onClick={() => {
                   setCounterpartyMode("friend");
                   setShowFriendPicker(true);
                 }}
-                className={`flex-1 text-[10px] ${counterpartyMode === "friend" ? "bg-gray-800 text-white" : "bg-white text-gray-500"}`}
+                className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] border border-gray-300 bg-gray-100 text-gray-600 hover:bg-gray-200"
               >
-                เลือกเพื่อน
+                <Plus size={17} />
               </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setCounterpartyMode("manual");
-
-                  handleChange("counterpartyId", null);
-                  handleChange("counterparty", "");
-                }}
-                className={`flex-1 text-[10px]
-        ${counterpartyMode === "manual"
-                    ? "bg-gray-800 text-white"
-                    : "bg-white text-gray-500"
-                  }`}
-              >
-                ระบุชื่อเอง
-              </button>
-
             </div>
 
-            <input
-              type="text"
-              value={form.counterparty}
-              disabled={counterpartyMode === "friend"}
-              placeholder={
-                counterpartyMode === "friend"
-                  ? "เลือกเพื่อนจากปุ่มด้านบน"
-                  : "กรอกชื่อเจ้าหนี้ / ลูกหนี้"
-              }
-              onChange={(e) => {
-                handleChange("counterparty", e.target.value);
-
-                // ถ้าพิมพ์เอง ต้องยกเลิกการผูกบัญชีเพื่อน
-                handleChange("counterpartyId", null);
-              }}
-              className="h-[30px] w-full rounded-[9px] border border-gray-300 bg-gray-100 px-2 text-[12px] outline-none disabled:text-gray-500" />
-
-            {counterpartyMode === "friend" && form.counterparty && (
+            {/* แสดงสถานะเมื่อเลือกเพื่อนแล้ว */}
+            {counterpartyMode === "friend" && form.counterpartyId && (
               <p className="mt-1 text-[9px] text-green-600">
                 ✓ เชื่อมโยงกับบัญชีผู้ใช้แล้ว
               </p>
             )}
-
           </div>
 
 
@@ -657,10 +640,12 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                 value={form.totalAmount}
                 onChange={(e) => {
                   const value = e.target.value;
+                  const newTotal = Number(value || 0);
                   handleChange("totalAmount", value);
-                  if (!editingDebt) {
-                    handleChange("remainingAmount", value);
-                  }
+
+                  // ยอดคงเหลือ = ยอดทั้งหมด - ยอดที่ชำระ/ได้รับคืนแล้ว
+                  const newRemaining = Math.max(0, newTotal - paidAmount);
+                  handleChange("remainingAmount", String(newRemaining));
                 }}
                 className="
                   h-[30px]
@@ -686,8 +671,9 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
               <input
                 type="number"
                 value={form.remainingAmount}
+                readOnly
                 onChange={(e) =>
-                  handleChange("remainingAmount", e.target.value)
+                  handleChange("totalAmount", e.target.value)
                 }
                 className="
                   h-[30px]
@@ -788,7 +774,7 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                 </label>
 
                 <input type="number" min="1" max="31" value={form.paymentDate} onChange={(e) => handleChange("paymentDate", e.target.value)}
-                       className="h-[30px] w-full rounded-[8px] border border-gray-300 bg-white px-2 text-[12px]"/>
+                  className="h-[30px] w-full rounded-[8px] border border-gray-300 bg-white px-2 text-[12px]" />
               </div>
 
             </div>
@@ -845,35 +831,34 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
 
 
           {/* =========================
-              คำอธิบาย
+              หมายเหตุ
           ========================= */}
-          <div className="mb-4">
+          <div className="mb-4 text-[11px]">
 
-            <label className="mb-1 block text-[12px]">
-              คำอธิบาย
-            </label>
+            {/* หมายเหตุ */}
+            <div className="mb-1 flex items-center justify-between">
+              <label className="font-medium text-gray-700">
+                หมายเหตุ
+              </label>
+
+              <span className="text-gray-400">
+                {form.note.length}/100
+              </span>
+            </div>
 
             <textarea
-              value={form.description}
+              value={form.note}
               onChange={(e) =>
-                handleChange(
-                  "description",
-                  e.target.value
-                )
+                handleChange("note", e.target.value)
               }
+              maxLength={100}
               rows={3}
-              className="
-                w-full
-                resize-none
-                rounded-[9px]
-                border border-gray-300
-                bg-gray-100
-                px-2
-                py-2
-                text-[12px]
-                outline-none
-              "
+              placeholder="เพิ่มรายละเอียด (ถ้ามี)"
+              className="w-full rounded-lg border border-gray-200 p-3 text-sm
+             focus:border-[#8B7EC8] focus:outline-none
+             focus:ring-1 focus:ring-[#8B7EC8]"
             />
+
 
           </div>
 

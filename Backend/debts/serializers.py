@@ -42,7 +42,6 @@ class DebtSerializer(serializers.ModelSerializer):
             'id',
             'user',
             'remaining_amount',
-            'status',
             'created_at',
             'updated_at',
         ]
@@ -147,8 +146,6 @@ class PaymentSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id',
             'debt',
-            'payment_status',
-            'confirm_status',
             'created_at',
             'updated_at',
         ]

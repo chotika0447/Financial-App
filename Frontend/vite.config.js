@@ -14,7 +14,8 @@ export default defineConfig({
 
     allowedHosts: [
       'glimmer-grunt-obstruct.ngrok-free.dev',
-      'financial-app-xgc0.onrender.com'
+      'tammara-semivolcanic-randee.ngrok-free.dev',
+      'financial-app-xgc0.onrender.com',
     ],
 
     proxy: {

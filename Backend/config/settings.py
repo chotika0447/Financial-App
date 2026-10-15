@@ -7,12 +7,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 load_dotenv(BASE_DIR / '.env')
 # =================== Security ===================
+# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # เปิด DEBUG เฉพาะเมื่อกำหนด DEBUG=True ใน Environment
-# DEBUG=True
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
-
 
 #กำหนดว่า Host ไหนเข้าถึง Django ได้
 ALLOWED_HOSTS = [
@@ -20,6 +19,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "financial-app-xgc0.onrender.com",
     'glimmer-grunt-obstruct.ngrok-free.dev',
+    "tammara-semivolcanic-randee.ngrok-free.dev",
 ]
 
 # =================== LINE ===================
@@ -42,6 +42,7 @@ CORS_ALLOWED_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = [
     'https://financial-app-delta-taupe.vercel.app',
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
+    'https://tammara-semivolcanic-randee.ngrok-free.dev',
 ]
 
 

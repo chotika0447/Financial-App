@@ -10,15 +10,15 @@ import Debts from './pages/Debts';
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+
 import AddFriend from './pages/AddFriend';
+import MyQRCode from './pages/MyQRCode';
+import ScanFriendQR from './pages/ScanFriendQR';
 
 import Wallet from './pages/Wallet';
 import SavingPlan from './pages/SavingPlan';
 import Retirement from './pages/Retirement';
 import CompoundInterest from './pages/CompoundInterest';
-
-
-
 
 import { initializeLineLiff, liff, readLineIdentity } from './lineAuth';
 
@@ -31,6 +31,7 @@ function EntryRoute() {
 
     async function routeUser() {
       const accessToken = sessionStorage.getItem('accessToken');
+      console.log('Access Token:', accessToken);
 
       if (accessToken) {
         try {
@@ -167,11 +168,22 @@ function App() {
           path="/compound-interest"
           element={<CompoundInterest />}
         />
+
+        <Route
+          path="/friends/my-qr"
+          element={<MyQRCode />}
+        />
+
+        <Route
+          path="/friends/scan-qr"
+          element={<ScanFriendQR />}
+        />
+        
         {/* <Route
           path="/saving-plan"
           element={<SavingPlan />}
         /> */}
-        
+
 
       </Routes>
 

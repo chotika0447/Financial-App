@@ -1,14 +1,30 @@
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, CalendarDays, X } from "lucide-react";
+import {
+    ArrowLeft,
+    CalendarDays,
+    X,
+    Trash2,
+    ImagePlus,
+} from "lucide-react";
 
-function DebtPaymentHistory({ debt, onBack }) {
+function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
     const isBorrow = debt.type === "borrowed";
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [editingId, setEditingId] = useState(null);
     const [previewImage, setPreviewImage] = useState(null);
+    const [savingId, setSavingId] = useState(null); //state ป้องกันการกดบันทึกซ้ำ
+
+    const [showAddReceived, setShowAddReceived] = useState(false);
+    const [newReceived, setNewReceived] = useState({
+        paid_amount: "",
+        paid_date: "",
+        note: "",
+        proof_image: null,
+    });
+    const [savingReceived, setSavingReceived] = useState(false);
 
     useEffect(() => {
         const fetchPayments = async () => {
@@ -103,10 +119,100 @@ function DebtPaymentHistory({ debt, onBack }) {
     const handleEvidence = (id, file) => {
         if (!file) return;
 
+        if (!file.type.startsWith("image/")) {
+            alert("กรุณาเลือกไฟล์รูปภาพ");
+            return;
+        }
+
+        // ยกเลิก URL ตัวอย่างเดิม หากมี
+        const payment = payments.find((p) => p.id === id);
+
+        if (payment?.evidencePreview) {
+            URL.revokeObjectURL(payment.evidencePreview);
+        }
+
+        const previewUrl = URL.createObjectURL(file);
+
         updatePayment(id, {
-            evidence: URL.createObjectURL(file),
+            evidencePreview: previewUrl,
+            evidenceFile: file,
+            removeProofImage: false,
         });
     };
+
+    //ฟังก์ชันบันทึกการชำระหนี้
+    const savePayment = async (payment) => {
+        const accessToken = sessionStorage.getItem("accessToken");
+
+        if (!accessToken) {
+            alert("ไม่พบข้อมูลการเข้าสู่ระบบ");
+            return;
+        }
+
+        setSavingId(payment.id);
+
+        try {
+            const formData = new FormData();
+
+            formData.append("paid_amount", String(payment.paid_amount ?? 0));
+            formData.append("note", payment.note ?? "");
+
+            if (payment.paid_date) {
+                formData.append("paid_date", payment.paid_date);
+            }
+
+            // ถ้าเลือกรูปใหม่ ส่งไฟล์จริงไปให้ backend
+            if (payment.evidenceFile) {
+                formData.append("proof_image", payment.evidenceFile);
+            } else if (payment.removeProofImage) {
+                // ถ้าลบรูป ให้ backend เคลียร์ URL เดิมในฐานข้อมูล
+                formData.append("remove_proof_image", "true");
+            }
+
+            const response = await fetch(
+                `/debts/payments/${payment.id}/`,
+                {
+                    method: "PUT",
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                    body: formData,
+                }
+            );
+
+            const data = await response.json();
+            console.log("ผลการบันทึก Payment:", data);
+            if (!response.ok) {
+                const message =
+                    data.detail ||
+                    Object.values(data).flat().join(" ") ||
+                    "ไม่สามารถบันทึกประวัติการชำระได้";
+
+                throw new Error(message);
+            }
+
+            // ใช้ข้อมูลล่าสุดที่ backend บันทึกกลับมา
+            updatePayment(payment.id, {
+                ...data,
+                evidencePreview: null,
+                evidenceFile: null,
+                removeProofImage: false,
+            });
+
+            setEditingId(null);
+
+            // โหลดหนี้ใหม่ เพื่อให้ยอดบน DebtCard ตรงกับฐานข้อมูล
+            if (onDebtUpdated) {
+                await onDebtUpdated();
+            }
+        } catch (error) {
+            console.error("Save payment error:", error);
+            alert(error.message || "ไม่สามารถบันทึกประวัติการชำระได้");
+        } finally {
+            setSavingId(null);
+        }
+    };
+
 
     return (
         <div className="min-h-screen bg-[#f4f4f4] pb-24">
@@ -121,7 +227,7 @@ function DebtPaymentHistory({ debt, onBack }) {
                 </button>
 
                 <h1 className="text-[28px] font-bold mt-5">
-                    ประวัติการชำระหนี้
+                    {isBorrow ? "ประวัติการชำระหนี้" : "ประวัติการได้เงินคืน"}
                 </h1>
             </header>
 
@@ -133,6 +239,8 @@ function DebtPaymentHistory({ debt, onBack }) {
                     </span>{" "}
                     <span className="text-sm">{debt.name}</span>
                 </div>
+
+                
 
                 {payments.map((payment, index) => {
                     const isEditing = editingId === payment.id;
@@ -154,7 +262,7 @@ function DebtPaymentHistory({ debt, onBack }) {
                                     {isEditing ? (
                                         <input
                                             type="date"
-                                            value={payment.date}
+                                            value={payment.paid_date || ""}
                                             onChange={(e) =>
                                                 updatePayment(payment.id, {
                                                     paid_date: e.target.value,
@@ -171,16 +279,17 @@ function DebtPaymentHistory({ debt, onBack }) {
                             {/* ข้อมูลและหลักฐาน */}
                             <div className="grid grid-cols-[1fr_120px] gap-3">
                                 <div className="min-w-0">
-                                    {isBorrow && (
+                                    {isBorrow && debt.counterparty && (
                                         <div className="mb-2">
                                             <p className="text-[10px] mb-1">
                                                 สถานะการยืนยันจากเจ้าหนี้ :
                                             </p>
 
                                             <span
-                                                className={`inline-block rounded-full px-3 py-1 text-[10px] ${statusClass[payment.confirm_status]}`}
+                                                className={`inline-block rounded-full px-3 py-1 text-[10px] ${statusClass[payment.confirm_status] || "bg-gray-200 text-gray-700"
+                                                    }`}
                                             >
-                                                {statusText[payment.confirm_status]}
+                                                {statusText[payment.confirm_status] || "ไม่ระบุสถานะ"}
                                             </span>
                                         </div>
                                     )}
@@ -227,45 +336,41 @@ function DebtPaymentHistory({ debt, onBack }) {
                                     />
 
                                     <p className="text-[8px] text-gray-400 text-right">
-                                        {payment.note.length}/250
+                                        {(payment.note || "").length}/250
                                     </p>
 
-                                    {isEditing && (
-                                        <label className="block text-[10px] mt-2">
-                                            แนบรูปหลักฐาน
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={(e) =>
-                                                    handleEvidence(payment.id, e.target.files?.[0])
-                                                }
-                                                className="block w-full text-[9px] mt-1"
-                                            />
-                                        </label>
-                                    )}
 
-                                    {/* ปุ่มสำหรับหนี้ที่เรายืม */}
-                                    {isBorrow && (
+                                    {/* ปุ่มแก้ไขรายการชำระหนี้/คืนเงิน */}
+                                    {(isBorrow || (!isBorrow && !debt.counterparty)) && (
                                         <button
                                             onClick={() => {
+                                                //console.log("กดปุ่มแล้ว:", { paymentId: payment.id, isEditing});
                                                 if (isEditing) {
-                                                    setEditingId(null);
+                                                    //console.log("กำลังเรียก savePayment");
+                                                    savePayment(payment);
                                                 } else {
+                                                    //console.log("เข้าสู่โหมดแก้ไข");
                                                     setEditingId(payment.id);
                                                 }
                                             }}
-                                            className={`mt-2 w-[72px] h-[24px] rounded-md text-[10px] ${isEditing
-                                                ? "bg-green-500 text-white"
-                                                : payment.confirm_status === "pending"
-                                                    ? "bg-[#252525] text-white"
-                                                    : "bg-gray-300 text-gray-500"
+                                            className={`mt-2 w-[72px] h-[24px] rounded-md text-[10px] 
+                                                ${isEditing
+                                                    ? "bg-green-500 text-white"
+                                                    : isBorrow && payment.confirm_status !== "pending"
+                                                        ? "bg-gray-300 text-gray-500"
+                                                        : "bg-[#252525] text-white"
                                                 }`}
                                             disabled={
-                                                !isEditing && payment.confirm_status !== "pending"
+                                                savingId === payment.id || (isBorrow && !isEditing && payment.confirm_status !== "pending")
                                             }
                                         >
-                                            {isEditing ? "บันทึก" : "แก้ไข"}
+                                            {isEditing
+                                                ? savingId === payment.id
+                                                    ? "กำลังบันทึก..."
+                                                    : "บันทึก"
+                                                : "แก้ไข"}
                                         </button>
+
                                     )}
 
                                     {/* ปุ่มตรวจสอบสำหรับหนี้ที่เราให้ยืม */}
@@ -302,24 +407,94 @@ function DebtPaymentHistory({ debt, onBack }) {
                                     )}
                                 </div>
 
-                                {/* รูปหลักฐาน */}
-                                <div className="min-w-0">{payment.proof_image ? (
-                                    <img
-                                        onClick={() => setPreviewImage(payment.proof_image)}
-                                        src={payment.proof_image}
-                                        alt="หลักฐานการชำระหนี้"
-                                        className="w-full h-[160px] rounded-lg object-cover"
-                                    />
-                                )
-                                    :
-                                    (
-                                        <div className="w-full h-[160px] rounded-lg bg-[#d9d9d9]" />
-                                    )}
 
-                                    <p className="text-[8px] text-gray-400 mt-1">
-                                        *คลิกที่รูปเพื่อดูตัวอย่างขนาดใหญ่
-                                    </p>
+                                {/* รูปหลักฐาน */}
+                                <div className="min-w-0">
+                                    <div className="relative w-full h-[160px] rounded-lg overflow-hidden bg-[#d9d9d9]">
+
+                                        {/* เลือกรูปหลักฐาน */}
+                                        {isEditing && (
+                                            <>
+                                                <input
+                                                    id={`evidence-${payment.id}`}
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={(e) => {
+                                                        handleEvidence(payment.id, e.target.files?.[0]);
+                                                        e.target.value = "";
+                                                    }}
+                                                />
+
+                                                {/* ปุ่มลบรูป มุมขวาบน */}
+                                                {(payment.evidencePreview ||
+                                                    (payment.proof_image && !payment.removeProofImage)) && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (payment.evidencePreview) {
+                                                                    URL.revokeObjectURL(payment.evidencePreview);
+                                                                }
+
+                                                                updatePayment(payment.id, {
+                                                                    evidencePreview: null,
+                                                                    evidenceFile: null,
+                                                                    proof_image: null,
+                                                                    removeProofImage: true,
+                                                                });
+                                                            }}
+                                                            className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-white shadow hover:bg-red-600"
+                                                            aria-label="ลบรูปหลักฐาน"
+                                                        >
+                                                            <Trash2 size={15} />
+                                                        </button>
+                                                    )}
+                                            </>
+                                        )}
+
+                                        {/* รูปที่แสดง: รูปใหม่มาก่อนรูปเดิม */}
+                                        {(payment.evidencePreview ||
+                                            (payment.proof_image && !payment.removeProofImage)) ? (
+                                            <button
+                                                type="button"
+                                                className="h-full w-full"
+                                                onClick={() => {
+                                                    if (isEditing) {
+                                                        document.getElementById(`evidence-${payment.id}`)?.click();
+                                                    } else {
+                                                        setPreviewImage(
+                                                            payment.evidencePreview || payment.proof_image
+                                                        );
+                                                    }
+                                                }}
+                                                aria-label={
+                                                    isEditing ? "เปลี่ยนรูปหลักฐาน" : "ขยายรูปหลักฐาน"
+                                                }
+                                            >
+                                                <img
+                                                    src={payment.evidencePreview || payment.proof_image}
+                                                    alt="หลักฐานการชำระหนี้"
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                disabled={!isEditing}
+                                                onClick={() =>
+                                                    document.getElementById(`evidence-${payment.id}`)?.click()
+                                                }
+                                                className="flex h-full w-full flex-col items-center justify-center gap-2 text-gray-500 disabled:cursor-default"
+                                            >
+                                                <ImagePlus size={28} />
+                                                <span className="text-[10px]">
+                                                    {isEditing ? "กดเพื่ออัปโหลดรูป" : "ไม่มีรูปหลักฐาน"}
+                                                </span>
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
+
                             </div>
                         </section>
                     );
