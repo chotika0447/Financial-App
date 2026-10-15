@@ -2,12 +2,12 @@ import './Header.css';
 import { NavLink } from 'react-router-dom';
 import profileIcon from '../assets/icons/profile.svg';
 
-function HomeHeader() {
+function HomeHeader({ user }) {
   return (
     <header className="home-header">
       <div className="welcome">
         <div>
-          สวัสดี..คุณ <strong>Scarlette</strong>
+          สวัสดีคุณ <strong>{user?.username || '....'}</strong>
         </div>
 
         <span>วันอังคารที่ 21 กรกฎาคม 2569</span>

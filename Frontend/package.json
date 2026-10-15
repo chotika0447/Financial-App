@@ -12,8 +12,12 @@
   "dependencies": {
     "@line/liff": "^2.31.0",
     "@tailwindcss/vite": "^4.3.3",
-    "lucide-react": "^1.33.0",
+    "chart.js": "^4.5.1",
+    "html5-qrcode": "^2.3.8",
+    "lucide-react": "^1.49.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.8",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2",
     "tailwindcss": "^4.3.3"

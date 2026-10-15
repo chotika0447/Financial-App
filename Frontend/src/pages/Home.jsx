@@ -1,12 +1,39 @@
 import './Home.css';
+import { useEffect, useState } from 'react';
 import HomeHeader from '../components/HomeHeader';
 import Navbar from '../components/Navbar';
 
 function Home() {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const accessToken = sessionStorage.getItem('accessToken');
+
+    if (!accessToken) {
+      return;
+    }
+
+    let cancelled = false;
+
+    fetch('/users/me/', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then(async response => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'โหลดข้อมูลผู้ใช้ไม่สำเร็จ');
+        if (!cancelled) setUser(data);
+      })
+      .catch(error => console.error(error.message));
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="home-page">
 
-      <HomeHeader />
+      <HomeHeader user={user} />
       
       {/* ================= MAIN ================= */}
       <main className="home-content">

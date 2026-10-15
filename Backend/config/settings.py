@@ -10,15 +10,16 @@ load_dotenv(BASE_DIR / '.env')
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "False") == "True"
+# เปิด DEBUG เฉพาะเมื่อกำหนด DEBUG=True ใน Environment
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 #กำหนดว่า Host ไหนเข้าถึง Django ได้
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "financial-app-fjs6.onrender.com",
+    "financial-app-xgc0.onrender.com",
     'glimmer-grunt-obstruct.ngrok-free.dev',
+    "tammara-semivolcanic-randee.ngrok-free.dev",
 ]
 
 # =================== LINE ===================
@@ -26,18 +27,22 @@ LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")#LINE Messagin
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")#ตรวจสอบ webhook signature
 LINE_LOGIN_CHANNEL_ID = os.getenv("LINE_LOGIN_CHANNEL_ID")#LINE Login
 
+# รองรับ line_bot/views.py
+LINE_BOT_CHANNEL_ACCESS_TOKEN = LINE_CHANNEL_ACCESS_TOKEN
+LINE_BOT_CHANNEL_SECRET = LINE_CHANNEL_SECRET
 # =================== CORS / CSRF ===================
 #ส่วนนี้ใช้กับ React ที่เป็นระบบ frontend
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    'https://financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
+    'https://financial-app-delta-taupe.vercel.app',
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
 ]
 #URL ที่ Django ยอมให้ส่ง POST/CSRF
 CSRF_TRUSTED_ORIGINS = [
-    'https://financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
+    'https://financial-app-delta-taupe.vercel.app',
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
+    'https://tammara-semivolcanic-randee.ngrok-free.dev',
 ]
 
 
@@ -55,12 +60,15 @@ INSTALLED_APPS = [
     'corsheaders',
 
     'users',
-    'transactions',
+    'line_bot',
     'debts',
     'friends',
+    
     'notifications',
     'savings',
-    'line_bot',
+    'transactions',
+    'categories',
+    
 ]
 # =================== Authentication ===================
 AUTHENTICATION_BACKENDS = [
@@ -165,6 +173,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
  
 STATIC_URL = 'static/' 
+
+# =================== Media files ===================
+# ใช้สำหรับรูปใบเสร็จของ Transaction
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # =========================== Email ===========================================
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration

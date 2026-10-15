@@ -170,3 +170,52 @@ class MeView(APIView):
             'profile_img': profile.profile_img,
             **serializer.data,
         })
+
+# API ค้นหาผู้ใช้ด้วย UID
+class UserSearchView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        uid = request.query_params.get('uid', '').strip()
+
+        if not uid:
+            return Response(
+                {'detail': 'กรุณากรอก UID'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ตรวจสอบว่า UID เป็นตัวเลขเท่านั้น
+        if not uid.isdigit():
+            return Response(
+                {'detail': 'UID ต้องเป็นตัวเลขเท่านั้น'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ค้นหาผู้ใช้ที่เปิดใช้งานอยู่
+        friend = User.objects.filter(
+            uid=int(uid),
+            is_active=True
+        ).first()
+
+        if friend is None:
+            return Response(
+                {'detail': 'ไม่พบผู้ใช้งานนี้'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # ป้องกันการค้นหาตัวเองเพื่อเพิ่มเพื่อน
+        if friend.uid == request.user.uid:
+            return Response(
+                {'detail': 'นี่คือ UID ของคุณเอง'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        profile = PersonalProfile.objects.filter(
+            user=friend
+        ).first()
+
+        return Response({
+            'uid': friend.uid,
+            'username': friend.username,
+            'profile_img': profile.profile_img if profile else None,
+        })
