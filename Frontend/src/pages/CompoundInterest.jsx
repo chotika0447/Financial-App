@@ -17,9 +17,11 @@ function CompoundInterest() {
 
     return(
         <div className="compound-interest-page">
+            <div className="compound-interest-header">
             <h1 className="compound-interest-title">
                 คำนวณดอกเบี้ยทบต้น</h1>
-
+            </div>
+            
             <CalNavbar />
             
             <label className="compound-interest-label">

@@ -17,10 +17,11 @@ function Retirement() {
 
   return (
     <div className="retirement-page">
-
+      <div className="retirement-header">
       <h1 className="retirement-title">
         คำนวณแผนเกษียณเบื้องต้น</h1>
-
+      </div>
+      
       <CalNavbar />
 
       <label className="retirement-label">

@@ -141,7 +141,6 @@ function App() {
           path="/saving/"
           element={<Wallet />}
         />
-        {/* SavingPlan */}
         <Route
           path="/debts/"
           element={<Debts />}
@@ -160,14 +159,6 @@ function App() {
           path="/friends/add"
           element={<AddFriend />}
         />
-        <Route
-          path="/retirement"
-          element={<Retirement />}
-        />
-        <Route
-          path="/compound-interest"
-          element={<CompoundInterest />}
-        />
 
         <Route
           path="/friends/my-qr"
@@ -179,11 +170,24 @@ function App() {
           element={<ScanFriendQR />}
         />
         
-        {/* <Route
+        <Route
+          path="/retirement"
+          element={<Retirement />}
+        />
+        <Route
+          path="/compound-interest"
+          element={<CompoundInterest />}
+        />
+        {<Route
           path="/saving-plan"
           element={<SavingPlan />}
-        /> */}
+        />}
 
+        {<Route
+          path="/calculator"
+          element={<Retirement />}
+        />}
+        
 
       </Routes>
 

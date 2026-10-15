@@ -1,31 +1,41 @@
 .saving-plan-page{
     min-height: 100vh;
-    background-color: #eeeeee;
+    background-color: #f3f9f9;
+}
+.saving-plan-header {
+    min-height: 105px;
+    padding: 24px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    background: #bbeceb;
+    color: white;
 }
 .saving-plan-title {
     text-align: left;
-    margin-bottom: 20px;
-    font-size: 28px;
-    background-color: #fdc8f2;
+    font-size: 21px;
     color: black;
-    padding: 40px;
+    font-weight: bold;
 }
 .saving-plan-subtitle {
     text-align: left;
-    margin-bottom: 20px;
-    font-size: 16px;
-    color: black;
+    margin-left: 10px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #3a3a3a;
 }
 .saving-plan-label {
     display: block;
+    margin-left: 10px;
     margin-bottom: 10px;
-    font-size: 18px;
+    font-size: 14px;
     color: black;
 }
 .saving-plan-input {
     display: block;
     width: 200px;
     padding: 10px;
+    margin-left: 10px;
     margin-top: 10px;
     margin-bottom: 20px;
     font-size: 16px;
@@ -35,8 +45,9 @@
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 .saving-plan-result {
+    margin-left: 10px;
     margin-top: 20px;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: bold;
     color: black;
 }
