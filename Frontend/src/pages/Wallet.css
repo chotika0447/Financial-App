@@ -1,21 +1,23 @@
 .wallet-page {
   min-height: 100vh;
-  background-color: #ffffff;
-  padding-bottom: 60px;
+  background: #f6f8fc;
+  padding-bottom: 100px;
+  color: #2d3445;
 }
 
 .wallet-title {
   text-align: left;
   margin-bottom: 20px;
-  font-size: 28px;
+  font-size: 22px;
   background-color: #ff9292;
   color: black;
-  padding: 30px;
+  padding: 35px;
+  font-weight: bold;
 }
 
 .wallet-total {
   text-align: center;
-  font-size: 20px;
+  font-size: 14px;
   max-width: 500px;
   margin: 20px auto;
   padding: 25px;
@@ -31,12 +33,13 @@
   position: fixed;
   right: 30px;
   bottom: 90px;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
+  width: 120px;
+  height: 40px;
+  border-radius: 10px;
   background-color: #ff9292;
   color: white;
-  font-size: 30px;
+  font-size: 14px;
+  font-weight: bold;
   cursor: pointer;
   display: flex;
   align-items: center;
