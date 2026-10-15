@@ -2,6 +2,7 @@ import { useState } from "react";
 import './Retirement.css'
 import CalNavbar from "../components/CalNavbar";
 import RetirementChart from "../components/RetirementChart";
+import Navbar from '../components/Navbar';
 
 function Retirement() {
   const [monthlyExpenses, setMonthlyExpenses] = useState(localStorage.getItem('retirementMonthlyExpenses') || '');
@@ -16,10 +17,11 @@ function Retirement() {
 
   return (
     <div className="retirement-page">
-
+      <div className="retirement-header">
       <h1 className="retirement-title">
         คำนวณแผนเกษียณเบื้องต้น</h1>
-
+      </div>
+      
       <CalNavbar />
 
       <label className="retirement-label">
@@ -76,6 +78,7 @@ function Retirement() {
         <h3>คุณควรมีเงินเก็บประมาณ {retirementMoney.toLocaleString()} บาท ก่อนเกษียณเพื่อรองรับค่าใช้จ่ายเดือนละ {Number(monthlyExpenses).toLocaleString()} บาท เป็นเวลา {Number(yearsInRetirement)} ปี</h3>
       </div>
 
+      <Navbar />
     </div>
   );
 }
