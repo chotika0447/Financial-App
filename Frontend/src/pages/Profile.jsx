@@ -11,6 +11,10 @@ function Profile() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const [friends, setFriends] = useState([]);
+  const [friendsLoading, setFriendsLoading] = useState(true);
+  const [friendsError, setFriendsError] = useState('');
+
   const [form, setForm] = useState({
     email: '',
     age: '',
@@ -20,6 +24,7 @@ function Profile() {
 
   const accessToken = sessionStorage.getItem('accessToken');
 
+  //โหลดข้อมูล Profile
   useEffect(() => {
     if (!accessToken) {
       return;
@@ -54,6 +59,46 @@ function Profile() {
         setError(fetchError.message);
       });
   }, [accessToken]);
+
+  //ดึงข้อมูลเพื่อนจาก Backend
+  useEffect(() => {
+    if (!accessToken) {
+      setFriendsLoading(false);
+      return;
+    }
+
+    const fetchFriends = async () => {
+      setFriendsLoading(true);
+      setFriendsError('');
+
+      try {
+        const response = await fetch('/friends/list/', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.detail || 'โหลดรายชื่อเพื่อนไม่สำเร็จ'
+          );
+        }
+
+        setFriends(Array.isArray(data) ? data : []);
+      } catch (error) {
+        setFriendsError(error.message || 'ไม่สามารถโหลดรายชื่อเพื่อนได้');
+      } finally {
+        setFriendsLoading(false);
+      }
+    };
+
+    fetchFriends();
+  }, [accessToken]);
+
 
   const handleSave = async event => {
     event.preventDefault();
@@ -130,19 +175,40 @@ function Profile() {
       </div>
     );
   }
-  const handleDeleteFriend = (friendName) => {
+
+  const handleDeleteFriend = async (friend) => {
     const confirmed = window.confirm(
-      `ต้องการลบ ${friendName} ออกจากเพื่อนหรือไม่?`
+      `ต้องการลบ ${friend.name} ออกจากเพื่อนหรือไม่?`
     );
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
-    // TODO: เรียก API ลบเพื่อน
-    console.log('Delete friend:', friendName);
+    setFriendsError('');
+
+    try {
+      const response = await fetch(`/friends/${friend.id}/`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || 'ลบเพื่อนไม่สำเร็จ'
+        );
+      }
+
+      setFriends((currentFriends) =>
+        currentFriends.filter((item) => item.id !== friend.id)
+      );
+    } catch (error) {
+      setFriendsError(error.message || 'ไม่สามารถลบเพื่อนได้');
+    }
   };
-  
+
   return (
     <div className="profile-page">
 
@@ -372,56 +438,56 @@ function Profile() {
 
             {/* ================= FRIENDS ================= */}
             <section className="friends-section">
-
               <h3>เพื่อนของฉัน</h3>
 
               <div className="friends-card">
+                {friendsLoading ? (
+                  <p>กำลังโหลดรายชื่อเพื่อน...</p>
+                ) : friendsError ? (
+                  <p className="profile-error">{friendsError}</p>
+                ) : friends.length === 0 ? (
+                  <p>ยังไม่มีเพื่อนในระบบ</p>
+                ) : (
+                  friends.map((friend) => {
+                    const isSender =
+                      String(friend.sender) === String(user.uid);
 
-                {/* ตัวอย่างข้อมูลเพื่อน */}
-                <div className="friend-item">
+                    const friendName = isSender
+                      ? friend.receiver_name
+                      : friend.sender_name;
 
-                  <div className="friend-avatar">
-                    👤
-                  </div>
+                    return (
+                      <div className="friend-item" key={friend.id}>
+                        <div className="friend-avatar">
+                          👤
+                        </div>
 
-                  <span>N'Fah</span>
+                        <span>{friendName || 'ผู้ใช้งาน'}</span>
 
-                  <button
-                    className="delete-friend-button"
-                    onClick={() => handleDeleteFriend("N'Fah")}
-                    aria-label="ลบเพื่อน"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-
-                </div>
-
-
-                <div className="friend-item">
-
-                  <div className="friend-avatar">
-                    👤
-                  </div>
-
-                  <span>JJong</span>
-
-                  <button
-                    className="delete-friend-button"
-                    onClick={() => handleDeleteFriend("JJong")}
-                    aria-label="ลบเพื่อน"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-
-                </div>
-
+                        <button
+                          className="delete-friend-button"
+                          onClick={() =>
+                            handleDeleteFriend({
+                              id: friend.id,
+                              name: friendName || 'ผู้ใช้งาน',
+                            })
+                          }
+                          aria-label={`ลบ ${friendName || 'เพื่อน'}`}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
               </div>
 
-
-              <button className="add-friend-button" onClick={() => navigate('/friends/add')}>
+              <button
+                className="add-friend-button"
+                onClick={() => navigate('/friends/add')}
+              >
                 + เพิ่มเพื่อน
               </button>
-
             </section>
 
           </>

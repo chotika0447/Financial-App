@@ -35,6 +35,12 @@ function Debts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // รายชื่อเพื่อนจาก Backend
+  const [friends, setFriends] = useState([]);
+  const [friendsLoading, setFriendsLoading] = useState(true);
+  const [friendsError, setFriendsError] = useState("");
+
+  //useEffect สำหรับดึงข้อมูลหนี้สิน
   useEffect(() => {
     const fetchDebts = async () => {
       const accessToken = sessionStorage.getItem("accessToken");
@@ -72,6 +78,82 @@ function Debts() {
 
     fetchDebts();
   }, []);
+
+  //useEffect สำหรับดึงรายชื่อเพื่อน
+  useEffect(() => {
+    const fetchFriends = async () => {
+      const accessToken = sessionStorage.getItem("accessToken");
+
+      if (!accessToken) {
+        setFriendsError("ไม่พบข้อมูลการเข้าสู่ระบบ");
+        setFriendsLoading(false);
+        return;
+      }
+
+      try {
+        const headers = {
+          Authorization: `Bearer ${accessToken}`,
+        };
+
+        // ดึงข้อมูลผู้ใช้ปัจจุบันและรายชื่อเพื่อน
+        const [userResponse, friendsResponse] = await Promise.all([
+          fetch("/users/me/", { headers }),
+          fetch("/friends/list/", { headers }),
+        ]);
+
+        const userData = await userResponse.json();
+        const friendsData = await friendsResponse.json();
+
+        if (!userResponse.ok) {
+          throw new Error(
+            userData.detail || "ไม่สามารถโหลดข้อมูลผู้ใช้ได้"
+          );
+        }
+
+        if (!friendsResponse.ok) {
+          throw new Error(
+            friendsData.detail || "ไม่สามารถโหลดรายชื่อเพื่อนได้"
+          );
+        }
+
+        if (!Array.isArray(friendsData)) {
+          console.error("Unexpected friends response:", friendsData);
+          throw new Error("รูปแบบข้อมูลรายชื่อเพื่อนไม่ถูกต้อง");
+        }
+
+        const myUid = userData.uid;
+
+        // แปลงข้อมูลความสัมพันธ์ให้เป็นข้อมูลเพื่อน
+        const normalizedFriends = friendsData.map((friend) => {
+          const isSender =
+            String(friend.sender) === String(myUid);
+
+          return {
+            uid: isSender ? friend.receiver : friend.sender,
+            username: isSender
+              ? friend.receiver_name
+              : friend.sender_name,
+          };
+        });
+
+        setFriends(normalizedFriends);
+        setFriendsError("");
+
+        console.log("Loaded friends:", normalizedFriends);
+      } catch (error) {
+        console.error("Fetch friends error:", error);
+        setFriendsError(
+          error.message || "ไม่สามารถโหลดรายชื่อเพื่อนได้"
+        );
+        setFriends([]);
+      } finally {
+        setFriendsLoading(false);
+      }
+    };
+
+    fetchFriends();
+  }, []);
+
 
   //ฟังก์ชันรีเฟรชข้อมูลหนี้สิน
   const refreshDebts = async () => {
@@ -343,6 +425,7 @@ function Debts() {
         setCurrentDebtType={setCurrentDebtType}
         editingDebt={editingDebt}
         onSubmit={handleSaveDebt}
+        friends={friends}
       />
 
       <PayDebt
