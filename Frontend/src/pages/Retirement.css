@@ -4,19 +4,27 @@
   padding-bottom: 90px;
 }
 
+.retirement-header {
+    min-height: 105px;
+    padding: 24px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    background: #bbeceb;
+    color: white;
+}
 .retirement-title {
-  text-align: left;
-  margin-bottom: 20px;
-  font-size: 28px;
-  background-color: #bbeceb;
-  color: black;
-  padding: 30px;
+    text-align: left;
+    font-size: 21px;
+    color: black;
+    font-weight: bold;
 }
 
 .retirement-label {
   display: block;
+  margin-left: 10px;
   margin-bottom: 10px;
-  font-size: 16px;
+  font-size: 14px;
   color: black;
 }
 
@@ -24,6 +32,7 @@
   display: block;
   width: 200px;
   padding: 10px;
+  margin-left: 10px;
   margin-top: 10px;
   margin-bottom: 20px;
   font-size: 16px;
@@ -39,15 +48,16 @@
   justify-content: center;
   align-items: center;
   display: flex;
-  font-size: 24px;
+  font-size: 21px;
   font-weight: bold;
+  color: #000000;
   /* กรอบ */
   width: 500px;
   height: 100px;
   padding: 10px;
+  margin-left: 10px;
   margin-top: 20px;
   margin-bottom: 20px;
-  color: black;
   border: 2px solid #000000;
   border-radius: 5px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
@@ -65,6 +75,7 @@
 
 .retirement-explanation {
   display: block;
+  margin-left: 10px;
   margin-bottom: 10px;
   font-size: 16px;
   font-weight: normal;
