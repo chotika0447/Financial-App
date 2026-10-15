@@ -9,7 +9,7 @@ import logging
 
 from datetime import datetime
 from io import BytesIO
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlencode
 
 import httpx
 
@@ -170,6 +170,10 @@ def build_transaction_flex(draft):
     if draft.sub_category:
         category_text += f" / {draft.sub_category}"
 
+    # URL ของ React Frontend (ต้องตั้งค่า FRONTEND_URL ใน Django settings)
+    frontend_url = settings.FRONTEND_URL.rstrip("/")
+    edit_url = f"{frontend_url}/transactions/?{urlencode({'draft': draft.id})}"
+
     def detail(text):
         return {
             "type": "text",
@@ -284,11 +288,9 @@ def build_transaction_flex(draft):
                                 "type": "button",
                                 "style": "secondary",
                                 "action": {
-                                    "type": "postback",
+                                    "type": "uri",
                                     "label": "แก้ไข",
-                                    "data": (
-                                        f"action=edit&draft_id={draft.id}"
-                                    )
+                                    "uri": edit_url
                                 }
                             },
                             {

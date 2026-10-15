@@ -68,6 +68,11 @@ CSRF_TRUSTED_ORIGINS = [
     'https://financial-app-delta-taupe.vercel.app',
 ]
 
+# =================== Frontend URL ===================
+FRONTEND_URL = os.getenv(
+    "FRONTEND_URL",
+    "http://localhost:5173"
+)
 
 # =================== Applications ===================
 # บอก Django ว่ามี App อะไรบ้าง *สำคัญ*ต้องใส่ App ที่เราสร้างขึ้นเองด้วย

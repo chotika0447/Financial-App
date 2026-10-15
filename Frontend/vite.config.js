@@ -27,6 +27,11 @@ export default defineConfig({
         changeOrigin: true,
       },
 
+      '/categories': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+
       '/line': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
@@ -37,6 +42,10 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/debts': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/check-backend': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },

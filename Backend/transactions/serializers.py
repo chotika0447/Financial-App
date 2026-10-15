@@ -13,26 +13,13 @@ class TransactionSerializer(serializers.ModelSerializer):
         read_only=True
     )
     receipt_url = serializers.SerializerMethodField()
+
     def get_receipt_url(self, obj):
         if not obj.receipt:
             return None
-
         path = obj.receipt.name
-
         if path.startswith("receipts/"):
             return get_receipt_signed_url(path)
-
-        return None
-        receipt_url = serializers.SerializerMethodField()
-    def get_receipt_url(self, obj):
-        if not obj.receipt:
-            return None
-
-        path = obj.receipt.name
-
-        if path.startswith("receipts/"):
-            return get_receipt_signed_url(path)
-
         return None
 
     class Meta:
@@ -122,6 +109,16 @@ class TransactionDraftSerializer(serializers.ModelSerializer):
         source="category.name",
         read_only=True
     )
+
+    receipt_url = serializers.SerializerMethodField()
+
+    def get_receipt_url(self, obj):
+        if not obj.receipt:
+            return None
+        path = obj.receipt.name
+        if path.startswith("receipts/"):
+            return get_receipt_signed_url(path)
+        return None
 
     class Meta:
         model = TransactionDraft

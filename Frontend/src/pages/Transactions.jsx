@@ -22,7 +22,7 @@ const emptyForm = () => ({
   transaction_type: 'expense',
   amount: '',
   category: '',
-  sub_category: '',
+  // receipt: null,
   account: '',
   transaction_date: new Date().toISOString().split('T')[0],
   transaction_time: '',
@@ -47,13 +47,14 @@ function Transactions() {
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [draftId, setDraftId] = useState(null); // Draft ที่เปิดมาจาก LINE OA
 
   const [form, setForm] = useState(emptyForm);
 
   // รูปใบเสร็จที่ผู้ใช้เลือกใหม่
   const [receiptFile, setReceiptFile] = useState(null);
   const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrMessage, setOcrMessage] = useState(''); 
+  const [ocrMessage, setOcrMessage] = useState('');
 
   // URL สำหรับ preview รูป
   const [receiptPreview, setReceiptPreview] = useState('');
@@ -153,6 +154,38 @@ function Transactions() {
   }, []);
 
 
+  // เปิดฟอร์มเดิมโดยอ่าน Draft ID จากลิงก์ LINE OA: /transactions/?draft=123
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('draft');
+    if (!id) return;
+    if (!/^\d+$/.test(id)) {
+      setError('ลิงก์รายการร่างไม่ถูกต้อง');
+      return;
+    }
+    if (!accessToken) {
+      setError('กรุณาเข้าสู่ระบบด้วยบัญชีที่เชื่อมกับ LINE ก่อนเปิดรายการนี้');
+      return;
+    }
+    let cancelled = false;
+    async function loadDraft() {
+      try {
+        const response = await fetch(`/transactions/drafts/${id}/`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'ไม่สามารถโหลดรายการร่างได้');
+        if (cancelled) return;
+        openEdit(data);
+        setEditingId(null); // Draft ไม่ใช่ Transaction ที่บันทึกแล้ว
+        setDraftId(id);
+      } catch (err) {
+        if (!cancelled) setError(err.message);
+      }
+    }
+    loadDraft();
+    return () => { cancelled = true; };
+  }, [accessToken]);
+
   useEffect(() => {
     if (showModal) {
       fetchCategories(form.transaction_type);
@@ -224,7 +257,6 @@ function Transactions() {
       const text = [
         transaction.description,
         transaction.category_name,
-        transaction.sub_category,
         transaction.account,
         transaction.amount,
       ]
@@ -286,10 +318,12 @@ function Transactions() {
 
   function openAdd() {
     setEditingId(null);
+    setDraftId(null);
     setError('');
     setSuccess('');
 
     clearReceiptPreview();
+    setOcrMessage('');
 
     setForm(emptyForm());
     setShowModal(true);
@@ -310,10 +344,11 @@ function Transactions() {
     }
 
     setReceiptFile(null);
+    setOcrMessage('');
 
     // แสดงรูปเดิมตอนแก้ไข
     setReceiptPreview(
-      transaction.receipt || ''
+      transaction.receipt_url || ''
     );
 
     setForm({
@@ -325,9 +360,6 @@ function Transactions() {
 
       category:
         transaction.category || '',
-
-      sub_category:
-        transaction.sub_category || '',
 
       account:
         transaction.account || '',
@@ -350,7 +382,7 @@ function Transactions() {
 
 
   function closeModal() {
-    if (saving) return;
+    if (saving || ocrLoading) return;
 
     if (
       receiptPreview &&
@@ -364,6 +396,12 @@ function Transactions() {
 
     setShowModal(false);
     setEditingId(null);
+    if (draftId) {
+      setDraftId(null);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('draft');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    }
   }
 
 
@@ -383,63 +421,59 @@ function Transactions() {
     }));
   }
 
-  
-async function scanReceipt(file) {
-  setOcrLoading(true);
-  setOcrMessage('');
 
-  try {
-    const token = sessionStorage.getItem('accessToken');
+  // OCR reads a receipt but never saves a transaction automatically.
+  async function scanReceipt(file) {
+    setOcrLoading(true);
+    setOcrMessage('');
 
-    if (!token) {
-      throw new Error('กรุณาเข้าสู่ระบบใหม่');
-    }
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) throw new Error('กรุณาเข้าสู่ระบบใหม่');
 
-    const payload = new FormData();
-    payload.append('image', file);
+      const payload = new FormData();
+      payload.append('image', file);
 
-    const response = await fetch('/transactions/ocr/', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: payload,
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'ไม่สามารถอ่านใบเสร็จได้');
-    }
-
-    setForm((current) => {
-      const updated = { ...current };
-
-      if (data.amount != null && data.amount > 0) {
-        updated.amount = String(data.amount);
+      const response = await fetch('/transactions/ocr/', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: payload,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(response.status === 401
+          ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'
+          : data.error || 'ไม่สามารถอ่านใบเสร็จได้');
       }
 
-      if (data.transaction_datetime) {
-        const [date, time] = data.transaction_datetime.split(' ');
+      setForm((current) => {
+        const updated = {
+          ...current,
+          transaction_type: 'expense',
+          account: '',
+          description: '',
+        };
 
-        updated.transaction_date = date;
-        updated.transaction_time = time?.slice(0, 5) || '';
-      }
+        if (data.amount != null && Number(data.amount) > 0) {
+          updated.amount = String(data.amount);
+        }
+        if (data.transaction_datetime) {
+          const [date, time] = data.transaction_datetime.split(' ');
+          if (date) updated.transaction_date = date;
+          updated.transaction_time = time?.slice(0, 5) || '';
+        }
+        return updated;
+      });
 
-      return updated;
-    });
-
-    setOcrMessage(
-      data.amount_status === 'estimated_from_items'
-        ? 'OCR ประมาณยอดจากรายการสินค้า กรุณาตรวจสอบยอดก่อนบันทึก'
-        : 'อ่านใบเสร็จแล้ว กรุณาตรวจสอบข้อมูลก่อนบันทึก'
-    );
-  } catch (err) {
-    setOcrMessage(err.message);
-  } finally {
-    setOcrLoading(false);
+      setOcrMessage(data.amount_status === 'estimated_from_items'
+        ? 'OCR ประมาณยอดจากรายการสินค้า กรุณาตรวจสอบก่อนบันทึก'
+        : 'อ่านใบเสร็จแล้ว กรุณาตรวจสอบยอดเงินและวันที่ก่อนบันทึก');
+    } catch (err) {
+      setOcrMessage(err.message);
+    } finally {
+      setOcrLoading(false);
+    }
   }
-}
 
   function handleReceiptChange(event) {
     const file = event.target.files?.[0];
@@ -449,12 +483,11 @@ async function scanReceipt(file) {
     const allowedTypes = [
       'image/jpeg',
       'image/png',
-      'image/webp',
     ];
 
     if (!allowedTypes.includes(file.type)) {
       setError(
-        'กรุณาเลือกไฟล์ JPG, PNG หรือ WEBP เท่านั้น'
+        'กรุณาเลือกไฟล์ JPG หรือ PNG เท่านั้น'
       );
 
       event.target.value = '';
@@ -486,12 +519,13 @@ async function scanReceipt(file) {
     setReceiptPreview(
       URL.createObjectURL(file)
     );
-    
+
     scanReceipt(file);
   }
 
 
   function removeSelectedReceipt() {
+    setOcrMessage('');
     if (
       receiptPreview &&
       receiptPreview.startsWith('blob:')
@@ -547,11 +581,6 @@ async function scanReceipt(file) {
     );
 
     payload.append(
-      'sub_category',
-      form.sub_category.trim()
-    );
-
-    payload.append(
       'account',
       form.account.trim()
     );
@@ -583,12 +612,15 @@ async function scanReceipt(file) {
       setError('');
       setSuccess('');
 
+      // Draft จาก LINE ต้องแก้ Draft ก่อน แล้วใช้ service ยืนยันรายการเดิม
       const response = await fetch(
-        editingId
-          ? `/transactions/${editingId}/`
-          : '/transactions/',
+        draftId
+          ? `/transactions/drafts/${draftId}/`
+          : editingId
+            ? `/transactions/${editingId}/`
+            : '/transactions/',
         {
-          method: editingId ? 'PATCH' : 'POST',
+          method: draftId || editingId ? 'PATCH' : 'POST',
           // ห้ามกำหนด Content-Type เองสำหรับ FormData
           headers: {
             Authorization:
@@ -629,7 +661,23 @@ async function scanReceipt(file) {
         throw new Error(message);
       }
 
+      if (draftId) {
+        const confirmResponse = await fetch(`/transactions/drafts/${draftId}/confirm/`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const confirmData = await confirmResponse.json().catch(() => ({}));
+        if (!confirmResponse.ok) {
+          throw new Error(confirmData.error || 'แก้ไข Draft แล้ว แต่ยังยืนยันไม่สำเร็จ กรุณาลองอีกครั้ง');
+        }
+        const url = new URL(window.location.href);
+        url.searchParams.delete('draft');
+        window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+      }
+
       setShowModal(false);
+      const wasDraft = Boolean(draftId);
+      setDraftId(null);
       setEditingId(null);
 
       if (
@@ -643,9 +691,11 @@ async function scanReceipt(file) {
       setReceiptPreview('');
 
       setSuccess(
-        editingId
-          ? 'แก้ไขรายการเรียบร้อยแล้ว'
-          : 'เพิ่มรายการเรียบร้อยแล้ว'
+        wasDraft
+          ? 'แก้ไขและยืนยันรายการจาก LINE เรียบร้อยแล้ว'
+          : editingId
+            ? 'แก้ไขรายการเรียบร้อยแล้ว'
+            : 'เพิ่มรายการเรียบร้อยแล้ว'
       );
 
       await fetchTransactions();
@@ -1004,18 +1054,6 @@ async function scanReceipt(file) {
                             'ไม่ระบุหมวดหมู่'}
                         </span>
 
-                        {transaction.sub_category && (
-                          <>
-                            <span className="dot">
-                              •
-                            </span>
-
-                            <span>
-                              {transaction.sub_category}
-                            </span>
-                          </>
-                        )}
-
                         {transaction.account && (
                           <>
                             <span className="dot">
@@ -1058,10 +1096,10 @@ async function scanReceipt(file) {
                       </div>
 
 
-                      {transaction.receipt && (
+                      {transaction.receipt_url && (
                         <a
                           className="receipt-view-link"
-                          href={transaction.receipt}
+                          href={transaction.receipt_url}
                           target="_blank"
                           rel="noreferrer"
                         >
@@ -1278,24 +1316,6 @@ async function scanReceipt(file) {
                 </div>
               </div>
 
-              {/* หมวดย่อย */}
-              <div className="form-group full">
-
-                <label htmlFor="sub_category">
-                  หมวดย่อย
-                </label>
-
-                <input
-                  id="sub_category"
-                  name="sub_category"
-                  placeholder="เช่น อาหารกลางวัน"
-                  value={form.sub_category}
-                  onChange={change}
-                />
-
-              </div>
-
-
               {/* บัญชี */}
               <div className="form-group full">
 
@@ -1391,7 +1411,7 @@ async function scanReceipt(file) {
                     </strong>
 
                     <span>
-                      JPG, PNG หรือ WEBP
+                      JPG หรือ PNG
                       ขนาดไม่เกิน 5 MB
                     </span>
 
@@ -1437,12 +1457,20 @@ async function scanReceipt(file) {
                 <input
                   id="receipt"
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/jpeg,image/png"
                   onChange={
                     handleReceiptChange
                   }
                   className="receipt-file-input"
+                  disabled={ocrLoading}
                 />
+
+                {ocrLoading && (
+                  <p role="status">กำลังอ่านข้อมูลจากใบเสร็จ...</p>
+                )}
+                {ocrMessage && (
+                  <p role="status">{ocrMessage}</p>
+                )}
 
               </div>
 
@@ -1462,7 +1490,7 @@ async function scanReceipt(file) {
                 <button
                   type="submit"
                   className="save-button"
-                  disabled={saving}
+                  disabled={saving || ocrLoading}
                 >
 
                   {saving && (
@@ -1474,8 +1502,10 @@ async function scanReceipt(file) {
 
                   {saving
                     ? 'กำลังบันทึก...'
-                    : editingId
-                      ? 'บันทึกการแก้ไข'
+                    : draftId
+                      ? 'บันทึกและยืนยันรายการ'
+                      : editingId
+                        ? 'บันทึกการแก้ไข'
                       : 'เพิ่มรายการ'}
 
                 </button>
