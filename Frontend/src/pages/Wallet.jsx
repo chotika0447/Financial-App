@@ -210,10 +210,10 @@ function Wallet() {
       <h1 className="wallet-title">กระเป๋าเงินออม</h1>
 
       <div>
-        <h1 className="wallet-total">
+        <h2 className="wallet-total">
           <p>ยอดเงินออมทั้งหมด {totalSaving.toLocaleString()} บาท</p>
           <p>เป้าหมายเงินออมทั้งหมด {totalTarget.toLocaleString()} บาท</p>
-        </h1>
+        </h2>
       </div>
 
       {error && (
@@ -232,7 +232,7 @@ function Wallet() {
           setShowForm(true)
         }}
       >
-        +
+        + เพิ่มรายการ
       </button>
 
       {showForm && (
@@ -252,7 +252,7 @@ function Wallet() {
             <h1>เป้าหมายเงินออม (บาท)</h1>
             <input
               type="number"
-              placeholder="เป้าหมายเงินออม"
+              placeholder="0.00"
               value={target}
               min="0"
               onChange={(e) => setTarget(e.target.value)}
