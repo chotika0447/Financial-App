@@ -12,7 +12,7 @@ export default defineConfig({
     port: 5173,
 
     allowedHosts: [
-      'glimmer-grunt-obstruct.ngrok-free.dev',
+      'glimmer-grunt-obstruct.ngrok-free.dev','tammara-semivolcanic-randee.ngrok-free.dev'
     ],
 
     proxy: {

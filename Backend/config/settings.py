@@ -20,6 +20,7 @@ ALLOWED_HOSTS = [
     "localhost",
     "financial-app-fjs6.onrender.com",
     'glimmer-grunt-obstruct.ngrok-free.dev',
+    "tammara-semivolcanic-randee.ngrok-free.dev"
 ]
 
 # =================== LINE ===================
@@ -42,6 +43,7 @@ CORS_ALLOWED_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = [
     'https://financial-app-frontend-o1d7w5dgu-projectzaaa.vercel.app',
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
+    'https://tammara-semivolcanic-randee.ngrok-free.dev'
 ]
 
 
