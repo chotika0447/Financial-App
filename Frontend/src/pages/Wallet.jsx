@@ -207,7 +207,9 @@ function Wallet() {
 
   return (
     <div className="wallet-page">
-      <h1 className="wallet-title">กระเป๋าเงินออม</h1>
+      <div className="wallet-header">
+        <h1 className="wallet-title">กระเป๋าเงินออม</h1>
+      </div>
 
       <div>
         <h2 className="wallet-total">
