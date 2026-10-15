@@ -2,6 +2,8 @@ import { useState } from "react";
 import './SavingPlan.css'
 import CalNavbar from "../components/CalNavbar";
 import SavingPlanChart from "../components/SavingPlanChart";
+import CustomHeader from '../components/CustomHeader';
+import Navbar from '../components/Navbar';
 
 function SavingPlan() {
     const [monthlyIncome, setMonthlyIncome] = useState(localStorage.getItem('savingPlanMonthlyIncome') || '');
@@ -18,8 +20,13 @@ function SavingPlan() {
 
     return (
         <div className="saving-plan-page">
-            <h1 className="saving-plan-title">
-                คำนวณแผนการออมเงิน</h1>
+            {/* <CustomHeader title="กระเป๋าเงินออม" color="var(--color-saving)" /> */}
+            <div className="saving-plan-header">
+                <h1 className="saving-plan-title">
+                    คำนวณแผนการออมเงิน
+                </h1>
+            </div>
+            
             <CalNavbar />
 
             <h2 className="saving-plan-subtitle">
@@ -45,6 +52,8 @@ function SavingPlan() {
             <SavingPlanChart
                 monthlyIncome={monthlyIncome}
             />
+
+            <Navbar />
         </div>
     );
 }
