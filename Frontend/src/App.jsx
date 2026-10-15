@@ -159,6 +159,17 @@ function App() {
           path="/friends/add"
           element={<AddFriend />}
         />
+
+        <Route
+          path="/friends/my-qr"
+          element={<MyQRCode />}
+        />
+
+        <Route
+          path="/friends/scan-qr"
+          element={<ScanFriendQR />}
+        />
+        
         <Route
           path="/retirement"
           element={<Retirement />}
