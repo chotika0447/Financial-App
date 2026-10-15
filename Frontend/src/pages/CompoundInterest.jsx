@@ -2,6 +2,7 @@ import { useState } from "react";
 import './CompoundInterest.css'
 import CalNavbar from "../components/CalNavbar";
 import CompoundInterestChart from "../components/CompoundInterestChart";
+import Navbar from '../components/Navbar';
 
 function CompoundInterest() {
     const [presentValue, setPresentValue] = useState(localStorage.getItem('compoundPresentValue') || '');
@@ -16,9 +17,11 @@ function CompoundInterest() {
 
     return(
         <div className="compound-interest-page">
+            <div className="compound-interest-header">
             <h1 className="compound-interest-title">
                 คำนวณดอกเบี้ยทบต้น</h1>
-
+            </div>
+            
             <CalNavbar />
             
             <label className="compound-interest-label">
@@ -75,6 +78,7 @@ function CompoundInterest() {
                 numberOfPeriods={numberOfPeriods}
                 frequency={frequency}
             />
+            <Navbar />
         </div>
     );
 }
