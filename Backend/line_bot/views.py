@@ -1,670 +1,886 @@
-import json
-import hmac
-import hashlib
+
+"""LINE OA: บันทึกด้วยข้อความ รูปสลิป และข้อความพร้อมรูปหลักฐาน"""
+
 import base64
-import traceback
+import hashlib
+import hmac
+import json
+import logging
+
+from datetime import datetime
+from io import BytesIO
+from urllib.parse import parse_qs, urlencode
+
 import httpx
 
 from django.conf import settings
+from django.core.cache import cache
+from django.db import transaction
 from django.http import JsonResponse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
+
 
 from .parser import parse_financial_message
 from urllib.parse import parse_qs
 
-from transactions.models import Transaction
+from .models import LineRecordMode
+from .supabase_storage import upload_receipt
+
 from categories.models import Category
+from transactions.models import TransactionDraft
+from transactions.services import confirm_transaction_draft
+from transactions.ocr import (
+    read_receipt,
+    get_receipt_amount,
+    extract_datetime,
+)
 from users.models import User
 from friends.models import Friends
 
-# ==========================================
-# ตอบข้อความกลับ LINE
-# ==========================================
 
-def reply_to_line(reply_token, message_text):
+logger = logging.getLogger(__name__)
 
-    url = "https://api.line.me/v2/bot/message/reply"
+PENDING_TIMEOUT_SECONDS = 24 * 60 * 60
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": (
-            f"Bearer {settings.LINE_BOT_CHANNEL_ACCESS_TOKEN}"
-        ),
-    }
 
-    data = {
-        "replyToken": reply_token,
-        "messages": [
-            {
-                "type": "text",
-                "text": message_text,
-            }
-        ],
-    }
+# ==================== Pending Draft ====================
+
+def pending_key(line_user_id):
+    return f"line_pending_transaction:{line_user_id}"
+
+
+def get_pending(line_user_id, user):
+    draft_id = cache.get(pending_key(line_user_id))
+
+    if not draft_id:
+        return None
+
+    draft = TransactionDraft.objects.filter(
+        id=draft_id,
+        user=user,
+        status="pending"
+    ).first()
+
+    if draft is None:
+        cache.delete(pending_key(line_user_id))
+
+    return draft
+
+
+def set_pending(line_user_id, draft):
+    cache.set(
+        pending_key(line_user_id),
+        draft.id,
+        timeout=PENDING_TIMEOUT_SECONDS
+    )
+
+
+def clear_pending(line_user_id):
+    cache.delete(pending_key(line_user_id))
+
+
+# ==================== LINE Reply ====================
+
+def reply_to_line(reply_token, message):
+    """ส่งข้อความธรรมดาหรือ Flex Message"""
+
+    if not reply_token:
+        return
+
+    if isinstance(message, dict):
+        line_message = message
+    else:
+        line_message = {
+            "type": "text",
+            "text": str(message)
+        }
 
     response = httpx.post(
-        url,
-        headers=headers,
-        json=data,
-        timeout=10,
+        "https://api.line.me/v2/bot/message/reply",
+        headers={
+            "Authorization": (
+                f"Bearer {settings.LINE_BOT_CHANNEL_ACCESS_TOKEN}"
+            )
+        },
+        json={
+            "replyToken": reply_token,
+            "messages": [line_message]
+        },
+        timeout=10
     )
 
-    print(
-        "LINE REPLY STATUS:",
-        response.status_code
+    response.raise_for_status()
+
+
+# ==================== Category ====================
+
+def find_category(name, transaction_type):
+    for candidate in [name, "อื่นๆ", "อื่น"]:
+        if not candidate:
+            continue
+
+        category = Category.objects.filter(
+            name=candidate,
+            transaction_type=transaction_type
+        ).first()
+
+        if category:
+            return category
+
+    return None
+
+
+# ==================== Date / Time ====================
+
+def parse_date_time(date_time_text):
+    if not date_time_text:
+        return None, None
+
+    try:
+        result = datetime.strptime(
+            date_time_text,
+            "%Y-%m-%d %H:%M"
+        )
+        return result.date(), result.time()
+
+    except (ValueError, TypeError):
+        return None, None
+
+
+# ==================== KaneCho Flex Card ====================
+
+def build_transaction_flex(draft):
+    """สร้าง Flex Card สำหรับตรวจสอบรายการก่อนบันทึก"""
+
+    type_label = (
+        "รายรับ"
+        if draft.transaction_type == "income"
+        else "รายจ่าย"
     )
 
-    print(
-        "LINE REPLY RESPONSE:",
-        response.text
+    amount_text = (
+        f"฿{draft.amount:,.2f}"
+        if draft.amount is not None
+        else "ยังไม่ระบุยอด"
     )
 
-    return response
+    category_text = (
+        draft.category.name
+        if draft.category
+        else "ไม่ระบุ"
+    )
+
+    if draft.sub_category:
+        category_text += f" / {draft.sub_category}"
+
+    # URL ของ React Frontend (ต้องตั้งค่า FRONTEND_URL ใน Django settings)
+    frontend_url = settings.FRONTEND_URL.rstrip("/")
+    edit_url = f"{frontend_url}/transactions/?{urlencode({'draft': draft.id})}"
+
+    def detail(text):
+        return {
+            "type": "text",
+            "text": text,
+            "size": "sm",
+            "color": "#594A3D",
+            "wrap": True
+        }
+
+    return {
+        "type": "flex",
+        "altText": (
+            f"KaneCho ตรวจสอบรายการ{type_label} {amount_text}"
+        ),
+        "contents": {
+            "type": "bubble",
+            "size": "mega",
+            "hero": {
+                "type": "image",
+                "url": (
+                    "https://i.postimg.cc/fyCv4PPZ/"
+                    "Kanecho-Header.jpg"
+                ),
+                "size": "full",
+                "aspectRatio": "5:2",
+                "aspectMode": "cover"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#FFF9EE",
+                "spacing": "md",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "KaneCho | ตรวจสอบรายการ",
+                        "weight": "bold",
+                        "size": "md",
+                        "color": "#805035"
+                    },
+                    {
+                        "type": "text",
+                        "text": amount_text,
+                        "weight": "bold",
+                        "size": "xxl",
+                        "color": "#805035"
+                    },
+                    {
+                        "type": "separator",
+                        "margin": "md",
+                        "color": "#E8DCC8"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "spacing": "md",
+                        "margin": "md",
+                        "contents": [
+                            detail(f"ประเภท: {type_label}"),
+                            detail(
+                                f"รายการ: "
+                                f"{draft.description or 'ไม่ระบุ'}"
+                            ),
+                            detail(
+                                f"หมวดหมู่: {category_text}"
+                            ),
+                            detail(
+                                f"ช่องทาง: "
+                                f"{draft.account or 'ไม่ระบุ'}"
+                            )
+                        ]
+                    },
+                    {
+                        "type": "separator",
+                        "margin": "md",
+                        "color": "#E8DCC8"
+                    },
+                    {
+                        "type": "text",
+                        "text": "กรุณาตรวจสอบข้อมูลก่อนยืนยัน",
+                        "size": "xs",
+                        "color": "#8B7A68",
+                        "align": "center",
+                        "margin": "md"
+                    }
+                ]
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#FFF9EE",
+                "spacing": "sm",
+                "contents": [
+                    {
+                        "type": "button",
+                        "style": "primary",
+                        "color": "#b8d95a",
+                        "action": {
+                            "type": "postback",
+                            "label": "ยืนยันรายการ",
+                            "data": (
+                                f"action=confirm&draft_id={draft.id}"
+                            )
+                        }
+                    },
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "spacing": "sm",
+                        "contents": [
+                            {
+                                "type": "button",
+                                "style": "secondary",
+                                "action": {
+                                    "type": "uri",
+                                    "label": "แก้ไข",
+                                    "uri": edit_url
+                                }
+                            },
+                            {
+                                "type": "button",
+                                "style": "secondary",
+                                "action": {
+                                    "type": "postback",
+                                    "label": "ยกเลิก",
+                                    "data": (
+                                        f"action=cancel&draft_id={draft.id}"
+                                    )
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    }
 
 
-# ==========================================
-# LINE Webhook
-# ==========================================
+def show_pending(draft):
+    return build_transaction_flex(draft)
+
+
+# ==================== Rich Menu / Flex Postback ====================
+
+def handle_postback(data, line_user_id):
+    params = parse_qs(data)
+
+    action = params.get("action", [""])[0]
+    record_type = params.get("type", [""])[0]
+
+    user = User.objects.filter(
+        line_uid=line_user_id
+    ).first()
+
+    if user is None:
+        return "กรุณาเข้าสู่ระบบและเชื่อมบัญชี LINE ก่อนค่ะ"
+
+    # ปุ่มจาก Flex Card
+    if action in ("confirm", "cancel", "edit"):
+
+        try:
+            draft_id = int(
+                params.get("draft_id", [""])[0]
+            )
+        except (TypeError, ValueError):
+            return "รหัสรายการไม่ถูกต้องค่ะ"
+
+        # ตรวจว่า Draft เป็นของผู้ใช้คนนี้
+        draft = TransactionDraft.objects.filter(
+            id=draft_id,
+            user=user,
+            status="pending"
+        ).first()
+
+        if draft is None:
+            return (
+                "ไม่พบรายการที่รอยืนยัน "
+                "หรือรายการนี้ดำเนินการไปแล้วค่ะ"
+            )
+
+        # แก้ไขรายการ
+        if action == "edit":
+            set_pending(line_user_id, draft)
+            return (
+                "ส่งข้อความรายการใหม่เพื่อแก้ไขได้เลยค่ะ\n"
+                "เช่น กาแฟ 120 บาท กสิกร"
+            )
+
+        # ยกเลิกรายการ
+        if action == "cancel":
+            with transaction.atomic():
+                locked = (
+                    TransactionDraft.objects
+                    .select_for_update()
+                    .filter(
+                        id=draft_id,
+                        user=user,
+                        status="pending"
+                    )
+                    .first()
+                )
+
+                if locked is None:
+                    return "รายการนี้ดำเนินการไปแล้วค่ะ"
+
+                locked.status = "cancelled"
+                locked.save(update_fields=["status"])
+
+            if cache.get(pending_key(line_user_id)) == draft_id:
+                clear_pending(line_user_id)
+
+            return "ยกเลิกรายการแล้วค่ะ"
+
+        # ยืนยันรายการ
+        new_transaction, error = confirm_transaction_draft(
+            draft_id=draft_id,
+            user=user
+        )
+
+        if error:
+            return error
+
+        if cache.get(pending_key(line_user_id)) == draft_id:
+            clear_pending(line_user_id)
+
+        label = (
+            "รายรับ"
+            if new_transaction.transaction_type == "income"
+            else "รายจ่าย"
+        )
+
+        return (
+            f"บันทึก{label}สำเร็จค่ะ "
+            f"(#{new_transaction.id})\n"
+            f"{new_transaction.amount:,.2f} บาท"
+        )
+
+    # ปุ่มเลือกโหมดจาก Rich Menu
+    if action != "select_record":
+        return "เมนูนี้ยังไม่เปิดใช้งานค่ะ"
+
+    if record_type not in ("income", "expense"):
+        return "เมนูจดหนี้สิน/การออมยังไม่เปิดใช้งานค่ะ"
+
+    previous = LineRecordMode.objects.filter(
+        user=user
+    ).first()
+
+    # เปลี่ยนโหมดแล้ว ยกเลิก Draft ที่ยังค้าง
+    if previous and previous.transaction_type != record_type:
+        draft = get_pending(line_user_id, user)
+
+        if draft is not None:
+            draft.status = "cancelled"
+            draft.save(update_fields=["status"])
+            clear_pending(line_user_id)
+
+    LineRecordMode.objects.update_or_create(
+        user=user,
+        defaults={
+            "transaction_type": record_type
+        }
+    )
+
+    label = (
+        "รายรับ"
+        if record_type == "income"
+        else "รายจ่าย"
+    )
+
+    return (
+        f"เลือกโหมดจด{label}แล้วค่ะ "
+        "ส่งข้อความหรือรูปภาพได้เลย"
+    )
+
+
+def get_record_mode(user):
+    return (
+        LineRecordMode.objects
+        .filter(user=user)
+        .values_list("transaction_type", flat=True)
+        .first()
+    )
+
+
+# ==================== Text Message ====================
+
+def handle_text_message(text, line_user_id):
+
+    user = User.objects.filter(
+        line_uid=line_user_id
+    ).first()
+
+    if user is None:
+        return (
+            "ยังไม่พบบัญชีที่เชื่อมกับ LINE นี้ "
+            "กรุณาเข้าสู่ระบบด้วย LINE เดียวกันก่อน"
+        )
+
+    command = text.strip()
+    draft = get_pending(line_user_id, user)
+
+    # ยกเลิกด้วยข้อความ
+    if command == "ยกเลิก":
+
+        if draft is None:
+            return "ไม่มีรายการรอยกเลิกค่ะ"
+
+        with transaction.atomic():
+            locked = (
+                TransactionDraft.objects
+                .select_for_update()
+                .filter(
+                    id=draft.id,
+                    user=user,
+                    status="pending"
+                )
+                .first()
+            )
+
+            if locked is None:
+                clear_pending(line_user_id)
+                return "รายการนี้ดำเนินการไปแล้วค่ะ"
+
+            locked.status = "cancelled"
+            locked.save(update_fields=["status"])
+
+        clear_pending(line_user_id)
+        return "ยกเลิกรายการแล้วค่ะ"
+
+    # ยืนยันด้วยข้อความ
+    if command == "ยืนยัน":
+
+        if draft is None:
+            return "ไม่มีรายการรอยืนยัน กรุณาส่งรายการใหม่"
+
+        new_transaction, error = confirm_transaction_draft(
+            draft_id=draft.id,
+            user=user
+        )
+
+        if error:
+            return error
+
+        clear_pending(line_user_id)
+
+        label = (
+            "รายรับ"
+            if new_transaction.transaction_type == "income"
+            else "รายจ่าย"
+        )
+
+        return (
+            f"บันทึกสำเร็จค่ะ (#{new_transaction.id})\n"
+            f"{label} {new_transaction.amount:,.2f} บาท"
+        )
+
+    # อ่านโหมดจากฐานข้อมูล
+    transaction_type = get_record_mode(user)
+
+    if transaction_type not in ("income", "expense"):
+        return (
+            "กรุณากดจดรายรับหรือจดรายจ่าย"
+            "จาก Rich Menu ก่อนค่ะ"
+        )
+
+    # Parser ใช้ประเภทจาก Rich Menu เท่านั้น
+    result = parse_financial_message(
+        command,
+        transaction_type
+    )
+
+    if not result or not result.get("success"):
+        return (
+            "ไม่พบจำนวนเงินค่ะ "
+            "ลองพิมพ์ เช่น ชา 80 บาท"
+        )
+
+    parsed_category = (
+        result.get("category") or "อื่นๆ"
+    )
+
+    category = find_category(
+        parsed_category,
+        transaction_type
+    )
+
+    if category is None:
+        return (
+            "ไม่พบหมวดหมู่ในฐานข้อมูล "
+            "กรุณาเพิ่มหมวดหมู่ 'อื่นๆ' ก่อน"
+        )
+
+    # ถ้ามี Draft เดิม ให้แก้ไข Draft เดิม
+    if draft is not None:
+
+        draft.amount = result.get("amount")
+        draft.transaction_type = transaction_type
+        draft.description = (
+            result.get("description") or ""
+        )
+        draft.category = category
+        draft.sub_category = (
+            result.get("sub_category") or ""
+        )
+        draft.account = (
+            result.get("account") or ""
+        )
+
+        draft.save()
+
+    else:
+        # สร้าง Draft ใหม่ ยังไม่บันทึก Transaction
+        now = timezone.localtime()
+
+        draft = TransactionDraft.objects.create(
+            user=user,
+            amount=result.get("amount"),
+            transaction_type=transaction_type,
+            description=result.get("description") or "",
+            category=category,
+            sub_category=result.get("sub_category") or "",
+            account=result.get("account") or "",
+            transaction_date=now.date(),
+            transaction_time=now.time().replace(
+                microsecond=0
+            ),
+            status="pending"
+        )
+
+    set_pending(line_user_id, draft)
+
+    return show_pending(draft)
+
+
+# ==================== Image Message / OCR ====================
+
+def attach_receipt_to_draft(draft, image_bytes, message_id):
+    """Upload a receipt to private Supabase Storage and save its object path."""
+    path = upload_receipt(image_bytes, f"line_{message_id}.jpg")
+    draft.receipt.name = path
+    draft.save(update_fields=["receipt"])
+    return draft
+
+def handle_image_message(message_id, line_user_id):
+
+    user = User.objects.filter(
+        line_uid=line_user_id
+    ).first()
+
+    if user is None:
+        return (
+            "กรุณาเข้าสู่ระบบด้วย LINE "
+            "เดียวกันก่อนส่งรูปค่ะ"
+        )
+
+    if not message_id:
+        return "ไม่พบรหัสรูปภาพ กรุณาส่งรูปใหม่"
+
+    transaction_type = get_record_mode(user)
+
+    if transaction_type not in ("income", "expense"):
+        return (
+            "กรุณากดจดรายรับหรือจดรายจ่าย"
+            "จาก Rich Menu ก่อนส่งรูปค่ะ"
+        )
+
+    # ดาวน์โหลดรูปจาก LINE
+    response = httpx.get(
+        (
+            "https://api-data.line.me/v2/bot/message/"
+            f"{message_id}/content"
+        ),
+        headers={
+            "Authorization": (
+                f"Bearer {settings.LINE_BOT_CHANNEL_ACCESS_TOKEN}"
+            )
+        },
+        timeout=20
+    )
+
+    response.raise_for_status()
+
+    image_bytes = response.content
+
+    if len(image_bytes) > 5 * 1024 * 1024:
+        return "รูปภาพใหญ่เกิน 5 MB กรุณาส่งรูปใหม่"
+
+    draft = get_pending(line_user_id, user)
+
+    # มีข้อความก่อน แล้วส่งรูปตามมา
+    if draft is not None:
+        if draft.transaction_type in ("income", "expense"):
+
+            attach_receipt_to_draft(
+                draft,
+                image_bytes,
+                message_id
+            )
+
+            return show_pending(draft)
+
+    # ส่งรูปก่อน ใช้ OCR อ่านข้อมูล
+    try:
+        text = read_receipt(BytesIO(image_bytes))
+
+        amount, amount_status = get_receipt_amount(
+            text
+        )
+
+        date_time_text = extract_datetime(text)
+
+    except Exception:
+        logger.exception("OCR failed")
+
+        amount = None
+        amount_status = "not_found"
+        date_time_text = None
+
+    date_value, time_value = parse_date_time(
+        date_time_text
+    )
+
+    if draft is None:
+
+        draft = TransactionDraft.objects.create(
+            user=user,
+            amount=amount,
+            transaction_type=transaction_type,
+            category=find_category(
+                "อื่นๆ",
+                transaction_type
+            ),
+            description="",
+            transaction_date=date_value,
+            transaction_time=time_value,
+            status="pending"
+        )
+
+    else:
+        draft.amount = amount
+        draft.transaction_type = transaction_type
+        draft.category = find_category(
+            "อื่นๆ",
+            transaction_type
+        )
+
+        if date_value:
+            draft.transaction_date = date_value
+
+        if time_value:
+            draft.transaction_time = time_value
+
+        draft.save()
+
+    # แนบรูปกับ Draft
+    attach_receipt_to_draft(
+        draft,
+        image_bytes,
+        message_id
+    )
+
+    set_pending(line_user_id, draft)
+
+    # ถ้าอ่านยอดได้ แสดง Flex Card
+    if amount is not None:
+        return show_pending(draft)
+
+    # ถ้าอ่านยอดไม่ได้ ให้ผู้ใช้พิมพ์ข้อมูลเพิ่ม
+    return (
+        "ได้รับรูปแล้วค่ะ แต่ OCR อ่านยอดไม่พบ\n"
+        f"วันที่: {date_time_text or 'อ่านไม่พบ'}\n"
+        "กรุณาส่งข้อความระบุรายการและจำนวนเงิน "
+        "เช่น 'ค่าอาหาร 40 บาท'"
+    )
+
+
+# ==================== LINE Webhook ====================
 
 @csrf_exempt
 def line_webhook(request):
 
-    print(
-        "\n========== LINE WEBHOOK START =========="
+    if request.method != "POST":
+        return JsonResponse({
+            "message": "LINE Webhook is working"
+        })
+
+    if (
+        not settings.LINE_BOT_CHANNEL_SECRET
+        or not settings.LINE_BOT_CHANNEL_ACCESS_TOKEN
+    ):
+        return JsonResponse(
+            {
+                "error": "LINE credentials not configured"
+            },
+            status=503
+        )
+
+    # ตรวจสอบ LINE Signature
+    signature = request.headers.get(
+        "X-Line-Signature",
+        ""
     )
 
-    try:
-
-        # ------------------------------------------
-        # เปิด URL ผ่าน browser
-        # ------------------------------------------
-
-        if request.method != "POST":
-
-            return JsonResponse(
-                {
-                    "message":
-                    "LINE Webhook is working"
-                },
-                status=200,
-            )
-
-
-        # ------------------------------------------
-        # ตรวจ LINE credentials
-        # ------------------------------------------
-
-        if not settings.LINE_BOT_CHANNEL_SECRET:
-
-            print(
-                "ERROR: LINE_BOT_CHANNEL_SECRET ไม่มีค่า"
-            )
-
-            return JsonResponse(
-                {
-                    "error":
-                    "LINE channel secret not configured"
-                },
-                status=503,
-            )
-
-
-        if not settings.LINE_BOT_CHANNEL_ACCESS_TOKEN:
-
-            print(
-                "ERROR: LINE_BOT_CHANNEL_ACCESS_TOKEN ไม่มีค่า"
-            )
-
-            return JsonResponse(
-                {
-                    "error":
-                    "LINE access token not configured"
-                },
-                status=503,
-            )
-
-
-        # ------------------------------------------
-        # Signature
-        # ------------------------------------------
-
-        body = request.body
-
-        signature = request.headers.get(
-            "X-Line-Signature"
-        )
-
-        print(
-            "STEP 1: CHECK SIGNATURE"
-        )
-
-
-        if not signature:
-
-            print(
-                "ERROR: Missing X-Line-Signature"
-            )
-
-            return JsonResponse(
-                {
-                    "error":
-                    "Missing X-Line-Signature"
-                },
-                status=400,
-            )
-
-
-        hash_value = hmac.new(
-            settings.LINE_BOT_CHANNEL_SECRET.encode(
-                "utf-8"
-            ),
-            body,
-            hashlib.sha256,
+    expected_signature = base64.b64encode(
+        hmac.new(
+            settings.LINE_BOT_CHANNEL_SECRET.encode(),
+            request.body,
+            hashlib.sha256
         ).digest()
+    ).decode()
 
-
-        expected_signature = base64.b64encode(
-            hash_value
-        ).decode(
-            "utf-8"
+    if not hmac.compare_digest(
+        signature,
+        expected_signature
+    ):
+        return JsonResponse(
+            {
+                "error": "Invalid LINE signature"
+            },
+            status=400
         )
 
-
-        if not hmac.compare_digest(
-            signature,
-            expected_signature,
-        ):
-
-            print(
-                "SIGNATURE NOT MATCH"
-            )
-
-            return JsonResponse(
-                {
-                    "error":
-                    "Invalid signature"
-                },
-                status=400,
-            )
-
-
-        print(
-            "SIGNATURE MATCH"
+    try:
+        payload = json.loads(
+            request.body.decode("utf-8")
         )
 
-
-        # ------------------------------------------
-        # JSON
-        # ------------------------------------------
-
-        print(
-            "STEP 2: READ JSON"
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return JsonResponse(
+            {
+                "error": "Invalid JSON"
+            },
+            status=400
         )
 
-        data = json.loads(
-            body.decode(
-                "utf-8"
-            )
-        )
+    for event in payload.get("events", []):
 
+        event_type = event.get("type")
 
-        print(
-            json.dumps(
-                data,
-                indent=2,
-                ensure_ascii=False,
-            )
-        )
+        if event_type not in ("message", "postback"):
+            continue
 
+        message = event.get("message") or {}
 
-        events = data.get(
-            "events",
-            []
-        )
+        line_user_id = (
+            event.get("source") or {}
+        ).get("userId")
 
+        if not line_user_id:
+            continue
 
-        print(
-            "EVENT COUNT:",
-            len(events)
-        )
+        try:
 
+            # Rich Menu หรือปุ่มบน Flex Card
+            if event_type == "postback":
 
-        # LINE Verify อาจไม่มี event
-        if not events:
-
-            print(
-                "NO EVENT - VERIFY REQUEST"
-            )
-
-            print(
-                "========== LINE WEBHOOK END ==========\n"
-            )
-
-            return JsonResponse(
-                {
-                    "status":
-                    "ok"
-                },
-                status=200,
-            )
-
-
-        # ------------------------------------------
-        # Event
-        # ------------------------------------------
-
-        for event in events:
-
-            print("STEP 3: EVENT")
-            print("EVENT TYPE:", event.get("type"))
-            
-            # รับการกดปุ่ม ยอมรับ/ปฏิเสธ คำขอเป็นเพื่อนจากไลน์
-            if event.get("type") == "postback":
-                postback_data = parse_qs(
-                    event.get("postback", {}).get("data", "")
+                answer = handle_postback(
+                    (
+                        event.get("postback") or {}
+                    ).get("data", ""),
+                    line_user_id
                 )
 
-                action = postback_data.get("action", [""])[0]
-                friend_id = postback_data.get("friend_id", [""])[0]
+            # ข้อความ
+            elif message.get("type") == "text":
 
-                line_user_id = event.get(
-                    "source", {}
-                ).get("userId")
-
-                print("FRIEND POSTBACK ACTION:", action)
-                print("FRIEND REQUEST ID:", friend_id)
-                print("LINE USER ID:", line_user_id)
-
-                # ค้นหาบัญชีของผู้ที่กดปุ่ม
-                recipient = User.objects.filter(
-                    line_uid=line_user_id
-                ).first()
-
-                if recipient is None:
-                    print("ไม่พบบัญชีผู้ใช้ที่เชื่อมกับ LINE นี้")
-
-                    if event.get("replyToken"):
-                        reply_to_line(
-                            event["replyToken"],
-                            "ไม่พบบัญชีผู้ใช้ กรุณาเข้าสู่ระบบด้วย LINE "
-                            "บัญชีที่ลงทะเบียนไว้ก่อนค่ะ"
-                        )
-
-                    continue
-
-                # ตรวจสอบว่าคำขอนี้ส่งถึงผู้ที่กดปุ่มจริง
-                friend_request = Friends.objects.filter(
-                    id=friend_id,
-                    receiver=recipient,
-                    status="pending",
-                ).first()
-
-                if friend_request is None:
-                    if event.get("replyToken"):
-                        reply_to_line(
-                            event["replyToken"],
-                            "คำขอนี้ไม่มีอยู่แล้ว หรือได้รับการตอบกลับไปแล้วค่ะ"
-                        )
-
-                    continue
-
-                if action == "friend_accept":
-                    friend_request.status = "accepted"
-                    friend_request.save()
-                    reply_message = (
-                        f"คุณเป็นเพื่อนกับ {friend_request.sender.username} "
-                        "เรียบร้อยแล้วค่ะ"
-                    )
-
-                elif action == "friend_reject":
-                    friend_request.status = "rejected"
-                    friend_request.save()
-                    reply_message = "ปฏิเสธคำขอเป็นเพื่อนเรียบร้อยแล้วค่ะ"
-
-                else:
-                    print("ไม่รู้จักคำสั่ง Postback:", action)
-                    continue
-
-                if event.get("replyToken"):
-                    reply_to_line(
-                        event["replyToken"],
-                        reply_message,
-                    )
-
-                continue
-
-            if event.get("type") != "message":
-                continue
-
-            message = event.get("message", {})
-
-            if message.get("type") != "text":
-                continue
-
-            text = message.get("text", "")
-
-            reply_token = event.get("replyToken")
-
-            line_user_id = event.get("source", {}).get("userId")
-
-            print("MESSAGE:", text)
-
-            print("LINE USER ID:", line_user_id)
-
-
-            # ------------------------------------------
-            # Parser
-            # ------------------------------------------
-
-            print(
-                "STEP 4: PARSER"
-            )
-
-
-            result = parse_financial_message(
-                text
-            )
-
-
-            print(
-                "PARSE RESULT:",
-                result
-            )
-
-
-            # ------------------------------------------
-            # Parser สำเร็จ
-            # ------------------------------------------
-
-            if result and result.get(
-                "success"
-            ):
-
-                print(
-                    "STEP 5: FIND USER"
+                answer = handle_text_message(
+                    message.get("text", ""),
+                    line_user_id
                 )
 
+            # รูปภาพ
+            elif message.get("type") == "image":
 
-                user = User.objects.filter(
-                    line_uid=line_user_id
-                ).first()
-
-
-                print(
-                    "USER FOUND:",
-                    user is not None,
+                answer = handle_image_message(
+                    message.get("id"),
+                    line_user_id
                 )
-
-
-                # --------------------------------------
-                # ยังไม่ได้เชื่อม LINE
-                # --------------------------------------
-
-                if user is None:
-
-                    reply_message = (
-                        "ยังไม่พบบัญชีที่เชื่อมกับ LINE นี้ค่ะ "
-                        "กรุณาสมัครหรือเข้าสู่ระบบ"
-                        "ด้วยบัญชี LINE เดียวกันก่อน"
-                    )
-
-
-                else:
-
-                    # ----------------------------------
-                    # Category
-                    # ----------------------------------
-
-                    print(
-                        "STEP 6: CATEGORY"
-                    )
-
-
-                    category_name = result.get(
-                        "category",
-                        "อื่นๆ",
-                    )
-
-
-                    transaction_type = result.get(
-                        "type"
-                    )
-
-
-                    print(
-                        "CATEGORY:",
-                        category_name,
-                    )
-
-
-                    print(
-                        "TRANSACTION TYPE:",
-                        transaction_type,
-                    )
-
-
-                    category = Category.objects.filter(
-                        name=category_name,
-                        transaction_type=transaction_type,
-                    ).first()
-
-
-                    if category is None:
-
-                        print(
-                            "CATEGORY NOT FOUND -> CREATE"
-                        )
-
-
-                        category = Category.objects.create(
-                            name=category_name,
-                            transaction_type=transaction_type,
-                        )
-
-
-                    print(
-                        "CATEGORY ID:",
-                        category.id,
-                    )
-
-
-                    # ----------------------------------
-                    # Transaction
-                    # ----------------------------------
-
-                    print(
-                        "STEP 7: CREATE TRANSACTION"
-                    )
-
-
-                    now = timezone.localtime()
-
-
-                    transaction = Transaction.objects.create(
-
-                        user=user,
-
-                        amount=result.get(
-                            "amount"
-                        ),
-
-                        transaction_type=transaction_type,
-
-                        description=result.get(
-                            "description",
-                            "",
-                        ),
-
-                        category=category,
-
-                        sub_category=result.get(
-                            "sub_category",
-                            "",
-                        ),
-
-                        account=result.get(
-                            "account",
-                            "",
-                        ),
-
-                        transaction_date=now.date(),
-
-                        transaction_time=(
-                            now.time().replace(
-                                microsecond=0
-                            )
-                        ),
-                    )
-
-
-                    print(
-                        "TRANSACTION CREATED ID:",
-                        transaction.id,
-                    )
-
-
-                    # ----------------------------------
-                    # ข้อความตอบ
-                    # ----------------------------------
-
-                    if transaction_type == "income":
-
-                        type_text = "รายรับ"
-
-                    else:
-
-                        type_text = "รายจ่าย"
-
-
-                    # ถ้าไม่ได้ระบุบัญชี
-                    # หรือช่องทางชำระ
-                    # ให้แสดงเป็น "-"
-                    account_text = (
-                        result.get(
-                            "account"
-                        )
-                        or "-"
-                    )
-
-
-                    reply_message = (
-                        f"บันทึกรายการแล้วค่ะ\n"
-                        f"ประเภท: {type_text}\n"
-                        f"จำนวน: "
-                        f"{result.get('amount', 0):,.2f} บาท\n"
-                        f"หมวดหมู่: {category_name}\n"
-                        f"หมวดหมู่ย่อย: "
-                        f"{result.get('sub_category', '')}\n"
-                        f"บัญชี: {account_text}\n"
-                        f"รายละเอียด: "
-                        f"{result.get('description', '')}"
-                    )
-
-
-            # ------------------------------------------
-            # Parser ไม่เข้าใจ
-            # ------------------------------------------
 
             else:
+                continue
 
-                print(
-                    "PARSER FAILED"
-                )
-
-
-                reply_message = (
-                    "ขอโทษค่ะ ยังไม่เข้าใจรายการนี้ 😅\n"
-                    "ลองพิมพ์ เช่น\n"
-                    "กินข้าว 60 บาท"
-                )
-
-
-            # ------------------------------------------
-            # Reply LINE
-            # ------------------------------------------
-
-            print(
-                "STEP 8: REPLY LINE"
+            reply_to_line(
+                event.get("replyToken"),
+                answer
             )
 
+        except Exception:
+            logger.exception(
+                "LINE event processing failed"
+            )
 
-            if reply_token:
-
+            try:
                 reply_to_line(
-                    reply_token,
-                    reply_message,
+                    event.get("replyToken"),
+                    "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้งค่ะ"
                 )
 
+            except Exception:
+                logger.exception(
+                    "LINE error reply failed"
+                )
 
-            print(
-                "STEP 8 COMPLETE"
-            )
-
-
-        print(
-            "========== LINE WEBHOOK SUCCESS ==========\n"
-        )
-
-
-        return JsonResponse(
-            {
-                "status":
-                "ok"
-            },
-            status=200,
-        )
-
-
-    except Exception as error:
-
-        print(
-            "\n"
-        )
-
-        print(
-            "!!!!!!!!!! WEBHOOK ERROR !!!!!!!!!!"
-        )
-
-        print(
-            "ERROR TYPE:",
-            type(error).__name__
-        )
-
-        print(
-            "ERROR MESSAGE:",
-            str(error)
-        )
-
-        print(
-            ""
-        )
-
-        print(
-            "TRACEBACK:"
-        )
-
-        traceback.print_exc()
-
-        print(
-            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        )
-
-        print(
-            "\n"
-        )
-
-
-        return JsonResponse(
-            {
-                "status":
-                "error",
-
-                "error_type":
-                type(error).__name__,
-
-                "error":
-                str(error),
-            },
-            status=500,
-        )
+    return JsonResponse({"status": "ok"})
