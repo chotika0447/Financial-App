@@ -16,6 +16,7 @@ export default defineConfig({
       'glimmer-grunt-obstruct.ngrok-free.dev',
       'tammara-semivolcanic-randee.ngrok-free.dev',
       'financial-app-xgc0.onrender.com',
+      'rogue-washer-cola.ngrok-free.dev',
     ],
 
     proxy: {
@@ -25,6 +26,16 @@ export default defineConfig({
       },
 
       '/transactions': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+
+      '/savings': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+
+      '/categories': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
@@ -43,13 +54,8 @@ export default defineConfig({
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
-
-      '/categories': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-
-      '/savings': {
+      
+      '/check-backend': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },

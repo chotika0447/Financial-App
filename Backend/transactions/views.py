@@ -2,22 +2,26 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 
-from .models import Transaction
-from .serializers import TransactionSerializer
+from django.db import transaction
+from django.utils import timezone
+
+from PIL import UnidentifiedImageError
+
+from .services import confirm_transaction_draft
+from .models import Transaction, TransactionDraft
+from .serializers import TransactionSerializer, TransactionDraftSerializer
+from .ocr import read_receipt, get_receipt_amount, extract_datetime
 
 
-# ดู Transaction ทั้งหมด
-# และเพิ่ม Transaction ใหม่
+# ดูรายการรายรับ-รายจ่ายทั้งหมด และเพิ่มรายการใหม่
 class TransactionListCreateView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-
-    # ดู Transaction
     def get(self, request):
 
-        # เอาเฉพาะ Transaction ของ User ที่ Login อยู่
         transactions = Transaction.objects.filter(
             user=request.user
         ).order_by(
@@ -27,18 +31,13 @@ class TransactionListCreateView(APIView):
             "-id"
         )
 
-
-        # เช่น
-        # /transactions/?transaction_type=expense
         transaction_type = request.query_params.get(
             "transaction_type"
         )
 
-
         if transaction_type:
 
             if transaction_type not in Transaction.TransactionType.values:
-
                 return Response(
                     {
                         "transaction_type": [
@@ -48,43 +47,34 @@ class TransactionListCreateView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-
             transactions = transactions.filter(
                 transaction_type=transaction_type
             )
-
 
         serializer = TransactionSerializer(
             transactions,
             many=True
         )
 
+        return Response(serializer.data)
 
-        return Response(
-            serializer.data
-        )
-
-
-    # เพิ่ม Transaction
+    # เพิ่มรายการรายรับ-รายจ่าย
     def post(self, request):
 
         serializer = TransactionSerializer(
             data=request.data
         )
 
-
         if serializer.is_valid():
 
-            transaction = serializer.save(
+            new_transaction = serializer.save(
                 user=request.user
             )
 
-
             return Response(
-                TransactionSerializer(transaction).data,
+                TransactionSerializer(new_transaction).data,
                 status=status.HTTP_201_CREATED
             )
-
 
         return Response(
             serializer.errors,
@@ -92,143 +82,264 @@ class TransactionListCreateView(APIView):
         )
 
 
-
-# ดู / แก้ไข / ลบ Transaction 1 รายการ
+# ดู แก้ไข และลบรายการที่บันทึกแล้ว
 class TransactionDetailView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-
-    # หา Transaction ตาม ID
     def get_object(self, request, pk):
 
         try:
-
             return Transaction.objects.get(
                 id=pk,
                 user=request.user
             )
 
         except Transaction.DoesNotExist:
-
             return None
 
-
-    # ดู Transaction 1 รายการ
     def get(self, request, pk):
 
-        transaction = self.get_object(
-            request,
-            pk
-        )
+        transaction_item = self.get_object(request, pk)
 
-
-        if transaction is None:
-
+        if transaction_item is None:
             return Response(
-                {
-                    "error": "Transaction not found"
-                },
+                {"error": "Transaction not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        serializer = TransactionSerializer(transaction_item)
 
-        serializer = TransactionSerializer(
-            transaction
-        )
+        return Response(serializer.data)
 
-
-        return Response(
-            serializer.data
-        )
-
-
-    # แก้ทั้งหมด
     def put(self, request, pk):
+        return self.update(request, pk, partial=False)
 
-        return self.update(
-            request,
-            pk,
-            partial=False
-        )
-
-
-    # แก้บางส่วน
     def patch(self, request, pk):
+        return self.update(request, pk, partial=True)
 
-        return self.update(
-            request,
-            pk,
-            partial=True
-        )
-
-
-    # ใช้ร่วมกันระหว่าง PUT กับ PATCH
     def update(self, request, pk, partial):
 
-        transaction = self.get_object(
-            request,
-            pk
-        )
+        transaction_item = self.get_object(request, pk)
 
-
-        if transaction is None:
-
+        if transaction_item is None:
             return Response(
-                {
-                    "error": "Transaction not found"
-                },
+                {"error": "Transaction not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-
         serializer = TransactionSerializer(
-            transaction,
+            transaction_item,
             data=request.data,
             partial=partial
         )
 
-
         if serializer.is_valid():
 
-            transaction = serializer.save()
-
+            transaction_item = serializer.save()
 
             return Response(
-                TransactionSerializer(
-                    transaction
-                ).data
+                TransactionSerializer(transaction_item).data
             )
-
 
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
         )
 
-
-    # ลบ Transaction
     def delete(self, request, pk):
 
-        transaction = self.get_object(
-            request,
-            pk
-        )
+        transaction_item = self.get_object(request, pk)
 
-
-        if transaction is None:
-
+        if transaction_item is None:
             return Response(
-                {
-                    "error": "Transaction not found"
-                },
+                {"error": "Transaction not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-
-        transaction.delete()
-
+        transaction_item.delete()
 
         return Response(
             status=status.HTTP_204_NO_CONTENT
+        )
+
+
+# อ่านยอดเงินและวันที่จากรูปสลิปหรือใบเสร็จ
+class ReceiptOCRView(APIView):
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+
+        image = request.FILES.get("image")
+
+        if not image:
+            return Response(
+                {"error": "กรุณาอัปโหลดรูปภาพ"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if image.content_type not in ["image/jpeg", "image/png"]:
+            return Response(
+                {"error": "รองรับเฉพาะไฟล์ JPG และ PNG"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if image.size > 5 * 1024 * 1024:
+            return Response(
+                {"error": "รูปภาพต้องมีขนาดไม่เกิน 5 MB"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            text = read_receipt(image)
+
+            amount, amount_status = get_receipt_amount(text)
+            transaction_datetime = extract_datetime(text)
+
+            return Response({
+                "amount": amount,
+                "amount_status": amount_status,
+                "transaction_datetime": transaction_datetime,
+                "raw_text": text,
+                "requires_confirmation": True
+            })
+
+        except (UnidentifiedImageError, OSError):
+            return Response(
+                {"error": "ไม่สามารถอ่านไฟล์รูปภาพได้"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except Exception:
+            return Response(
+                {"error": "เกิดข้อผิดพลาดในการประมวลผล OCR"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+# ดูและแก้ไขรายการร่างจาก LINE OA
+class TransactionDraftDetailView(APIView):
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    # ค้นหารายการร่างของผู้ใช้
+    def get_draft(self, request, pk):
+
+        try:
+            return TransactionDraft.objects.get(
+                id=pk,
+                user=request.user
+            )
+
+        except TransactionDraft.DoesNotExist:
+            return None
+
+    # ดูข้อมูลรายการร่าง
+    def get(self, request, pk):
+
+        draft = self.get_draft(request, pk)
+
+        if draft is None:
+            return Response(
+                {"error": "ไม่พบรายการร่าง"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if draft.status != "pending":
+            return Response(
+                {"error": "รายการนี้ไม่ได้อยู่ในสถานะรอยืนยัน"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = TransactionDraftSerializer(draft)
+
+        return Response(serializer.data)
+
+    # แก้ไขรายการร่าง
+    def patch(self, request, pk):
+
+        with transaction.atomic():
+
+            try:
+                draft = TransactionDraft.objects.select_for_update().get(
+                    id=pk,
+                    user=request.user
+                )
+
+            except TransactionDraft.DoesNotExist:
+                return Response(
+                    {"error": "ไม่พบรายการร่าง"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            if draft.status != "pending":
+                return Response(
+                    {"error": "ไม่สามารถแก้ไขรายการนี้ได้"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            serializer = TransactionDraftSerializer(
+                draft,
+                data=request.data,
+                partial=True
+            )
+
+            if not serializer.is_valid():
+                return Response(
+                    serializer.errors,
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # ตรวจสอบหมวดหมู่ให้ตรงกับประเภท
+            new_type = serializer.validated_data.get(
+                "transaction_type",
+                draft.transaction_type
+            )
+
+            new_category = serializer.validated_data.get(
+                "category",
+                draft.category
+            )
+
+            if new_category is not None:
+                if new_category.transaction_type != new_type:
+                    return Response(
+                        {"error": "หมวดหมู่ไม่ตรงกับประเภทรายการ"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            serializer.save()
+
+            return Response(serializer.data)
+
+
+# ยืนยันรายการร่างและบันทึก Transaction จริง
+
+# ยืนยันรายการร่างจากเว็บไซต์
+class TransactionDraftConfirmView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+
+        new_transaction, error = confirm_transaction_draft(
+            draft_id=pk,
+            user=request.user
+        )
+
+        if error:
+            return Response(
+                {"error": error},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            {
+                "message": "บันทึกรายการสำเร็จ",
+                "transaction_id": new_transaction.id
+            },
+            status=status.HTTP_201_CREATED
         )
