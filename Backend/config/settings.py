@@ -114,6 +114,7 @@ SIMPLE_JWT = {
 # =========================== Middleware ===========================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
 
     'corsheaders.middleware.CorsMiddleware',
@@ -196,7 +197,8 @@ USE_TZ = True
 # =================== Static files (CSS, JavaScript, Images) ===================
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # =================== Media files ===================
 # ใช้สำหรับรูปใบเสร็จของ Transaction

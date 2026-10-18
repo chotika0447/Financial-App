@@ -12,6 +12,7 @@ from .models import Debts, Payments
 from .serializers import DebtSerializer, PaymentSerializer
 
 from decimal import Decimal
+from line_bot.messaging import push_new_debt_notification
 
 import os
 import uuid
@@ -119,12 +120,18 @@ class DebtListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        serializer.save(
-            user=request.user
-        )
+        debt = serializer.save(user=request.user)
+
+        try:
+            push_new_debt_notification(debt)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception(
+                "Failed to send LINE debt notification"
+            )
 
         return Response(
-            serializer.data,
+            DebtSerializer(debt).data,
             status=status.HTTP_201_CREATED
         )
 
