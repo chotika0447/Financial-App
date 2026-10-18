@@ -71,7 +71,25 @@ function EntryRoute() {
           return;
         }
 
-        const data = await response.json();
+        const responseText = await response.text();
+        let data = {};
+        if (responseText) {
+          try {
+            data = JSON.parse(responseText);
+          } catch {
+            if (!response.ok) {
+              throw new Error(
+                `เชื่อมต่อ Backend ไม่สำเร็จ (HTTP ${response.status})`,
+              );
+            }
+            throw new Error('Backend ส่งข้อมูลกลับมาไม่ถูกต้อง');
+          }
+        } else if (!response.ok) {
+          throw new Error(
+            `เชื่อมต่อ Backend ไม่สำเร็จ (HTTP ${response.status})`,
+          );
+        }
+
         if (!response.ok) {
           if (response.status === 401 && data.error === 'LINE_ID_TOKEN_EXPIRED') {
             liff.logout();
