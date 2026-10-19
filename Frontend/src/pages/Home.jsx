@@ -1,10 +1,12 @@
 import './Home.css';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import HomeHeader from '../components/HomeHeader';
 import Navbar from '../components/Navbar';
 
 function Home() {
   const [user, setUser] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const accessToken = sessionStorage.getItem('accessToken');
@@ -34,7 +36,7 @@ function Home() {
     <div className="home-page">
 
       <HomeHeader user={user} />
-      
+
       {/* ================= MAIN ================= */}
       <main className="home-content">
 
@@ -162,9 +164,11 @@ function Home() {
 
 
           {/* Financial health */}
-          <button className="financial-health-button">
+          <button
+            className="financial-health-button"
+            onClick={() => navigate('/financial-health')}
+          >
             <span>ประเมินสุขภาพการเงินของคุณ</span>
-
             <span className="arrow">→</span>
           </button>
 

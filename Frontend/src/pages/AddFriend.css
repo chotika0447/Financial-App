@@ -162,3 +162,191 @@
   font-size: 9px;
   color: #555;
 }
+
+
+
+/* ================= FRIEND SEARCH RESULT ================= */
+
+.add-friend-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  width: 100%;
+  min-height: 250px;
+  box-sizing: border-box;
+
+  padding: 30px 20px;
+}
+
+/* การ์ดโปรไฟล์เพื่อน */
+.friend-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  width: 100%;
+  max-width: 340px;
+  box-sizing: border-box;
+
+  padding: 28px 20px 24px;
+
+  background: #ffffff;
+  border: 1px solid #eeeaf8;
+  border-radius: 18px;
+
+  box-shadow: 0 4px 16px rgba(80, 65, 130, 0.08);
+
+  animation: friend-result-appear 0.25s ease-out;
+}
+
+/* รูปโปรไฟล์ */
+.friend-result-avatar {
+  width: 88px;
+  height: 88px;
+
+  object-fit: cover;
+  border-radius: 50%;
+
+  border: 3px solid #e9e3ff;
+  background: #f3f0fc;
+
+  box-sizing: border-box;
+}
+
+/* รูปโปรไฟล์เริ่มต้น กรณีไม่มีรูป */
+.friend-result-avatar.default {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #f0ebff;
+  color: #8b7ec8;
+
+  font-size: 36px;
+}
+
+/* ชื่อผู้ใช้ */
+.friend-result h2 {
+  margin: 16px 0 6px;
+
+  color: #30294a;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.4;
+
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* UID */
+.friend-result p {
+  margin: 0 0 20px;
+
+  color: #777286;
+  font-size: 13px;
+  line-height: 1.5;
+
+  overflow-wrap: anywhere;
+}
+
+/* ปุ่มเพิ่มเพื่อน */
+.confirm-add-friend {
+  width: 100%;
+  max-width: 220px;
+  min-height: 42px;
+
+  padding: 10px 20px;
+
+  border: none;
+  border-radius: 10px;
+
+  background: #8b7ec8;
+  color: #ffffff;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.confirm-add-friend:hover:not(:disabled) {
+  background: #7666b5;
+  box-shadow: 0 4px 10px rgba(139, 126, 200, 0.25);
+  transform: translateY(-1px);
+}
+
+.confirm-add-friend:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.confirm-add-friend:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* สถานะกำลังค้นหา */
+.friend-status {
+  margin: 20px 0;
+  color: #777286;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ข้อความแจ้งเตือน */
+.friend-error {
+  width: 100%;
+  max-width: 340px;
+  box-sizing: border-box;
+
+  margin: 10px 0;
+  padding: 12px 14px;
+
+  border: 1px solid #f3caca;
+  border-radius: 10px;
+
+  background: #fff3f3;
+  color: #c03939;
+
+  font-size: 13px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* แอนิเมชันตอนแสดงผล */
+@keyframes friend-result-appear {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* รองรับหน้าจอมือถือ */
+@media (max-width: 480px) {
+  .add-friend-content {
+    padding: 24px 16px;
+  }
+
+  .friend-result {
+    max-width: 100%;
+    padding: 24px 18px 20px;
+  }
+
+  .friend-result-avatar {
+    width: 80px;
+    height: 80px;
+  }
+
+  .friend-result h2 {
+    font-size: 17px;
+  }
+}

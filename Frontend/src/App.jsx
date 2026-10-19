@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 
 import Register from './pages/Register';
 import './App.css'
@@ -20,6 +27,8 @@ import SavingPlan from './pages/SavingPlan';
 import Retirement from './pages/Retirement';
 import CompoundInterest from './pages/CompoundInterest';
 
+import FinancialHealth from './pages/FinancialHealth';
+
 import { initializeLineLiff, liff, readLineIdentity } from './lineAuth';
 
 function EntryRoute() {
@@ -30,6 +39,19 @@ function EntryRoute() {
     let cancelled = false;
 
     async function routeUser() {
+      const queryParams = new URLSearchParams(window.location.search);
+      const debtId = queryParams.get('debtId');
+      const returnTo = queryParams.get('returnTo');
+      let destination = '/home/';
+      if (returnTo === '/debts/') {
+        destination = '/debts/';
+      }
+      if (debtId) {
+        destination = `/debts/?debtId=${encodeURIComponent(debtId)}`;
+      }
+      const redirectUri =
+        `${window.location.origin}${window.location.pathname}${window.location.search}`;
+        
       const accessToken = sessionStorage.getItem('accessToken');
       console.log('Access Token:', accessToken);
 
@@ -39,7 +61,7 @@ function EntryRoute() {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
           if (response.ok) {
-            navigate('/home/', { replace: true });
+            navigate(destination, { replace: true });
             return;
           }
         } catch {
@@ -55,7 +77,7 @@ function EntryRoute() {
         await initializeLineLiff();
 
         if (!liff.isLoggedIn()) {
-          liff.login({ redirectUri: `${window.location.origin}/` });
+          liff.login({ redirectUri });
           return;
         }
 
@@ -93,7 +115,7 @@ function EntryRoute() {
         if (!response.ok) {
           if (response.status === 401 && data.error === 'LINE_ID_TOKEN_EXPIRED') {
             liff.logout();
-            liff.login({ redirectUri: `${window.location.origin}/` });
+            liff.login({ redirectUri });
             return;
           }
 
@@ -102,7 +124,7 @@ function EntryRoute() {
 
         sessionStorage.setItem('accessToken', data.access);
         sessionStorage.setItem('refreshToken', data.refresh);
-        navigate('/home/', { replace: true });
+        navigate(destination, { replace: true });
       } catch (routeError) {
         if (!cancelled) setError(routeError.message || 'เข้าสู่ระบบไม่สำเร็จ');
       }
@@ -124,6 +146,73 @@ function EntryRoute() {
       )}
     </main>
   );
+}
+
+function DebtEntryRoute() {
+  const location = useLocation();
+  const [authorizationState, setAuthorizationState] = useState('checking');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function verifyAccessToken() {
+      const accessToken = sessionStorage.getItem('accessToken');
+
+      if (!accessToken) {
+        setAuthorizationState('unauthorized');
+        return;
+      }
+
+      try {
+        const response = await fetch('/users/me/', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (!response.ok) {
+          sessionStorage.removeItem('accessToken');
+          sessionStorage.removeItem('refreshToken');
+          if (!cancelled) setAuthorizationState('unauthorized');
+          return;
+        }
+
+        if (!cancelled) setAuthorizationState('authorized');
+      } catch {
+        if (!cancelled) {
+          setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+          setAuthorizationState('error');
+        }
+      }
+    }
+
+    verifyAccessToken();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (authorizationState === 'unauthorized') {
+    const queryParams = new URLSearchParams(location.search);
+    queryParams.set('returnTo', '/debts/');
+    const search = '?' + queryParams.toString();
+
+    return (
+      <Navigate
+        to={{ pathname: '/', search }}
+        replace
+      />
+    );
+  }
+
+  if (authorizationState === 'error') {
+    return <main className="entry-route"><p>{error}</p></main>;
+  }
+
+  if (authorizationState !== 'authorized') {
+    return <main className="entry-route"><p>กำลังตรวจสอบบัญชีของคุณ...</p></main>;
+  }
+
+  return <Debts />;
 }
 
 function App() {
@@ -161,7 +250,7 @@ function App() {
         />
         <Route
           path="/debts/"
-          element={<Debts />}
+          element={<DebtEntryRoute />}
         />
         <Route
           path="/notifications/"
@@ -187,7 +276,7 @@ function App() {
           path="/friends/scan-qr"
           element={<ScanFriendQR />}
         />
-        
+
         <Route
           path="/retirement"
           element={<Retirement />}
@@ -205,7 +294,11 @@ function App() {
           path="/calculator"
           element={<Retirement />}
         />}
-        
+
+        <Route
+          path="/financial-health"
+          element={<FinancialHealth />}
+        />
 
       </Routes>
 

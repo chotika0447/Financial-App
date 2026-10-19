@@ -43,27 +43,15 @@ class SendFriendRequestView(APIView):
             Q(sender=receiver, receiver=request.user)
         ).first()
 
+        
         if existing_friend:
-            if existing_friend.status == 'pending':
-                return Response(
-                    {'detail': 'มีคำขอเป็นเพื่อนระหว่างผู้ใช้งานสองคนนี้อยู่แล้ว'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if existing_friend.status == 'accepted':
-                return Response(
-                    {'detail': 'ผู้ใช้งานนี้เป็นเพื่อนกับคุณอยู่แล้ว'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
+            # กรณีคำขอเดิมถูกปฏิเสธแล้ว อนุญาตให้ส่งใหม่ได้
             if existing_friend.status == 'rejected':
-                # ถ้าเคยปฏิเสธ อนุญาตให้ส่งคำขอใหม่
                 existing_friend.sender = request.user
                 existing_friend.receiver = receiver
                 existing_friend.status = 'pending'
                 existing_friend.save()
 
-                #กรณีส่งคำขอใหม่หลังถูกปฏิเสธ
                 notification_sent = push_friend_request(
                     receiver=receiver,
                     sender=request.user,
@@ -73,9 +61,36 @@ class SendFriendRequestView(APIView):
                 serializer = FriendSerializer(existing_friend)
 
                 return Response(
-                    serializer.data,
-                    status=status.HTTP_200_OK
+                    {
+                        "detail": (
+                            "ส่งคำขอเป็นเพื่อนใหม่แล้ว"
+                            if notification_sent
+                            else "บันทึกคำขอใหม่แล้ว แต่ส่งข้อความ LINE ไม่สำเร็จ"
+                        ),
+                        "friend_request": serializer.data,
+                        "notification_sent": notification_sent,
+                    },
+                    status=status.HTTP_200_OK,
                 )
+
+            # กรณียังรอการตอบรับ
+            if existing_friend.status == 'pending':
+                return Response(
+                    {
+                        "detail": "คุณมีคำขอเป็นเพื่อนที่รอการตอบรับอยู่แล้ว"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # กรณีเป็นเพื่อนกันแล้ว
+            if existing_friend.status == 'accepted':
+                return Response(
+                    {
+                        "detail": "ผู้ใช้งานนี้เป็นเพื่อนกับคุณอยู่แล้ว"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
 
         # ยังไม่มีความสัมพันธ์ → สร้างคำขอใหม่
         friend_request = Friends.objects.create(

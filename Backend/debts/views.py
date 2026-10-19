@@ -84,56 +84,101 @@ class DebtListCreateView(APIView):
     # สร้างหนี้ใหม่
     def post(self, request):
         data = request.data.copy()
-
         image_file = request.FILES.get("image")
 
-        print("========== DEBUG IMAGE ==========")
-        print("FILES:", request.FILES)
-        print("IMAGE FILE:", image_file)
-        print("=================================")
-        
+        # อัปโหลดรูปก่อนเริ่มสร้างรายการ
         if image_file:
             try:
-                image_url = upload_debt_image(image_file)
-                data["image"] = image_url
-
+                data["image"] = upload_debt_image(image_file)
             except Exception as error:
                 return Response(
                     {"detail": str(error)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
-        serializer = DebtSerializer(
-            data=data
-        )
+        serializer = DebtSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
 
-        serializer = DebtSerializer(
-            data=data
-        )
+        counterparty = serializer.validated_data.get("counterparty")
 
-        if not serializer.is_valid():
-            print("========== SERIALIZER ERROR ==========")
-            print(serializer.errors)
-            print("======================================")
+        # ไม่อนุญาตให้เลือกตัวเองเป็นคู่สัญญา
+        if counterparty and counterparty.pk == request.user.pk:
             return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
+                {"counterparty": "ไม่สามารถเลือกตัวเองเป็นคู่สัญญาได้"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        debt = serializer.save(user=request.user)
+        paired_debt = None
 
-        try:
-            push_new_debt_notification(debt)
-        except Exception:
-            import logging
-            logging.getLogger(__name__).exception(
-                "Failed to send LINE debt notification"
-            )
+        # สร้างรายการของทั้งสองคนภายใน transaction เดียวกัน
+        with transaction.atomic():
+            debt = serializer.save(user=request.user)
+
+            if counterparty:
+                opposite_type = (
+                    "lent" if debt.type == "borrowed" else "borrowed"
+                )
+
+                # สร้างรายการในบัญชีของเพื่อน
+                paired_debt = Debts.objects.create(
+                    name=debt.name,
+                    user=counterparty,
+                    counterparty=request.user,
+                    counterparty_name=str(request.user),
+                    type=opposite_type,
+                    total_amount=debt.total_amount,
+                    remaining_amount=debt.total_amount,
+                    payment_type=debt.payment_type,
+                    payment_amount=debt.payment_amount,
+                    due_date=debt.due_date,
+                    payment_date=debt.payment_date,
+                    status="ongoing",
+                    note=debt.note,
+                    icon=debt.icon,
+                    color=debt.color,
+                    image=debt.image,
+                )
+
+                # เชื่อมรายการของทั้งสองฝั่งเข้าด้วยกัน
+                debt.paired_debt = paired_debt
+                paired_debt.paired_debt = debt
+
+                debt.save(update_fields=["paired_debt", "updated_at"])
+                paired_debt.save(
+                    update_fields=["paired_debt", "updated_at"]
+                )
+
+            # ส่งแจ้งเตือนหลังจาก transaction สำเร็จแล้วเท่านั้น
+            if paired_debt:
+                transaction.on_commit(
+                    lambda debt_id=debt.pk, paired_id=paired_debt.pk:
+                        self.send_debt_notification(debt_id, paired_id)
+                )
+
+        debt.refresh_from_db()
 
         return Response(
             DebtSerializer(debt).data,
-            status=status.HTTP_201_CREATED
+            status=status.HTTP_201_CREATED,
         )
+
+
+    def send_debt_notification(self, debt_id, paired_debt_id):
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            debt = Debts.objects.get(pk=debt_id)
+            paired_debt = Debts.objects.get(pk=paired_debt_id)
+
+            # รอปรับฟังก์ชัน LINE ให้รองรับ ID รายการของผู้รับ
+            push_new_debt_notification(
+                debt,
+                target_debt=paired_debt,
+            )
+        except Exception:
+            logger.exception("Failed to send LINE debt notification")
 
 
 class DebtDetailView(APIView):
