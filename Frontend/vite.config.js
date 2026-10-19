@@ -14,6 +14,7 @@ export default defineConfig({
     allowedHosts: [
       'glimmer-grunt-obstruct.ngrok-free.dev',
       'rogue-washer-cola.ngrok-free.dev',
+      'tammara-semivolcanic-randee.ngrok-free.dev'
     ],
 
     proxy: {
@@ -25,6 +26,17 @@ export default defineConfig({
       '/transactions': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        bypass(req) {
+        const pathname = new URL(req.url, 'http://localhost').pathname;
+
+          if (
+            req.method === 'GET' &&
+            req.headers.accept?.includes('text/html') &&
+            (pathname === '/transactions' || pathname === '/transactions/')
+          ) {
+            return '/index.html';
+          }
+        },
       },
 
       '/categories': {

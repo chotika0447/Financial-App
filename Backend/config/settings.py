@@ -22,6 +22,7 @@ ALLOWED_HOSTS = [
     'financial-app-xgc0.onrender.com',
     'financial-app-fjs6.onrender.com',
     'financial-app-neverlandtest.onrender.com',
+    'tammara-semivolcanic-randee.ngrok-free.dev'
 ]
 
 # =================== LINE ===================
@@ -59,6 +60,7 @@ CORS_ALLOWED_ORIGINS = [
     # 'https://glimmer-grunt-obstruct.ngrok-free.dev',
     # 'https://rogue-washer-cola.ngrok-free.dev',
     'https://financial-app-delta-taupe.vercel.app',
+    'https://tammara-semivolcanic-randee.ngrok-free.dev'
 ]
 #URL ที่ Django ยอมให้ส่ง POST/CSRF
 CSRF_TRUSTED_ORIGINS = [
@@ -66,6 +68,7 @@ CSRF_TRUSTED_ORIGINS = [
     # 'https://glimmer-grunt-obstruct.ngrok-free.dev',
     # 'https://rogue-washer-cola.ngrok-free.dev',
     'https://financial-app-delta-taupe.vercel.app',
+    'https://tammara-semivolcanic-randee.ngrok-free.dev'
 ]
 
 # =================== Frontend URL ===================

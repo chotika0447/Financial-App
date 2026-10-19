@@ -172,7 +172,8 @@ def build_transaction_flex(draft):
 
     # URL ของ React Frontend (ต้องตั้งค่า FRONTEND_URL ใน Django settings)
     frontend_url = settings.FRONTEND_URL.rstrip("/")
-    edit_url = f"{frontend_url}/transactions/?{urlencode({'draft': draft.id})}"
+    # edit_url = f"{frontend_url}/transactions/?{urlencode({'draft': draft.id})}"
+    edit_url = f"{frontend_url}/edit-transaction/?{urlencode({'draft': draft.id})}"
 
     def detail(text):
         return {
