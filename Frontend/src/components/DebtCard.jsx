@@ -39,7 +39,7 @@ const colorMap = {
   gray: "bg-gray-300",
 };
 
-function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit }) {
+function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDelete }) {
 
   const isBorrow = debt.type === "borrowed";
 
@@ -134,7 +134,7 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit }) {
 
           <div
             className={`h-full rounded-full ${isBorrow ? "bg-red-500" : "bg-blue-600"}`}
-            style={{ width: `${progress}%`}}
+            style={{ width: `${progress}%` }}
           />
 
         </div>
@@ -146,6 +146,10 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit }) {
 
         {/* Delete */}
         <button
+          type="button"
+          onClick={() => onDelete?.(debt)}
+          aria-label={`ลบรายการ ${debt.name}`}
+          title="ลบรายการหนี้"
           className="
             w-[30px]
             h-[30px]
@@ -186,18 +190,18 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit }) {
             ตรวจสอบการชำระหนี้
           </button>
         ) : (
-            <div className="flex flex-1 h-[30px] gap-2">
-              <button onClick={onViewHistory} className="flex-1 border border-gray-300 rounded-md text-[11px] text-gray-600 bg-white">
-                ดูประวัติการได้รับเงินคืน
-              </button>
+          <div className="flex flex-1 h-[30px] gap-2">
+            <button onClick={onViewHistory} className="flex-1 border border-gray-300 rounded-md text-[11px] text-gray-600 bg-white">
+              ดูประวัติการได้รับเงินคืน
+            </button>
 
-              <button
-                onClick={onPayment}
-                className="flex-1 rounded-md bg-green-500 text-white text-[11px] font-medium"
-              >
-                บันทึกการได้รับเงินคืน
-              </button>
-            </div>
+            <button
+              onClick={onPayment}
+              className="flex-1 rounded-md bg-green-500 text-white text-[11px] font-medium"
+            >
+              บันทึกการได้รับเงินคืน
+            </button>
+          </div>
         )}
       </div>
 

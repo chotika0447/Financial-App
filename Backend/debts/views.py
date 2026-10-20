@@ -253,18 +253,37 @@ class DebtDetailView(APIView):
         )
 
     # ลบหนี้
+    
+    # ลบหนี้ของตัวเองและรายการหนี้ที่เชื่อมกับเพื่อน
+    @transaction.atomic
     def delete(self, request, debt_id):
-        debt = self.get_debt(
-            request,
-            debt_id
-        )
+        debt = self.get_debt(request, debt_id)
 
-        debt.delete()
+        # เก็บ ID ของหนี้ทั้งสองฝั่งก่อนลบ
+        debt_ids = [debt.pk]
+
+        if debt.paired_debt_id:
+            paired_debt = Debts.objects.filter(
+                pk=debt.paired_debt_id
+            ).first()
+
+            if paired_debt:
+                # ลบรายการคู่กันเฉพาะเมื่อเชื่อมกลับมาหากันจริง
+                if paired_debt.paired_debt_id == debt.pk:
+                    debt_ids.append(paired_debt.pk)
+
+        # ลบพร้อมกันภายใน transaction เดียว
+        # Payments จะถูกลบตาม on_delete=models.CASCADE
+        Debts.objects.filter(pk__in=debt_ids).delete()
 
         return Response(
-            {'detail': 'ลบหนี้เรียบร้อยแล้ว'},
-            status=status.HTTP_200_OK
+            {
+                "detail": "ลบรายการหนี้เรียบร้อยแล้ว",
+                "deleted_debt_ids": debt_ids,
+            },
+            status=status.HTTP_200_OK,
         )
+
 
 # ======================================ส่วนการชำระหนี้======================================
 # กำหนดวันครบกำหนดชำระหนี้ตามประเภทการชำระ

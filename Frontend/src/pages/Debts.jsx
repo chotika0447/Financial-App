@@ -303,102 +303,66 @@ function Debts() {
     setEditingDebt(null);
   };
 
-  // const [borrowDebts] = useState([
-  //   {
-  //     id: 1,
-  //     name: "กยศ.",
-  //     type: "borrowed",
-  //     counterparty_name: "กยศ.",
-  //     total_amount: 300000,
-  //     remaining_amount: 50000,
-  //     payment_type: "monthly",
-  //     payment_amount: 5000,
-  //     due_date: "30 ก.ย. 69",
-  //     status: "ongoing",
-  //     icon: "school",
-  //   },
-  //   {
-  //     id: 2,
-  //     name: "ยืมค่าโทรศัพท์",
-  //     type: "borrowed",
-  //     counterparty_name: "เมย์",
-  //     total_amount: 3000,
-  //     remaining_amount: 1200,
-  //     payment_type: "flexible",
-  //     payment_amount: null,
-  //     due_date: "15 ต.ค. 69",
-  //     status: "ongoing",
-  //     icon: "person",
-  //   },
-  //   {
-  //     id: 3,
-  //     name: "ยืมค่าที่พัก",
-  //     type: "borrowed",
-  //     counterparty_name: "พี่บีม",
-  //     total_amount: 5000,
-  //     remaining_amount: 2500,
-  //     payment_type: "monthly",
-  //     payment_amount: 1250,
-  //     due_date: "30 พ.ย. 69",
-  //     status: "ongoing",
-  //     icon: "home",
-  //   },
-  //   {
-  //     id: 4,
-  //     name: "ยืมค่าอาหาร",
-  //     type: "borrowed",
-  //     counterparty_name: "นนท์",
-  //     total_amount: 1500,
-  //     remaining_amount: 300,
-  //     payment_type: "flexible",
-  //     payment_amount: null,
-  //     due_date: "10 ต.ค. 69",
-  //     status: "ongoing",
-  //     icon: "person",
-  //   },
-  // ]);
 
-  // const [lendDebts] = useState([
-  //   {
-  //     id: 5,
-  //     name: "ให้เพื่อนยืมเงิน",
-  //     type: "lent",
-  //     counterparty_name: "พลอย",
-  //     total_amount: 4000,
-  //     remaining_amount: 2000,
-  //     payment_type: "flexible",
-  //     payment_amount: null,
-  //     due_date: "12 ต.ค. 69",
-  //     status: "ongoing",
-  //     icon: "person",
-  //   },
-  //   {
-  //     id: 6,
-  //     name: "สำรองค่าทริป",
-  //     type: "lent",
-  //     counterparty_name: "ฟ้า",
-  //     total_amount: 2500,
-  //     remaining_amount: 1500,
-  //     payment_type: "monthly",
-  //     payment_amount: 500,
-  //     due_date: "20 ต.ค. 69",
-  //     status: "ongoing",
-  //     icon: "person",
-  //   },
-  //   {
-  //     id: 7,
-  //     name: "ออกค่าอาหารให้เพื่อน",
-  //     type: "lent",
-  //     counterparty_name: "เจน",
-  //     total_amount: 1000,
-  //     remaining_amount: 200,
-  //     payment_type: "flexible",
-  //     payment_amount: null,
-  //     due_date: "5 ต.ค. 69",
-  //     status: "ongoing",
-  //     icon: "person",
-  //   },
-  // ]);
+  // ลบรายการหนี้และรายการที่เชื่อมกับเพื่อน
+  const handleDeleteDebt = async (debt) => {
+    const confirmed = window.confirm(
+      `ต้องการลบรายการ "${debt.name}" ใช่หรือไม่?\n\n` +
+      "หากรายการนี้เชื่อมกับบัญชีเพื่อน รายการของเพื่อนและประวัติการชำระที่เกี่ยวข้องจะถูกลบด้วย\n\n" +
+      "การลบนี้ไม่สามารถย้อนกลับได้"
+    );
+
+    if (!confirmed) return;
+
+    const accessToken = sessionStorage.getItem("accessToken");
+
+    if (!accessToken) {
+      alert("ไม่พบข้อมูลการเข้าสู่ระบบ");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/debts/${debt.id}/`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "ไม่สามารถลบรายการหนี้ได้"
+        );
+      }
+
+      const deletedIds = new Set(
+        data.deleted_debt_ids || [debt.id]
+      );
+
+      // นำรายการที่ลบออกจากหน้าจอทันที
+      setDebts((previous) =>
+        previous.filter((item) => !deletedIds.has(item.id))
+      );
+
+      // ปิดหน้ารายละเอียด หากกำลังเปิดรายการที่ถูกลบอยู่
+      setSelectedDebt((previous) =>
+        previous && deletedIds.has(previous.id)
+          ? null
+          : previous
+      );
+
+      setShowDebtPay(false);
+      setShowDebtHistory(false);
+
+      // โหลดข้อมูลล่าสุดเพื่อให้ยอดรวมตรงกับฐานข้อมูล
+      await refreshDebts();
+    } catch (error) {
+      console.error("Delete debt error:", error);
+      alert(error.message || "เกิดข้อผิดพลาดในการลบรายการหนี้");
+    }
+  };
 
   const borrowDebts = debts.filter(
     (debt) => debt.type === "borrowed"
@@ -637,6 +601,7 @@ function Debts() {
             <DebtCard
               key={debt.id}
               debt={debt}
+              onDelete={handleDeleteDebt}
               onPayment={() => {
                 setSelectedDebt(debt);
                 setShowDebtPay(true);
