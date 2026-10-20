@@ -38,7 +38,23 @@
     },
     {
       "source": "/debts/",
+      "has": [
+        {
+          "type": "header",
+          "key": "authorization"
+        }
+      ],
       "destination": "https://financial-app-xgc0.onrender.com/debts/"
+    },
+    {
+      "source": "/debts/",
+      "missing": [
+        {
+          "type": "header",
+          "key": "authorization"
+        }
+      ],
+      "destination": "/index.html"
     },
     {
       "source": "/debts/:debtId/payments/",

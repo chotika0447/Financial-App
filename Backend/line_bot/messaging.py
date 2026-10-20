@@ -1,5 +1,6 @@
 import httpx
 from django.conf import settings
+
 from users.models import PersonalProfile
 
 def push_friend_request(receiver, sender, friend_request):
@@ -186,7 +187,6 @@ def push_new_debt_notification(debt, target_debt=None):
         print("ไม่สามารถแจ้งเตือนหนี้: ยังไม่ได้ตั้งค่า FRONTEND_URL")
         return False
 
-    # ส่งผู้รับไปยัง ID รายการในบัญชีของตัวเอง
     detail_url = f"{frontend_url}/debts/"
 
     if detail_debt.type == "borrowed":

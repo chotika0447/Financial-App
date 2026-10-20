@@ -17,9 +17,11 @@ DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "financial-app-xgc0.onrender.com",
+    
     'glimmer-grunt-obstruct.ngrok-free.dev',
     "tammara-semivolcanic-randee.ngrok-free.dev",
+
+    "financial-app-xgc0.onrender.com",
 ]
 
 # =================== LINE ===================
@@ -53,15 +55,17 @@ LINE_LOGIN_REDIRECT_URI = os.getenv("LINE_LOGIN_REDIRECT_URI")
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    'https://financial-app-delta-taupe.vercel.app',
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
+
+    'https://financial-app-delta-taupe.vercel.app',
 ]
 #URL ที่ Django ยอมให้ส่ง POST/CSRF
 CSRF_TRUSTED_ORIGINS = [
-    'https://financial-app-delta-taupe.vercel.app',
-    # 'https://rogue-washer-cola.ngrok-free.dev',
+    'https://rogue-washer-cola.ngrok-free.dev',
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
     'https://tammara-semivolcanic-randee.ngrok-free.dev',
+
+    'https://financial-app-delta-taupe.vercel.app',
 ]
 
 # =================== Frontend URL ===================
