@@ -16,7 +16,7 @@
       },
       "action": {
         "type": "uri",
-        "uri": "https://glimmer-grunt-obstruct.ngrok-free.dev/"
+        "uri": "https://financial-app-delta-taupe.vercel.app/"
       }
     },
     {
@@ -106,7 +106,7 @@
       },
       "action": {
         "type": "uri",
-        "uri": "https://glimmer-grunt-obstruct.ngrok-free.dev/transactions/"
+        "uri": "https://financial-app-delta-taupe.vercel.app/transactions/"
       }
     },
     {

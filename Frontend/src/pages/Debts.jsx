@@ -279,8 +279,8 @@ function Debts() {
 
       throw new Error(
         data.detail
-          || validationMessages.join("\n")
-          || "ไม่สามารถบันทึกข้อมูลหนี้สินได้"
+        || validationMessages.join("\n")
+        || "ไม่สามารถบันทึกข้อมูลหนี้สินได้"
       );
     }
 
@@ -467,7 +467,7 @@ function Debts() {
     <div className="debts-page pb-20">
 
       <CustomHeader title="หนี้สินและการให้ยืม" color="var(--color-debts)" />
-      
+
       <AddDebt
         open={showAddDebt || editingDebt !== null}
         onClose={() => {
@@ -485,19 +485,10 @@ function Debts() {
         open={showDebtPay}
         debt={selectedDebt}
         onSaved={async () => {
-          const accessToken = sessionStorage.getItem("accessToken");
-
-          const response = await fetch("/debts/", {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
-
-          const data = await response.json();
-
-          if (response.ok) {
-            setDebts(data);
+          try {
+            await refreshDebts();
+          } catch (error) {
+            console.error("Refresh debts error:", error);
           }
         }}
         onClose={() => {
