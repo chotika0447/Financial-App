@@ -67,7 +67,8 @@ CSRF_TRUSTED_ORIGINS = [
 # =================== Frontend URL ===================
 FRONTEND_URL = os.getenv(
     "FRONTEND_URL",
-    "https://tammara-semivolcanic-randee.ngrok-free.dev"
+    "https://financial-app-delta-taupe.vercel.app"
+    # "https://tammara-semivolcanic-randee.ngrok-free.dev"
 )
 
 # =================== Applications ===================
