@@ -41,10 +41,19 @@ class Debts(models.Model):
         blank=True,
         related_name='debts_counterparty'
     )
-
+    
     # ชื่อคนที่เกี่ยวข้องกับหนี้/คู่สัญญา
     counterparty_name = models.CharField(
         max_length=100
+    )
+
+    # รายการหนี้คู่กันของผู้ใช้ทั้งสองฝั่ง กรณีที่มีการเชื่อมบัญชีเพื่อน เพื่อสร้างหน้ารายการหนี้สิน/ให้ยืมให้ตรงกัน
+    paired_debt = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="paired_debts",
     )
 
     # เราเป็นคนยืม หรือเป็นคนให้ยืม

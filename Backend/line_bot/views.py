@@ -336,6 +336,39 @@ def handle_postback(data, line_user_id):
     if user is None:
         return "กรุณาเข้าสู่ระบบและเชื่อมบัญชี LINE ก่อนค่ะ"
 
+     # ปุ่มยอมรับ/ปฏิเสธคำขอเป็นเพื่อนจาก LINE
+    if action in ("friend_accept", "friend_reject"):
+        try:
+            friend_id = int(
+                params.get("friend_id", [""])[0]
+            )
+        except (TypeError, ValueError):
+            return "รหัสคำขอเป็นเพื่อนไม่ถูกต้องค่ะ"
+
+        # ต้องเป็นผู้รับคำขอที่ยังรอการตอบรับเท่านั้น
+        friend_request = Friends.objects.filter(
+            id=friend_id,
+            receiver=user,
+            status="pending",
+        ).first()
+
+        if friend_request is None:
+            return (
+                "ไม่พบคำขอที่รอการตอบรับ "
+                "หรือคำขอนี้ได้รับการดำเนินการแล้วค่ะ"
+            )
+
+        if action == "friend_accept":
+            friend_request.status = "accepted"
+            friend_request.save(update_fields=["status"])
+
+            return "ยอมรับคำขอเป็นเพื่อนเรียบร้อยแล้วค่ะ"
+
+        friend_request.status = "rejected"
+        friend_request.save(update_fields=["status"])
+
+        return "ปฏิเสธคำขอเป็นเพื่อนเรียบร้อยแล้วค่ะ"
+    
     # ปุ่มจาก Flex Card
     if action in ("confirm", "cancel", "edit"):
 

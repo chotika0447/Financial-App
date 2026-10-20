@@ -6,6 +6,8 @@ import DebtCard from "../components/DebtCard";
 import DebtPayHistory from "./DebtPayHistory";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+
 import {
   Search,
   ArrowUpDown,
@@ -39,6 +41,10 @@ function Debts() {
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
   const [friendsError, setFriendsError] = useState("");
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [openingLinkedDebt, setOpeningLinkedDebt] = useState(false);
+
 
   //useEffect สำหรับดึงข้อมูลหนี้สิน
   useEffect(() => {
@@ -78,6 +84,46 @@ function Debts() {
 
     fetchDebts();
   }, []);
+
+  //useEffect สำหรับเปิดรายการหนี้สินจาก LINE
+  useEffect(() => {
+    const debtId = searchParams.get("debtId");
+
+    if (!debtId || loading) return;
+
+    // ตรวจสอบว่า ID เป็นจำนวนเต็มบวก
+    if (!/^[1-9]\d*$/.test(debtId)) {
+      setError("ลิงก์รายการหนี้ไม่ถูกต้อง");
+      setSearchParams({}, { replace: true });
+      return;
+    }
+
+    const targetDebt = debts.find(
+      (debt) => String(debt.id) === debtId
+    );
+
+    if (!targetDebt) {
+      // ไม่พบในรายการของผู้ใช้ที่ล็อกอินอยู่
+      setError("ไม่พบรายการหนี้นี้ในบัญชีของคุณ");
+      setSearchParams({}, { replace: true });
+      return;
+    }
+
+    setOpeningLinkedDebt(true);
+
+    setSelectedDebt(targetDebt);
+    setActiveTab(
+      targetDebt.type === "borrowed" ? "borrow" : "lend"
+    );
+
+    // เปิดรายละเอียดประวัติการชำระของรายการนั้น
+    setShowDebtHistory(true);
+
+    // เอา ID ออกจาก URL หลังเลือกได้แล้ว
+    setSearchParams({}, { replace: true });
+
+    setOpeningLinkedDebt(false);
+  }, [debts, loading, searchParams, setSearchParams]);
 
   //useEffect สำหรับดึงรายชื่อเพื่อน
   useEffect(() => {
@@ -227,8 +273,14 @@ function Debts() {
     if (!response.ok) {
       console.error("Save debt error:", data);
 
+      const validationMessages = Object.values(data)
+        .flat()
+        .filter((message) => typeof message === "string");
+
       throw new Error(
-        data.detail || "ไม่สามารถบันทึกข้อมูลหนี้สินได้"
+        data.detail
+          || validationMessages.join("\n")
+          || "ไม่สามารถบันทึกข้อมูลหนี้สินได้"
       );
     }
 
@@ -413,8 +465,9 @@ function Debts() {
 
   return (
     <div className="debts-page pb-20">
-      <CustomHeader title="หนี้สินและการให้ยืม" color="var(--color-debts)" />
 
+      <CustomHeader title="หนี้สินและการให้ยืม" color="var(--color-debts)" />
+      
       <AddDebt
         open={showAddDebt || editingDebt !== null}
         onClose={() => {

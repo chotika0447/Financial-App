@@ -4,10 +4,8 @@ from .models import Debts, Payments
 
 
 class DebtSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(
-        read_only=True
-    )
-
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    paired_debt = serializers.PrimaryKeyRelatedField(read_only=True)
     counterparty = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all(),
         required=False,
@@ -22,6 +20,7 @@ class DebtSerializer(serializers.ModelSerializer):
             'user',
             'counterparty',
             'counterparty_name',
+            'paired_debt',
             'type',
             'total_amount',
             'remaining_amount',
@@ -171,4 +170,3 @@ class PaymentSerializer(serializers.ModelSerializer):
             })
 
         return data
-
