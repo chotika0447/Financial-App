@@ -15,10 +15,10 @@ export default defineConfig({
     allowedHosts: [
       'glimmer-grunt-obstruct.ngrok-free.dev',
       'tammara-semivolcanic-randee.ngrok-free.dev',
+      'rogue-washer-cola.ngrok-free.dev',
+
       'financial-app-delta-taupe.vercel.app',
       'financial-app-xgc0.onrender.com',
-      'rogue-washer-cola.ngrok-free.dev',
-      'tammara-semivolcanic-randee.ngrok-free.dev'
     ],
 
     proxy: {
