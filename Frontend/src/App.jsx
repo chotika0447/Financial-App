@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import {
   BrowserRouter,
@@ -9,7 +10,7 @@ import {
 } from 'react-router-dom';
 
 import Register from './pages/Register';
-import './App.css'
+import './App.css';
 
 import Home from './pages/Home';
 import Transactions from './pages/Transactions';
@@ -60,12 +61,15 @@ function EntryRoute() {
           const response = await fetch('/users/me/', {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
+
           if (response.ok) {
             navigate(destination, { replace: true });
             return;
           }
         } catch {
-          if (!cancelled) setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+          if (!cancelled) {
+            setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+          }
           return;
         }
 
@@ -82,6 +86,7 @@ function EntryRoute() {
         }
 
         const { idToken } = await readLineIdentity();
+
         const response = await fetch('/users/line-login/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -113,24 +118,34 @@ function EntryRoute() {
         }
 
         if (!response.ok) {
-          if (response.status === 401 && data.error === 'LINE_ID_TOKEN_EXPIRED') {
+          if (
+            response.status === 401 &&
+            data.error === 'LINE_ID_TOKEN_EXPIRED'
+          ) {
             liff.logout();
             liff.login({ redirectUri });
             return;
           }
 
-          throw new Error(data.error || 'เข้าสู่ระบบด้วย LINE ไม่สำเร็จ');
+          throw new Error(
+            data.error || 'เข้าสู่ระบบด้วย LINE ไม่สำเร็จ'
+          );
         }
 
         sessionStorage.setItem('accessToken', data.access);
         sessionStorage.setItem('refreshToken', data.refresh);
         navigate(destination, { replace: true });
       } catch (routeError) {
-        if (!cancelled) setError(routeError.message || 'เข้าสู่ระบบไม่สำเร็จ');
+        if (!cancelled) {
+          setError(
+            routeError.message || 'เข้าสู่ระบบไม่สำเร็จ'
+          );
+        }
       }
     }
 
     routeUser();
+
     return () => {
       cancelled = true;
     };
@@ -139,8 +154,12 @@ function EntryRoute() {
   return (
     <main className="entry-route">
       <p>{error || 'กำลังตรวจสอบบัญชีของคุณ...'}</p>
+
       {error && (
-        <button type="button" onClick={() => window.location.reload()}>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+        >
           ลองอีกครั้ง
         </button>
       )}
@@ -218,9 +237,7 @@ function DebtEntryRoute() {
 function App() {
   return (
     <BrowserRouter>
-
       <Routes>
-
         <Route
           path="/"
           element={<EntryRoute />}
@@ -240,10 +257,18 @@ function App() {
           path="/home/"
           element={<Home />}
         />
+
         <Route
           path="/transactions/"
           element={<Transactions />}
         />
+
+        {/* หน้าแก้ไข Draft จาก LINE Flex Card */}
+        <Route
+          path="/edit-transaction/"
+          element={<Transactions />}
+        />
+
         <Route
           path="/saving/"
           element={<Wallet />}
@@ -252,6 +277,7 @@ function App() {
           path="/debts/"
           element={<DebtEntryRoute />}
         />
+
         <Route
           path="/notifications/"
           element={<Notifications />}
@@ -281,6 +307,7 @@ function App() {
           path="/retirement"
           element={<Retirement />}
         />
+
         <Route
           path="/compound-interest"
           element={<CompoundInterest />}
@@ -301,7 +328,6 @@ function App() {
         />
 
       </Routes>
-
     </BrowserRouter>
   );
 }
