@@ -897,11 +897,13 @@ function Transactions() {
 
           {/* เลื่อนวัน + ปฏิทินเดิม */}
           <div className="transaction-date-filter">
+          
             <div className="date-navigation">
               <button type="button" onClick={() => moveDate(-1)} aria-label="วันก่อนหน้า">‹</button>
               <strong>{dateLabel()}</strong>
               <button type="button" onClick={() => moveDate(1)} aria-label="วันถัดไป">›</button>
             </div>
+
             <div className="transaction-date-filter-controls">
               <CalendarDays size={19} />
               <input

@@ -43,16 +43,21 @@ function EntryRoute() {
       const queryParams = new URLSearchParams(window.location.search);
       const debtId = queryParams.get('debtId');
       const returnTo = queryParams.get('returnTo');
+      const draftId = queryParams.get('draft');//transaction draft
       let destination = '/home/';
+
       if (returnTo === '/debts/') {
         destination = '/debts/';
+      }
+      if (returnTo === '/edit-transaction/' && draftId) {
+        destination = `/edit-transaction/?draft=${encodeURIComponent(draftId)}`;
       }
       if (debtId) {
         destination = `/debts/?debtId=${encodeURIComponent(debtId)}`;
       }
       const redirectUri =
         `${window.location.origin}${window.location.pathname}${window.location.search}`;
-        
+
       const accessToken = sessionStorage.getItem('accessToken');
       console.log('Access Token:', accessToken);
 
