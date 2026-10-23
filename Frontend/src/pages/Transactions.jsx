@@ -24,18 +24,20 @@ const emptyForm = () => ({
   category: '',
   // receipt: null,
   account: '',
-  transaction_date: new Date().toISOString().split('T')[0],
+  transaction_date: getTodayString(),
   transaction_time: '',
   description: '',
 });
 
 const getTodayString = () => {
   const today = new Date();
+
   const year = today.getFullYear();
   const month = String(today.getMonth() + 1).padStart(2, '0');
   const day = String(today.getDate()).padStart(2, '0');
 
-  return `${day}-${month}-${year}`;
+  // รูปแบบภายในระบบ: YYYY-MM-DD
+  return `${year}-${month}-${day}`;
 };
 
 
@@ -279,11 +281,7 @@ function Transactions() {
         !keyword ||
         text.includes(keyword);
 
-      return (
-        typeMatched &&
-        dateMatched &&
-        searchMatched
-      );
+      return typeMatched && dateMatched && searchMatched;
     });
   }, [
     transactions,
@@ -295,11 +293,17 @@ function Transactions() {
 
   // เปลี่ยนวันที่ทีละ 1 วัน โดยยังใช้ตัวกรองวันที่เดิม
   function moveDate(days) {
-    const date = filterDate ? new Date(`${filterDate}T12:00:00`) : new Date();
+    const date = filterDate
+      ? new Date(`${filterDate}T12:00:00`)
+      : new Date();
+
     date.setDate(date.getDate() + days);
+
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
+
+    // เก็บวันที่เป็น YYYY-MM-DD เพื่อให้กรองข้อมูลได้
     setFilterDate(`${year}-${month}-${day}`);
     setShowAll(false);
   }
@@ -309,11 +313,11 @@ function Transactions() {
 
     const [year, month, day] = filterDate.split('-');
 
-    return `${Number(day)} ${new Date(
-      Number(year),
-      Number(month) - 1,
-      Number(day)
-    ).toLocaleDateString('th-TH', { month: 'long' })} ${Number(year) + 543}`;
+    // แปลง ค.ศ. เป็น พ.ศ.
+    const buddhistYear = Number(year) + 543;
+
+    // แสดงผลเป็น วัน/เดือน/ปี
+    return `${day}/${month}/${buddhistYear}`;
   };
 
   // แสดง 5 รายการแรกก่อน แล้วค่อยกดดูทั้งหมด
