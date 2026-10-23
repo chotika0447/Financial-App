@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -29,6 +29,16 @@ const emptyForm = () => ({
   description: '',
 });
 
+const getTodayString = () => {
+  const today = new Date();
+
+  return [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-');
+};
+
 
 function Transactions() {
   const [transactions, setTransactions] = useState([]);
@@ -42,7 +52,7 @@ function Transactions() {
 
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
-  const [filterDate, setFilterDate] = useState('');
+  const [filterDate, setFilterDate] = useState(getTodayString);//เริ่มต้นต้องแสดงวันที่วันนี้
   const [showAll, setShowAll] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
@@ -58,6 +68,8 @@ function Transactions() {
 
   // URL สำหรับ preview รูป
   const [receiptPreview, setReceiptPreview] = useState('');
+
+  const dateInputRef = useRef(null);
 
   const accessToken = sessionStorage.getItem('accessToken');
 
@@ -293,12 +305,31 @@ function Transactions() {
     setShowAll(false);
   }
 
-  function dateLabel() {
+
+  const dateLabel = () => {
     if (!filterDate) return 'ทุกวัน';
-    return new Date(`${filterDate}T12:00:00`).toLocaleDateString('th-TH', {
-      day: 'numeric', month: 'long', year: 'numeric',
-    });
-  }
+
+    const today = new Date();
+    const todayString = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, '0'),
+      String(today.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    if (filterDate === todayString) {
+      return 'วันนี้';
+    }
+
+    const [year, month, day] = filterDate.split('-');
+
+    return `${Number(day)} ${new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day)
+    ).toLocaleDateString('th-TH', { month: 'long' })} ${Number(year) + 543
+      }`;
+  };
+
 
   // แสดง 5 รายการแรกก่อน แล้วค่อยกดดูทั้งหมด
   const visibleTransactions = showAll ? filtered : filtered.slice(0, 5);
@@ -895,28 +926,65 @@ function Transactions() {
           </div>
 
 
-          {/* เลื่อนวัน + ปฏิทินเดิม */}
+          {/* เลื่อนวัน + ปุ่มปฏิทิน */}
           <div className="transaction-date-filter">
-          
             <div className="date-navigation">
-              <button type="button" onClick={() => moveDate(-1)} aria-label="วันก่อนหน้า">‹</button>
-              <strong>{dateLabel()}</strong>
-              <button type="button" onClick={() => moveDate(1)} aria-label="วันถัดไป">›</button>
-            </div>
+              <button
+                type="button"
+                onClick={() => moveDate(-1)}
+                aria-label="วันก่อนหน้า"
+              >
+                ‹
+              </button>
 
-            <div className="transaction-date-filter-controls">
-              <CalendarDays size={19} />
+              <button
+                type="button"
+                className="date-picker-trigger"
+                onClick={() => {
+                  if (dateInputRef.current?.showPicker) {
+                    dateInputRef.current.showPicker();
+                  } else {
+                    dateInputRef.current?.click();
+                  }
+                }}
+                aria-label="เลือกวันที่"
+              >
+                <CalendarDays size={19} />
+                <strong>{dateLabel()}</strong>
+              </button>
+
               <input
+                ref={dateInputRef}
                 type="date"
+                className="date-picker-hidden-input"
                 aria-label="เลือกวันที่จากปฏิทิน"
                 value={filterDate}
                 onChange={(event) => {
                   setFilterDate(event.target.value);
                   setShowAll(false);
                 }}
+                tabIndex={-1}
               />
+
+              <button
+                type="button"
+                onClick={() => moveDate(1)}
+                aria-label="วันถัดไป"
+              >
+                ›
+              </button>
+
               {filterDate && (
-                <button type="button" onClick={() => setFilterDate('')}>ทุกวัน</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterDate('');
+                    setShowAll(false);
+                  }}
+                  aria-label="แสดงทุกวัน"
+                >
+                  ทุกวัน
+                </button>
               )}
             </div>
           </div>
@@ -954,14 +1022,14 @@ function Transactions() {
               >
                 {showAll && !filterDate ? 'แสดงน้อยลง' : 'ดูทั้งหมด ›'}
               </button>
-            <button
-              type="button"
-              className="desktop-add-button"
-              onClick={openAdd}
-            >
-              <Plus size={17} />
-              เพิ่มรายการ
-            </button>
+              <button
+                type="button"
+                className="desktop-add-button"
+                onClick={openAdd}
+              >
+                <Plus size={17} />
+                เพิ่มรายการ
+              </button>
             </div>
 
           </div>
@@ -1508,7 +1576,7 @@ function Transactions() {
                       ? 'บันทึกและยืนยันรายการ'
                       : editingId
                         ? 'บันทึกการแก้ไข'
-                      : 'เพิ่มรายการ'}
+                        : 'เพิ่มรายการ'}
 
                 </button>
 
