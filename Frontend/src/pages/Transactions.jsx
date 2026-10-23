@@ -31,12 +31,11 @@ const emptyForm = () => ({
 
 const getTodayString = () => {
   const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
 
-  return [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, '0'),
-    String(today.getDate()).padStart(2, '0'),
-  ].join('-');
+  return `${day}-${month}-${year}`;
 };
 
 
@@ -305,20 +304,8 @@ function Transactions() {
     setShowAll(false);
   }
 
-
   const dateLabel = () => {
-    if (!filterDate) return 'ทุกวัน';
-
-    const today = new Date();
-    const todayString = [
-      today.getFullYear(),
-      String(today.getMonth() + 1).padStart(2, '0'),
-      String(today.getDate()).padStart(2, '0'),
-    ].join('-');
-
-    if (filterDate === todayString) {
-      return 'วันนี้';
-    }
+    if (!filterDate) return '';
 
     const [year, month, day] = filterDate.split('-');
 
@@ -326,10 +313,8 @@ function Transactions() {
       Number(year),
       Number(month) - 1,
       Number(day)
-    ).toLocaleDateString('th-TH', { month: 'long' })} ${Number(year) + 543
-      }`;
+    ).toLocaleDateString('th-TH', { month: 'long' })} ${Number(year) + 543}`;
   };
-
 
   // แสดง 5 รายการแรกก่อน แล้วค่อยกดดูทั้งหมด
   const visibleTransactions = showAll ? filtered : filtered.slice(0, 5);
@@ -927,67 +912,65 @@ function Transactions() {
 
 
           {/* เลื่อนวัน + ปุ่มปฏิทิน */}
+
           <div className="transaction-date-filter">
             <div className="date-navigation">
               <button
                 type="button"
+                className="date-arrow"
                 onClick={() => moveDate(-1)}
                 aria-label="วันก่อนหน้า"
               >
                 ‹
               </button>
 
+              <div className="date-picker-column">
+                {filterDate === getTodayString() && (
+                  <span className="today-badge">วันนี้</span>
+                )}
+
+                <button
+                  type="button"
+                  className="date-picker-trigger"
+                  onClick={() => {
+                    if (dateInputRef.current?.showPicker) {
+                      dateInputRef.current.showPicker();
+                    } else {
+                      dateInputRef.current?.click();
+                    }
+                  }}
+                  aria-label="เลือกวันที่"
+                >
+                  <CalendarDays size={18} />
+                  <strong>{dateLabel()}</strong>
+                </button>
+
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  className="date-picker-hidden-input"
+                  aria-label="เลือกวันที่จากปฏิทิน"
+                  value={filterDate}
+                  onChange={(event) => {
+                    if (!event.target.value) return;
+                    setFilterDate(event.target.value);
+                    setShowAll(false);
+                  }}
+                  tabIndex={-1}
+                />
+              </div>
+
               <button
                 type="button"
-                className="date-picker-trigger"
-                onClick={() => {
-                  if (dateInputRef.current?.showPicker) {
-                    dateInputRef.current.showPicker();
-                  } else {
-                    dateInputRef.current?.click();
-                  }
-                }}
-                aria-label="เลือกวันที่"
-              >
-                <CalendarDays size={19} />
-                <strong>{dateLabel()}</strong>
-              </button>
-
-              <input
-                ref={dateInputRef}
-                type="date"
-                className="date-picker-hidden-input"
-                aria-label="เลือกวันที่จากปฏิทิน"
-                value={filterDate}
-                onChange={(event) => {
-                  setFilterDate(event.target.value);
-                  setShowAll(false);
-                }}
-                tabIndex={-1}
-              />
-
-              <button
-                type="button"
+                className="date-arrow"
                 onClick={() => moveDate(1)}
                 aria-label="วันถัดไป"
               >
                 ›
               </button>
-
-              {filterDate && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilterDate('');
-                    setShowAll(false);
-                  }}
-                  aria-label="แสดงทุกวัน"
-                >
-                  ทุกวัน
-                </button>
-              )}
             </div>
           </div>
+
 
         </section>
 

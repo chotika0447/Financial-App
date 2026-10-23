@@ -606,19 +606,6 @@
 /* =========================================================
    Transaction - Date Filter & Receipt
    ========================================================= */
-/* ---------- Date Filter ---------- */
-.transaction-date-filter {
-  margin-top: 14px;
-  padding: 16px 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  background: #ffffff;
-  border: 1px solid #e5e9f1;
-  border-radius: 14px;
-  box-shadow: 0 3px 10px rgba(40, 55, 85, 0.035);
-}
 /* =========================================================
    Receipt Upload
    ========================================================= */
@@ -829,12 +816,6 @@
    Mobile
    ========================================================= */
 @media (max-width: 600px) {
-  .transaction-date-filter {
-    padding: 14px;
-    align-items: stretch;
-    flex-direction: column;
-    gap: 12px;
-  }
   .receipt-preview img {
     height: 180px;
   }
@@ -864,28 +845,6 @@
   }
 }
 /* ===== ปรับหน้า Transactions (โค้ดเรียบง่าย) ===== */
-.date-navigation {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  flex: 1;
-}
-.date-navigation strong {
-  font-size: 17px;
-  text-align: center;
-  min-width: 155px;
-}
-.date-navigation button {
-  border: 0;
-  background: #edf3ff;
-  color: #648bd7;
-  border-radius: 10px;
-  width: 38px;
-  height: 38px;
-  font-size: 26px;
-  cursor: pointer;
-}
 .transaction-list-buttons {
   display: flex;
   align-items: center;
@@ -923,47 +882,74 @@
 /* ส่วนแนบใบเสร็จยังเป็นการอัปโหลดรูป ไม่ใช่สแกน OCR */
 .receipt-upload-box { min-height: 80px; padding: 12px; }
 @media (max-width: 600px) {
-  .transaction-date-filter { gap: 10px; }
-  .date-navigation { width: 100%; }
-  .date-navigation strong { min-width: 140px; font-size: 16px; }
   .transaction-list-buttons { gap: 2px; }
   .see-all-button { font-size: 12px; }
 }
 /* ---------- Date navigation (current UI) ---------- */
 .transaction-date-filter {
+  width: 100%;
   margin-top: 14px;
-  padding: 0;
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+  justify-content: center;
 }
 .date-navigation {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 12px;
 }
-.date-navigation button {
+.date-picker-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.today-badge {
+  min-height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  padding: 3px 18px;
+  border-radius: 7px;
+  background: #779ee8;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+.date-arrow {
+  width: 35px;
+  height: 42px;
+  flex: 0 0 35px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 7px;
+  background: #d8e5ff;
+  color: #648bd7;
+  font: inherit;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+.date-arrow:hover {
+  background: #cbdcff;
 }
 .date-picker-trigger {
+  width: 194px;
+  min-height: 42px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 38px;
-  padding: 8px 12px;
-  border: 1px solid #dfe4ed;
-  border-radius: 10px;
+  padding: 0 12px;
+  border: 1px solid #86aef7;
+  border-radius: 7px;
   background: #fff;
-  color: #3f4655;
+  color: #6b88c2;
   font: inherit;
   cursor: pointer;
   white-space: nowrap;
@@ -975,6 +961,7 @@
 }
 .date-picker-trigger strong {
   font-weight: 600;
+  font-size: 17px;
 }
 .date-picker-hidden-input {
   position: absolute;
@@ -992,14 +979,9 @@
     margin-top: 12px;
   }
   .date-navigation {
-    gap: 6px;
+    gap: 8px;
   }
   .date-picker-trigger {
-    gap: 6px;
-    padding: 7px 9px;
-  }
-  .date-navigation strong {
-    min-width: 0;
-    font-size: 14px;
+    width: 194px;
   }
 }
