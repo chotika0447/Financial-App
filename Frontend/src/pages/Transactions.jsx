@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -24,10 +24,21 @@ const emptyForm = () => ({
   category: '',
   // receipt: null,
   account: '',
-  transaction_date: new Date().toISOString().split('T')[0],
+  transaction_date: getTodayString(),
   transaction_time: '',
   description: '',
 });
+
+const getTodayString = () => {
+  const today = new Date();
+
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+
+  // รูปแบบภายในระบบ: YYYY-MM-DD
+  return `${year}-${month}-${day}`;
+};
 
 
 function Transactions() {
@@ -42,7 +53,7 @@ function Transactions() {
 
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
-  const [filterDate, setFilterDate] = useState('');
+  const [filterDate, setFilterDate] = useState(getTodayString);//เริ่มต้นต้องแสดงวันที่วันนี้
   const [showAll, setShowAll] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
@@ -58,6 +69,8 @@ function Transactions() {
 
   // URL สำหรับ preview รูป
   const [receiptPreview, setReceiptPreview] = useState('');
+
+  const dateInputRef = useRef(null);
 
   const accessToken = sessionStorage.getItem('accessToken');
 
@@ -268,11 +281,7 @@ function Transactions() {
         !keyword ||
         text.includes(keyword);
 
-      return (
-        typeMatched &&
-        dateMatched &&
-        searchMatched
-      );
+      return typeMatched && dateMatched && searchMatched;
     });
   }, [
     transactions,
@@ -284,21 +293,32 @@ function Transactions() {
 
   // เปลี่ยนวันที่ทีละ 1 วัน โดยยังใช้ตัวกรองวันที่เดิม
   function moveDate(days) {
-    const date = filterDate ? new Date(`${filterDate}T12:00:00`) : new Date();
+    const date = filterDate
+      ? new Date(`${filterDate}T12:00:00`)
+      : new Date();
+
     date.setDate(date.getDate() + days);
+
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
+
+    // เก็บวันที่เป็น YYYY-MM-DD เพื่อให้กรองข้อมูลได้
     setFilterDate(`${year}-${month}-${day}`);
     setShowAll(false);
   }
 
-  function dateLabel() {
-    if (!filterDate) return 'ทุกวัน';
-    return new Date(`${filterDate}T12:00:00`).toLocaleDateString('th-TH', {
-      day: 'numeric', month: 'long', year: 'numeric',
-    });
-  }
+  const dateLabel = () => {
+    if (!filterDate) return '';
+
+    const [year, month, day] = filterDate.split('-');
+
+    // แปลง ค.ศ. เป็น พ.ศ.
+    const buddhistYear = Number(year) + 543;
+
+    // แสดงผลเป็น วัน/เดือน/ปี
+    return `${day}/${month}/${buddhistYear}`;
+  };
 
   // แสดง 5 รายการแรกก่อน แล้วค่อยกดดูทั้งหมด
   const visibleTransactions = showAll ? filtered : filtered.slice(0, 5);
@@ -895,29 +915,66 @@ function Transactions() {
           </div>
 
 
-          {/* เลื่อนวัน + ปฏิทินเดิม */}
+          {/* เลื่อนวัน + ปุ่มปฏิทิน */}
+
           <div className="transaction-date-filter">
             <div className="date-navigation">
-              <button type="button" onClick={() => moveDate(-1)} aria-label="วันก่อนหน้า">‹</button>
-              <strong>{dateLabel()}</strong>
-              <button type="button" onClick={() => moveDate(1)} aria-label="วันถัดไป">›</button>
-            </div>
-            <div className="transaction-date-filter-controls">
-              <CalendarDays size={19} />
-              <input
-                type="date"
-                aria-label="เลือกวันที่จากปฏิทิน"
-                value={filterDate}
-                onChange={(event) => {
-                  setFilterDate(event.target.value);
-                  setShowAll(false);
-                }}
-              />
-              {filterDate && (
-                <button type="button" onClick={() => setFilterDate('')}>ทุกวัน</button>
-              )}
+              <button
+                type="button"
+                className="date-arrow"
+                onClick={() => moveDate(-1)}
+                aria-label="วันก่อนหน้า"
+              >
+                ‹
+              </button>
+
+              <div className="date-picker-column">
+                {filterDate === getTodayString() && (
+                  <span className="today-badge">วันนี้</span>
+                )}
+
+                <button
+                  type="button"
+                  className="date-picker-trigger"
+                  onClick={() => {
+                    if (dateInputRef.current?.showPicker) {
+                      dateInputRef.current.showPicker();
+                    } else {
+                      dateInputRef.current?.click();
+                    }
+                  }}
+                  aria-label="เลือกวันที่"
+                >
+                  <CalendarDays size={18} />
+                  <strong>{dateLabel()}</strong>
+                </button>
+
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  className="date-picker-hidden-input"
+                  aria-label="เลือกวันที่จากปฏิทิน"
+                  value={filterDate}
+                  onChange={(event) => {
+                    if (!event.target.value) return;
+                    setFilterDate(event.target.value);
+                    setShowAll(false);
+                  }}
+                  tabIndex={-1}
+                />
+              </div>
+
+              <button
+                type="button"
+                className="date-arrow"
+                onClick={() => moveDate(1)}
+                aria-label="วันถัดไป"
+              >
+                ›
+              </button>
             </div>
           </div>
+
 
         </section>
 
@@ -952,14 +1009,14 @@ function Transactions() {
               >
                 {showAll && !filterDate ? 'แสดงน้อยลง' : 'ดูทั้งหมด ›'}
               </button>
-            <button
-              type="button"
-              className="desktop-add-button"
-              onClick={openAdd}
-            >
-              <Plus size={17} />
-              เพิ่มรายการ
-            </button>
+              <button
+                type="button"
+                className="desktop-add-button"
+                onClick={openAdd}
+              >
+                <Plus size={17} />
+                เพิ่มรายการ
+              </button>
             </div>
 
           </div>
@@ -1506,7 +1563,7 @@ function Transactions() {
                       ? 'บันทึกและยืนยันรายการ'
                       : editingId
                         ? 'บันทึกการแก้ไข'
-                      : 'เพิ่มรายการ'}
+                        : 'เพิ่มรายการ'}
 
                 </button>
 
