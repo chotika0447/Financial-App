@@ -11,6 +11,8 @@ import { useSearchParams } from "react-router-dom";
 import {
   Search,
   ArrowUpDown,
+  ArrowDown,
+  ArrowUp,
   Pencil,
   Trash2,
   Plus,
@@ -40,6 +42,7 @@ function Debts() {
   // คำค้นหาและรูปแบบการเรียงรายการหนี้
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState("newest");
+  const [sortDirection, setSortDirection] = useState("desc");
   // แสดง/ซ่อนเมนูเรียงลำดับ
   const [showSortMenu, setShowSortMenu] = useState(false);
 
@@ -390,35 +393,36 @@ function Debts() {
         .includes(searchTerm.trim().toLocaleLowerCase("th"))
     )
     .sort((a, b) => {
+      let comparison;
+
       switch (sortBy) {
         case "newest":
-          // รายการใหม่ไปเก่า
-          // ใช้วันที่สร้างก่อน และใช้ ID เป็นตัวช่วยเมื่อวันที่เท่ากัน
+          // ใช้ ID เป็นตัวช่วยเมื่อวันที่สร้างเท่ากัน
           {
             const dateA = new Date(a.created_at || 0).getTime();
             const dateB = new Date(b.created_at || 0).getTime();
-
-            if (dateA !== dateB) return dateB - dateA;
-            return Number(b.id) - Number(a.id);
+            comparison =
+              dateA !== dateB ? dateB - dateA : Number(b.id) - Number(a.id);
+            break;
           }
 
         case "amount":
-          // ยอดหนี้ทั้งหมด มากไปน้อย
-          return (
+          comparison =
             Number(b.total_amount || 0) -
-            Number(a.total_amount || 0)
-          );
+            Number(a.total_amount || 0);
+          break;
 
         case "remaining":
-          // ยอดหนี้คงเหลือ มากไปน้อย
-          return (
+          comparison =
             Number(b.remaining_amount || 0) -
-            Number(a.remaining_amount || 0)
-          );
+            Number(a.remaining_amount || 0);
+          break;
 
         default:
-          return 0;
+          comparison = 0;
       }
+
+      return sortDirection === "desc" ? comparison : -comparison;
     });
 
   const totalBorrow = borrowDebts.reduce(
@@ -641,11 +645,19 @@ function Debts() {
           {/* แสดงวิธีเรียงปัจจุบัน */}
           <p className="mt-2 text-xs text-gray-500">
             เรียงตาม: {
-              sortBy === "newest"
-                ? "วันที่สร้าง ใหม่ - เก่า"
+              `${sortBy === "newest"
+                ? "วันที่สร้าง"
                 : sortBy === "amount"
-                  ? "ยอดหนี้ทั้งหมด มาก - น้อย"
-                  : "ยอดหนี้คงเหลือ มาก - น้อย"
+                  ? "ยอดหนี้ทั้งหมด"
+                  : "ยอดหนี้คงเหลือ"} ${
+                sortDirection === "desc"
+                  ? sortBy === "newest"
+                    ? "ใหม่ - เก่า"
+                    : "มาก - น้อย"
+                  : sortBy === "newest"
+                    ? "เก่า - ใหม่"
+                    : "น้อย - มาก"
+              }`
             }
           </p>
         </div>
