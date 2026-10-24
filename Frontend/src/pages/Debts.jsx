@@ -574,11 +574,7 @@ function Debts() {
               onClick={() => setShowSortMenu((prev) => !prev)}
               aria-label="เลือกวิธีเรียงรายการหนี้"
               aria-expanded={showSortMenu}
-              className="
-        h-9 px-3 rounded-md border border-gray-300
-        flex items-center justify-center gap-1
-        bg-white hover:bg-gray-100
-      "
+              className=" h-9 px-3 rounded-md border border-gray-300 flex items-center justify-center gap-1 bg-white hover:bg-gray-100 "
             >
               <ArrowUpDown size={16} />
               <span className="text-xs">เรียง</span>
@@ -589,36 +585,58 @@ function Debts() {
           {showSortMenu && (
             <div className="mt-2 rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
               {[
-                { value: "newest", label: "วันที่สร้าง: ใหม่ - เก่า" },
-                { value: "amount", label: "ยอดหนี้ทั้งหมด: มาก - น้อย" },
-                { value: "remaining", label: "ยอดหนี้คงเหลือ: มาก - น้อย" },
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => {
-                    setSortBy(option.value);
-                    setShowSortMenu(false);
-                  }}
-                  className={`
-            w-full px-4 py-3 text-left text-sm
-            hover:bg-gray-100 transition
-            ${sortBy === option.value
-                      ? "bg-gray-100 font-semibold text-gray-900"
-                      : "text-gray-700"
-                    }
-          `}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    {option.label}
-                    {sortBy === option.value && (
-                      <span className="text-green-600">✓</span>
+                { value: "newest", label: "วันที่สร้าง" },
+                { value: "amount", label: "ยอดหนี้ทั้งหมด" },
+                { value: "remaining", label: "ยอดหนี้คงเหลือ" },
+              ].map((option) => {
+                const isSelected = sortBy === option.value;
+
+                const directionLabel =
+                  option.value === "newest"
+                    ? sortDirection === "desc"
+                      ? "ใหม่ไปเก่า"
+                      : "เก่าไปใหม่"
+                    : sortDirection === "desc"
+                      ? "มากไปน้อย"
+                      : "น้อยไปมาก";
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        setSortDirection((prev) =>
+                          prev === "desc" ? "asc" : "desc"
+                        );
+                      } else {
+                        setSortBy(option.value);
+                        setSortDirection("desc");
+                      }
+                    }}
+                    className={`w-full px-4 py-3 text-sm flex items-center justify-between gap-3 hover:bg-gray-100 transition ${isSelected
+                        ? "bg-gray-100 font-semibold text-gray-900"
+                        : "text-gray-700"
+                      }`}
+                  >
+                    <span>{option.label}</span>
+
+                    {isSelected && (
+                      <span className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs">{directionLabel}</span>
+                        {sortDirection === "desc" ? (
+                          <ArrowDown size={16} />
+                        ) : (
+                          <ArrowUp size={16} />
+                        )}
+                      </span>
                     )}
-                  </span>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           )}
+
 
           {/* แสดงวิธีเรียงปัจจุบัน */}
           <p className="mt-2 text-xs text-gray-500">
