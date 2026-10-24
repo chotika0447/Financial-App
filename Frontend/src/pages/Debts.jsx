@@ -37,6 +37,12 @@ function Debts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // คำค้นหาและรูปแบบการเรียงรายการหนี้
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
+  // แสดง/ซ่อนเมนูเรียงลำดับ
+  const [showSortMenu, setShowSortMenu] = useState(false);
+
   // รายชื่อเพื่อนจาก Backend
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
@@ -376,6 +382,44 @@ function Debts() {
     activeTab === "borrow"
       ? borrowDebts
       : lendDebts;
+  // ค้นหาด้วยชื่อรายการ และเรียงตามเงื่อนไขที่เลือก
+  const filteredDebtsList = [...currentDebtsList]
+    .filter((debt) =>
+      String(debt.name ?? "")
+        .toLocaleLowerCase("th")
+        .includes(searchTerm.trim().toLocaleLowerCase("th"))
+    )
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "newest":
+          // รายการใหม่ไปเก่า
+          // ใช้วันที่สร้างก่อน และใช้ ID เป็นตัวช่วยเมื่อวันที่เท่ากัน
+          {
+            const dateA = new Date(a.created_at || 0).getTime();
+            const dateB = new Date(b.created_at || 0).getTime();
+
+            if (dateA !== dateB) return dateB - dateA;
+            return Number(b.id) - Number(a.id);
+          }
+
+        case "amount":
+          // ยอดหนี้ทั้งหมด มากไปน้อย
+          return (
+            Number(b.total_amount || 0) -
+            Number(a.total_amount || 0)
+          );
+
+        case "remaining":
+          // ยอดหนี้คงเหลือ มากไปน้อย
+          return (
+            Number(b.remaining_amount || 0) -
+            Number(a.remaining_amount || 0)
+          );
+
+        default:
+          return 0;
+      }
+    });
 
   const totalBorrow = borrowDebts.reduce(
     (sum, debt) => sum + Number(debt.remaining_amount),
@@ -500,11 +544,10 @@ function Debts() {
 
         </div>
 
-        {/* แถบค้นหา */}
+        {/* แถบค้นหาและตัวกรองเรียงรายการ */}
         <div className="bg-white px-5 py-3">
-
           <div className="flex items-center gap-2">
-
+            {/* ช่องค้นหา */}
             <div className="relative flex-1">
               <Search
                 size={16}
@@ -513,40 +556,82 @@ function Debts() {
 
               <input
                 type="text"
-                placeholder=""
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="ค้นหาชื่อรายการหนี้..."
+                aria-label="ค้นหาชื่อรายการหนี้"
                 className="
-                w-full
-                h-[24px]
-                rounded-full
-                border
-                border-gray-300
-                pl-8
-                pr-3
-                text-sm
-                outline-none
-                focus:border-gray-500
-              "
+          w-full h-9 rounded-full border border-gray-300
+          pl-8 pr-3 text-sm outline-none
+          focus:border-gray-500
+        "
               />
             </div>
 
+            {/* ปุ่มเปิดเมนูเรียงลำดับ */}
             <button
+              type="button"
+              onClick={() => setShowSortMenu((prev) => !prev)}
+              aria-label="เลือกวิธีเรียงรายการหนี้"
+              aria-expanded={showSortMenu}
               className="
-              w-[24px]
-              h-[24px]
-              rounded-md
-              border
-              border-gray-300
-              flex
-              items-center
-              justify-center
-              bg-white
-            "
+        h-9 px-3 rounded-md border border-gray-300
+        flex items-center justify-center gap-1
+        bg-white hover:bg-gray-100
+      "
             >
-              <ArrowUpDown size={14} />
+              <ArrowUpDown size={16} />
+              <span className="text-xs">เรียง</span>
             </button>
-
           </div>
+
+          {/* เมนูตัวเลือกการเรียง */}
+          {showSortMenu && (
+            <div className="mt-2 rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+              {[
+                { value: "newest", label: "วันที่สร้าง: ใหม่ - เก่า" },
+                { value: "amount", label: "ยอดหนี้ทั้งหมด: มาก - น้อย" },
+                { value: "remaining", label: "ยอดหนี้คงเหลือ: มาก - น้อย" },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    setSortBy(option.value);
+                    setShowSortMenu(false);
+                  }}
+                  className={`
+            w-full px-4 py-3 text-left text-sm
+            hover:bg-gray-100 transition
+            ${sortBy === option.value
+                      ? "bg-gray-100 font-semibold text-gray-900"
+                      : "text-gray-700"
+                    }
+          `}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    {option.label}
+                    {sortBy === option.value && (
+                      <span className="text-green-600">✓</span>
+                    )}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* แสดงวิธีเรียงปัจจุบัน */}
+          <p className="mt-2 text-xs text-gray-500">
+            เรียงตาม: {
+              sortBy === "newest"
+                ? "วันที่สร้าง ใหม่ - เก่า"
+                : sortBy === "amount"
+                  ? "ยอดหนี้ทั้งหมด มาก - น้อย"
+                  : "ยอดหนี้คงเหลือ มาก - น้อย"
+            }
+          </p>
         </div>
+
 
         {/* แท็บเลือกประเภทรายการ */}
         <div className="px-5 bg-white pb-3">
@@ -596,34 +681,41 @@ function Debts() {
 
         {/* พื้นที่แสดงรายการ */}
         <div className="px-5 pt-1">
-          {/* เรียกใช้ component DebtCard ตามหนี้สินทั้งหมดของuser*/}
-          {currentDebtsList.map((debt) => (
-            <DebtCard
-              key={debt.id}
-              debt={debt}
-              onDelete={handleDeleteDebt}
-              onPayment={() => {
-                setSelectedDebt(debt);
-                setShowDebtPay(true);
-              }}
-              onViewHistory={() => {
-                setSelectedDebt(debt);
-                setShowDebtHistory(true);
-              }}
-              onCheckPayment={() => {
-                setSelectedDebt(debt);
-                setShowDebtHistory(true);
-              }}
-              onEdit={(debt) => {
-                setEditingDebt(debt);
-                setCurrentDebtType(
-                  debt.type === "borrowed" ? "borrow" : "lend"
-                );
-              }}
-            />
-          ))}
-
+          {filteredDebtsList.length > 0 ? (
+            filteredDebtsList.map((debt) => (
+              <DebtCard
+                key={debt.id}
+                debt={debt}
+                onDelete={handleDeleteDebt}
+                onPayment={() => {
+                  setSelectedDebt(debt);
+                  setShowDebtPay(true);
+                }}
+                onViewHistory={() => {
+                  setSelectedDebt(debt);
+                  setShowDebtHistory(true);
+                }}
+                onCheckPayment={() => {
+                  setSelectedDebt(debt);
+                  setShowDebtHistory(true);
+                }}
+                onEdit={(debt) => {
+                  setEditingDebt(debt);
+                  setCurrentDebtType(
+                    debt.type === "borrowed" ? "borrow" : "lend"
+                  );
+                }}
+              />
+            ))
+          ) : (
+            <div className="py-10 text-center text-sm text-gray-500">
+              {searchTerm.trim()
+                ? `ไม่พบรายการหนี้ที่ตรงกับ "${searchTerm.trim()}"`
+                : "ยังไม่มีรายการหนี้ในหมวดนี้"}
+            </div>
+          )}
         </div>
+
 
         {/* ปุ่มเพิ่มรายการ */}
         <button
