@@ -392,19 +392,46 @@ function Debts() {
         .toLocaleLowerCase("th")
         .includes(searchTerm.trim().toLocaleLowerCase("th"))
     )
+
     .sort((a, b) => {
-      let comparison;
+      // วันที่ครบกำหนดที่ไม่มีค่า หรือไม่ใช่วันที่ที่ถูกต้อง
+      // จะถูกจัดไว้ท้ายรายการเสมอ
+      if (sortBy === "dueDate") {
+        const getDueDate = (debt) => {
+          if (!debt.due_date) return null;
+
+          const timestamp = new Date(debt.due_date).getTime();
+          return Number.isNaN(timestamp) ? null : timestamp;
+        };
+
+        const dateA = getDueDate(a);
+        const dateB = getDueDate(b);
+
+        if (dateA === null && dateB === null) return 0;
+        if (dateA === null) return 1;
+        if (dateB === null) return -1;
+
+        // ใกล้ไปไกล = น้อยไปมาก
+        const comparison = dateA - dateB;
+
+        return sortDirection === "asc"
+          ? comparison
+          : -comparison;
+      }
+
+      let comparison = 0;
 
       switch (sortBy) {
-        case "newest":
-          // ใช้ ID เป็นตัวช่วยเมื่อวันที่สร้างเท่ากัน
-          {
-            const dateA = new Date(a.created_at || 0).getTime();
-            const dateB = new Date(b.created_at || 0).getTime();
-            comparison =
-              dateA !== dateB ? dateB - dateA : Number(b.id) - Number(a.id);
-            break;
-          }
+        case "newest": {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+
+          comparison =
+            dateA !== dateB
+              ? dateB - dateA
+              : Number(b.id) - Number(a.id);
+          break;
+        }
 
         case "amount":
           comparison =
@@ -422,8 +449,11 @@ function Debts() {
           comparison = 0;
       }
 
-      return sortDirection === "desc" ? comparison : -comparison;
+      return sortDirection === "desc"
+        ? comparison
+        : -comparison;
     });
+
 
   const totalBorrow = borrowDebts.reduce(
     (sum, debt) => sum + Number(debt.remaining_amount),
@@ -592,6 +622,7 @@ function Debts() {
                 { value: "newest", label: "วันที่สร้าง" },
                 { value: "amount", label: "ยอดหนี้ทั้งหมด" },
                 { value: "remaining", label: "ยอดหนี้คงเหลือ" },
+                { value: "dueDate", label: "วันครบกำหนด" },
               ].map((option) => {
                 const isSelected = sortBy === option.value;
 
@@ -600,10 +631,13 @@ function Debts() {
                     ? sortDirection === "desc"
                       ? "ใหม่ไปเก่า"
                       : "เก่าไปใหม่"
-                    : sortDirection === "desc"
-                      ? "มากไปน้อย"
-                      : "น้อยไปมาก";
-
+                    : option.value === "dueDate"
+                      ? sortDirection === "asc"
+                        ? "ใกล้ไปไกล"
+                        : "ไกลไปใกล้"
+                      : sortDirection === "desc"
+                        ? "มากไปน้อย"
+                        : "น้อยไปมาก";
                 return (
                   <button
                     key={option.value}
@@ -615,12 +649,14 @@ function Debts() {
                         );
                       } else {
                         setSortBy(option.value);
-                        setSortDirection("desc");
+                        setSortDirection(
+                          option.value === "dueDate" ? "asc" : "desc"
+                        );
                       }
                     }}
                     className={`w-full px-4 py-3 text-sm flex items-center justify-between gap-3 hover:bg-gray-100 transition ${isSelected
-                        ? "bg-gray-100 font-semibold text-gray-900"
-                        : "text-gray-700"
+                      ? "bg-gray-100 font-semibold text-gray-900"
+                      : "text-gray-700"
                       }`}
                   >
                     <span>{option.label}</span>
@@ -643,23 +679,35 @@ function Debts() {
 
 
           {/* แสดงวิธีเรียงปัจจุบัน */}
-          <p className="mt-2 text-xs text-gray-500">
-            เรียงตาม: {
-              `${sortBy === "newest"
-                ? "วันที่สร้าง"
-                : sortBy === "amount"
-                  ? "ยอดหนี้ทั้งหมด"
-                  : "ยอดหนี้คงเหลือ"} ${
-                sortDirection === "desc"
-                  ? sortBy === "newest"
-                    ? "ใหม่ - เก่า"
-                    : "มาก - น้อย"
-                  : sortBy === "newest"
-                    ? "เก่า - ใหม่"
-                    : "น้อย - มาก"
-              }`
-            }
-          </p>
+          {(() => {
+            const sortLabel = {
+              newest: "วันที่สร้าง",
+              amount: "ยอดหนี้ทั้งหมด",
+              remaining: "ยอดหนี้คงเหลือ",
+              dueDate: "วันครบกำหนด",
+            }[sortBy];
+
+            const directionLabel =
+              sortBy === "newest"
+                ? sortDirection === "desc"
+                  ? "ใหม่ - เก่า"
+                  : "เก่า - ใหม่"
+                : sortBy === "dueDate"
+                  ? sortDirection === "asc"
+                    ? "ใกล้ - ไกล"
+                    : "ไกล - ใกล้"
+                  : sortDirection === "desc"
+                    ? "มาก - น้อย"
+                    : "น้อย - มาก";
+
+            return (
+              <p className="mt-2 text-xs text-gray-500">
+                เรียงตาม: {sortLabel} {directionLabel}
+              </p>
+            );
+          })()}
+
+
         </div>
 
 
