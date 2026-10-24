@@ -18,6 +18,7 @@ export default defineConfig({
       'rogue-washer-cola.ngrok-free.dev',
 
       'financial-app-delta-taupe.vercel.app',
+      'financial-ogk0nhlmw-project-teb-zaaa007.vercel.app',
       'financial-app-xgc0.onrender.com',
     ],
 
