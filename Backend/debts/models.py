@@ -95,6 +95,11 @@ class Debts(models.Model):
         null=True,
         blank=True
     )
+    # วันครบกำหนดของงวดปัจจุบัน สำหรับ monthly เท่านั้น ส่วน flexible ปล่อยเป็น NULL
+    current_due_date = models.DateField(
+        null=True,
+        blank=True
+    )
     #สถานะว่าปิดหนี้ก้อนนี้ไปรึยัง
     status = models.CharField(
         max_length=20,

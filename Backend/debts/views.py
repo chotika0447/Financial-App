@@ -113,6 +113,20 @@ class DebtListCreateView(APIView):
         # สร้างรายการของทั้งสองคนภายใน transaction เดียวกัน
         with transaction.atomic():
             debt = serializer.save(user=request.user)
+            # กำหนดวันครบกำหนดงวดแรกสำหรับหนี้รายเดือน
+            if (
+                debt.payment_type == "monthly"
+                and not debt.current_due_date
+            ):
+                debt.current_due_date = (
+                    get_initial_monthly_due_date(debt)
+                )
+                debt.save(
+                    update_fields=[
+                        "current_due_date",
+                        "updated_at",
+                    ]
+                )
 
             if counterparty:
                 opposite_type = (
@@ -132,6 +146,7 @@ class DebtListCreateView(APIView):
                     payment_amount=debt.payment_amount,
                     due_date=debt.due_date,
                     payment_date=debt.payment_date,
+                    current_due_date=debt.current_due_date,
                     status="ongoing",
                     note=debt.note,
                     icon=debt.icon,
@@ -286,66 +301,90 @@ class DebtDetailView(APIView):
 
 
 # ======================================ส่วนการชำระหนี้======================================
-# กำหนดวันครบกำหนดชำระหนี้ตามประเภทการชำระ
+
+
+def get_monthly_due_date(year, month, payment_day):
+    """
+    สร้างวันที่ครบกำหนดรายเดือน
+    หากเดือนนั้นไม่มีวันที่กำหนด ให้ใช้วันสุดท้ายของเดือน
+    """
+    last_day = monthrange(year, month)[1]
+    day = min(payment_day, last_day)
+    return date(year, month, day)
+
+
+def get_initial_monthly_due_date(debt, today=None):
+    """
+    คำนวณวันครบกำหนดงวดแรก
+    เลือกวันที่กำหนดในเดือนนี้ หากผ่านไปแล้วให้เลือกเดือนถัดไป
+    """
+    if not debt.payment_date:
+        raise ValueError(
+            "หนี้แบบรายเดือนต้องระบุ payment_date"
+        )
+
+    if today is None:
+        today = date.today()
+
+    due_date = get_monthly_due_date(
+        today.year,
+        today.month,
+        debt.payment_date,
+    )
+
+    if due_date < today:
+        if today.month == 12:
+            year = today.year + 1
+            month = 1
+        else:
+            year = today.year
+            month = today.month + 1
+
+        due_date = get_monthly_due_date(
+            year,
+            month,
+            debt.payment_date,
+        )
+
+    return due_date
+
+
+def get_next_monthly_due_date(current_due_date, payment_day):
+    """
+    เลื่อนวันครบกำหนดไปเดือนถัดไป
+    โดยรักษาวันที่กำหนดชำระเดิมไว้
+    """
+    if current_due_date.month == 12:
+        year = current_due_date.year + 1
+        month = 1
+    else:
+        year = current_due_date.year
+        month = current_due_date.month + 1
+
+    return get_monthly_due_date(
+        year,
+        month,
+        payment_day,
+    )
+
+
 def calculate_payment_due_date(debt):
     """
-    คำนวณ due_date ของ Payment จากข้อมูลของ Debts
+    คืนวันครบกำหนดของงวดปัจจุบัน
     """
-
-    # กรณีทยอยจ่าย
     if debt.payment_type == "flexible":
         return debt.due_date
 
-    # กรณีรายเดือน
     if debt.payment_type == "monthly":
         if not debt.payment_date:
             raise ValueError(
                 "หนี้แบบรายเดือนต้องระบุ payment_date"
             )
 
-        today = date.today()
+        if debt.current_due_date:
+            return debt.current_due_date
 
-        # จำนวนวันของเดือนปัจจุบัน
-        last_day = monthrange(today.year, today.month)[1]
-
-        # ป้องกัน payment_date เช่น 31
-        # ในเดือนที่มีเพียง 30 หรือ 28/29 วัน
-        day = min(debt.payment_date, last_day)
-
-        due_date = date(
-            today.year,
-            today.month,
-            day
-        )
-
-        # ถ้าวันกำหนดชำระของเดือนนี้ผ่านไปแล้ว
-        # ให้เลื่อนไปเดือนถัดไป
-        if due_date < today:
-
-            if today.month == 12:
-                next_year = today.year + 1
-                next_month = 1
-            else:
-                next_year = today.year
-                next_month = today.month + 1
-
-            last_day = monthrange(
-                next_year,
-                next_month
-            )[1]
-
-            day = min(
-                debt.payment_date,
-                last_day
-            )
-
-            due_date = date(
-                next_year,
-                next_month,
-                day
-            )
-
-        return due_date
+        return get_initial_monthly_due_date(debt)
 
     raise ValueError(
         "ไม่พบประเภทการชำระหนี้ที่ถูกต้อง"
@@ -474,8 +513,11 @@ class PaymentListCreateView(APIView):
             data["scheduled_amount"] = debt.payment_amount
 
         try:
+            current_installment_due_date = (
+                calculate_payment_due_date(debt)
+            )
             data["due_date"] = (
-                calculate_payment_due_date(debt).isoformat()
+                current_installment_due_date.isoformat()
             )
         except ValueError as error:
             return Response(
@@ -526,10 +568,62 @@ class PaymentListCreateView(APIView):
         # คำนวณยอดหนี้ทั้งสองฝั่ง
         recalculate_debt_remaining(debt)
 
+        # เลื่อนงวดเฉพาะเมื่อเป็นหนี้รายเดือนและตอนยอดที่ชำระรวมของงวดนี้ครบแล้วเท่านั้น
+        if (
+            debt.payment_type == "monthly"
+            and debt.payment_amount is not None
+            and paid_amount > Decimal("0.00")
+        ):
+            debt.refresh_from_db()
+
+            related_debts = get_related_debts(debt)
+            related_debt_ids = [
+                item.pk for item in related_debts
+            ]
+
+            # รวมยอดที่ชำระทั้งหมดในงวดปัจจุบัน
+            installment_paid_total = (
+                Payments.objects.filter(
+                    debt_id__in=related_debt_ids,
+                    due_date=current_installment_due_date,
+                ).aggregate(
+                    total=Sum("paid_amount")
+                )["total"]
+                or Decimal("0.00")
+            )
+
+            # ยอดที่ต้องจ่ายในงวดนี้
+            # งวดสุดท้ายไม่ควรเกินยอดหนี้ที่เหลือก่อนชำระ
+            installment_target = min(
+                Decimal(debt.payment_amount),
+                Decimal(shared_remaining),
+            )
+
+            if (
+                installment_target > Decimal("0.00")
+                and installment_paid_total >= installment_target
+                and debt.remaining_amount > Decimal("0.00")
+            ):
+                next_due_date = get_next_monthly_due_date(
+                    current_installment_due_date,
+                    debt.payment_date,
+                )
+
+                # อัปเดตวันครบกำหนดให้หนี้ทั้งสองฝ่าย
+                for related_debt in related_debts:
+                    related_debt.current_due_date = next_due_date
+                    related_debt.save(
+                        update_fields=[
+                            "current_due_date",
+                            "updated_at",
+                        ]
+                    )
+
         return Response(
             PaymentSerializer(payment).data,
             status=status.HTTP_201_CREATED,
         )
+
 
 
 

@@ -28,6 +28,7 @@ class DebtSerializer(serializers.ModelSerializer):
             'payment_amount',
             'due_date',
             'payment_date',
+            'current_due_date',
             'status',
             'note',
             'icon',
@@ -43,6 +44,7 @@ class DebtSerializer(serializers.ModelSerializer):
             'remaining_amount',
             'created_at',
             'updated_at',
+            'current_due_date',
         ]
     #ตรวจความถูกต้องของข้อมูล
     def validate(self, data):

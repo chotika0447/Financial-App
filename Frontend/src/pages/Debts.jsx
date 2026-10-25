@@ -13,6 +13,8 @@ import {
   ArrowUpDown,
   ArrowDown,
   ArrowUp,
+  Clock3,
+  CheckCircle,
   Pencil,
   Trash2,
   Plus,
@@ -54,7 +56,7 @@ function Debts() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [openingLinkedDebt, setOpeningLinkedDebt] = useState(false);
 
-
+  const [activeStatus, setActiveStatus] = useState("ongoing");
   //useEffect สำหรับดึงข้อมูลหนี้สิน
   useEffect(() => {
     const fetchDebts = async () => {
@@ -373,18 +375,21 @@ function Debts() {
     }
   };
 
-  const borrowDebts = debts.filter(
+  const statusFilteredDebts = debts.filter(
+    (debt) => debt.status === activeStatus
+  );
+
+  const borrowDebts = statusFilteredDebts.filter(
     (debt) => debt.type === "borrowed"
   );
 
-  const lendDebts = debts.filter(
+  const lendDebts = statusFilteredDebts.filter(
     (debt) => debt.type === "lent"
   );
 
   const currentDebtsList =
-    activeTab === "borrow"
-      ? borrowDebts
-      : lendDebts;
+    activeTab === "borrow" ? borrowDebts : lendDebts;
+
   // ค้นหาด้วยชื่อรายการ และเรียงตามเงื่อนไขที่เลือก
   const filteredDebtsList = [...currentDebtsList]
     .filter((debt) =>
@@ -392,19 +397,46 @@ function Debts() {
         .toLocaleLowerCase("th")
         .includes(searchTerm.trim().toLocaleLowerCase("th"))
     )
+
     .sort((a, b) => {
-      let comparison;
+      // วันที่ครบกำหนดที่ไม่มีค่า หรือไม่ใช่วันที่ที่ถูกต้อง
+      // จะถูกจัดไว้ท้ายรายการเสมอ
+      if (sortBy === "dueDate") {
+        const getDueDate = (debt) => {
+          if (!debt.due_date) return null;
+
+          const timestamp = new Date(debt.due_date).getTime();
+          return Number.isNaN(timestamp) ? null : timestamp;
+        };
+
+        const dateA = getDueDate(a);
+        const dateB = getDueDate(b);
+
+        if (dateA === null && dateB === null) return 0;
+        if (dateA === null) return 1;
+        if (dateB === null) return -1;
+
+        // ใกล้ไปไกล = น้อยไปมาก
+        const comparison = dateA - dateB;
+
+        return sortDirection === "asc"
+          ? comparison
+          : -comparison;
+      }
+
+      let comparison = 0;
 
       switch (sortBy) {
-        case "newest":
-          // ใช้ ID เป็นตัวช่วยเมื่อวันที่สร้างเท่ากัน
-          {
-            const dateA = new Date(a.created_at || 0).getTime();
-            const dateB = new Date(b.created_at || 0).getTime();
-            comparison =
-              dateA !== dateB ? dateB - dateA : Number(b.id) - Number(a.id);
-            break;
-          }
+        case "newest": {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+
+          comparison =
+            dateA !== dateB
+              ? dateB - dateA
+              : Number(b.id) - Number(a.id);
+          break;
+        }
 
         case "amount":
           comparison =
@@ -422,8 +454,11 @@ function Debts() {
           comparison = 0;
       }
 
-      return sortDirection === "desc" ? comparison : -comparison;
+      return sortDirection === "desc"
+        ? comparison
+        : -comparison;
     });
+
 
   const totalBorrow = borrowDebts.reduce(
     (sum, debt) => sum + Number(debt.remaining_amount),
@@ -548,6 +583,78 @@ function Debts() {
 
         </div>
 
+
+        {/*เลือกสถานะหนี้และประเภทรายการ */}
+        <div className="mx-5 mb-4 rounded-xl border border-gray-200 bg-white p-3">
+
+          {/* สถานะหนี้: แถบสลับซ้าย-ขวา */}
+          <div className="mb-3">
+            <p className="mb-2 text-[11px] font-medium text-gray-500">
+              สถานะหนี้
+            </p>
+
+            <div className="flex w-full rounded-lg bg-gray-100 p-1">
+              <button
+                type="button"
+                onClick={() => setActiveStatus("ongoing")}
+                className={`flex-1 rounded-md px-2 py-2 text-[11px] font-medium transition-all ${activeStatus === "ongoing"
+                    ? "bg-white text-green-700 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                  }`}
+              >
+                ยังดำเนินการอยู่
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveStatus("paid")}
+                className={`flex-1 rounded-md px-2 py-2 text-[11px] font-medium transition-all ${activeStatus === "paid"
+                    ? "bg-white text-green-700 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                  }`}
+              >
+                ชำระครบแล้ว
+              </button>
+            </div>
+          </div>
+
+          {/* เส้นแบ่ง */}
+          <div className="mb-3 border-t border-gray-100" />
+
+          {/* แท็บเลือกประเภทรายการ */}
+          <div>
+            <p className="mb-2 text-[11px] font-medium text-gray-500">
+              ประเภทรายการ
+            </p>
+
+            <div className="flex w-full">
+              <button
+                type="button"
+                onClick={() => setActiveTab("borrow")}
+                className={`flex-1 h-[32px] rounded-l-md border text-[12px] transition ${activeTab === "borrow"
+                    ? "border-green-500 bg-green-50 text-green-700 font-medium"
+                    : "border-gray-300 bg-white text-gray-500"
+                  }`}
+              >
+                ยืมคนอื่น ({borrowDebts.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("lend")}
+                className={`flex-1 h-[32px] rounded-r-md border border-l-0 text-[12px] transition ${activeTab === "lend"
+                    ? "border-green-500 bg-green-50 text-green-700 font-medium"
+                    : "border-gray-300 bg-white text-gray-500"
+                  }`}
+              >
+                ให้คนอื่นยืม ({lendDebts.length})
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+
         {/* แถบค้นหาและตัวกรองเรียงรายการ */}
         <div className="bg-white px-5 py-3">
           <div className="flex items-center gap-2">
@@ -564,11 +671,7 @@ function Debts() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="ค้นหาชื่อรายการหนี้..."
                 aria-label="ค้นหาชื่อรายการหนี้"
-                className="
-          w-full h-9 rounded-full border border-gray-300
-          pl-8 pr-3 text-sm outline-none
-          focus:border-gray-500
-        "
+                className="w-full h-9 rounded-full border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-gray-500 "
               />
             </div>
 
@@ -592,6 +695,7 @@ function Debts() {
                 { value: "newest", label: "วันที่สร้าง" },
                 { value: "amount", label: "ยอดหนี้ทั้งหมด" },
                 { value: "remaining", label: "ยอดหนี้คงเหลือ" },
+                { value: "dueDate", label: "วันครบกำหนด" },
               ].map((option) => {
                 const isSelected = sortBy === option.value;
 
@@ -600,10 +704,13 @@ function Debts() {
                     ? sortDirection === "desc"
                       ? "ใหม่ไปเก่า"
                       : "เก่าไปใหม่"
-                    : sortDirection === "desc"
-                      ? "มากไปน้อย"
-                      : "น้อยไปมาก";
-
+                    : option.value === "dueDate"
+                      ? sortDirection === "asc"
+                        ? "ใกล้ไปไกล"
+                        : "ไกลไปใกล้"
+                      : sortDirection === "desc"
+                        ? "มากไปน้อย"
+                        : "น้อยไปมาก";
                 return (
                   <button
                     key={option.value}
@@ -615,12 +722,14 @@ function Debts() {
                         );
                       } else {
                         setSortBy(option.value);
-                        setSortDirection("desc");
+                        setSortDirection(
+                          option.value === "dueDate" ? "asc" : "desc"
+                        );
                       }
                     }}
                     className={`w-full px-4 py-3 text-sm flex items-center justify-between gap-3 hover:bg-gray-100 transition ${isSelected
-                        ? "bg-gray-100 font-semibold text-gray-900"
-                        : "text-gray-700"
+                      ? "bg-gray-100 font-semibold text-gray-900"
+                      : "text-gray-700"
                       }`}
                   >
                     <span>{option.label}</span>
@@ -643,70 +752,33 @@ function Debts() {
 
 
           {/* แสดงวิธีเรียงปัจจุบัน */}
-          <p className="mt-2 text-xs text-gray-500">
-            เรียงตาม: {
-              `${sortBy === "newest"
-                ? "วันที่สร้าง"
-                : sortBy === "amount"
-                  ? "ยอดหนี้ทั้งหมด"
-                  : "ยอดหนี้คงเหลือ"} ${
-                sortDirection === "desc"
-                  ? sortBy === "newest"
-                    ? "ใหม่ - เก่า"
-                    : "มาก - น้อย"
-                  : sortBy === "newest"
-                    ? "เก่า - ใหม่"
-                    : "น้อย - มาก"
-              }`
-            }
-          </p>
-        </div>
+          {(() => {
+            const sortLabel = {
+              newest: "วันที่สร้าง",
+              amount: "ยอดหนี้ทั้งหมด",
+              remaining: "ยอดหนี้คงเหลือ",
+              dueDate: "วันครบกำหนด",
+            }[sortBy];
 
+            const directionLabel =
+              sortBy === "newest"
+                ? sortDirection === "desc"
+                  ? "ใหม่ - เก่า"
+                  : "เก่า - ใหม่"
+                : sortBy === "dueDate"
+                  ? sortDirection === "asc"
+                    ? "ใกล้ - ไกล"
+                    : "ไกล - ใกล้"
+                  : sortDirection === "desc"
+                    ? "มาก - น้อย"
+                    : "น้อย - มาก";
 
-        {/* แท็บเลือกประเภทรายการ */}
-        <div className="px-5 bg-white pb-3">
-
-          <div className="flex w-full">
-
-            <button
-              onClick={() => setActiveTab("borrow")}
-              className={`
-              flex-1
-              h-[30px]
-              rounded-l-md
-              border
-              border-gray-300
-              text-[12px]
-              transition
-              ${activeTab === "borrow"
-                  ? "bg-white text-black font-medium"
-                  : "bg-[#d5d5d5] text-gray-500"
-                }
-            `}
-            >
-              ยืมคนอื่น({borrowDebts.length})
-            </button>
-
-            <button
-              onClick={() => setActiveTab("lend")}
-              className={`
-              flex-1
-              h-[30px]
-              rounded-r-md
-              border
-              border-gray-300
-              text-[12px]
-              transition
-              ${activeTab === "lend"
-                  ? "bg-white text-black font-medium"
-                  : "bg-[#d5d5d5] text-gray-500"
-                }
-            `}
-            >
-              ให้คนอื่นยืม({lendDebts.length})
-            </button>
-
-          </div>
+            return (
+              <p className="mt-2 text-xs text-gray-500">
+                เรียงตาม: {sortLabel} {directionLabel}
+              </p>
+            );
+          })()}
         </div>
 
         {/* พื้นที่แสดงรายการ */}
@@ -757,7 +829,7 @@ function Debts() {
           className="fixed right-5 bottom-[78px] w-[45px] h-[45px] rounded-full 
                 bg-[#ffbd3d] flex items-center justify-center shadow-md mb-5">
 
-          <Plus size={27} strokeWidth={2.5} />
+          <Plus size={27} strokeWidth={2.5} className="text-white" />
           <span className="absolute top-[45px] text-[11px] w-[70px]">
             เพิ่มรายการ
           </span>

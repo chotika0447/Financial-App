@@ -79,14 +79,29 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
 
           {/* ข้อมูลส่วนหัวของหนี้สิน+แก้ไข */}
           <div className="flex items-start justify-between">
-            <div>
-              <h3 className="font-bold text-[12px] text-gray-900">
-                {debt.name}
-              </h3>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-baseline gap-x-1">
+                <h3 className="font-bold text-[12px] text-gray-900">
+                  {debt.name}
+                </h3>
+
+                <span className="text-[9px] text-gray-500">
+                  | ครบกำหนด: {
+                    debt.payment_type === "monthly"
+                      ? (debt.current_due_date || debt.due_date)
+                      : debt.due_date
+                  }
+                </span>
+              </div>
               {/* หมวดหมู่หนี้สิน */}
-              <span className="inline-block mt-1 px-2 py-[1px] rounded-full border border-pink-300 text-[9px] text-pink-500">
+              <span className="inline-block mt-1 mr-1 px-2 py-[1px] text-[9px] rounded-full border border-pink-300 text-pink-500">
                 {debt.payment_type === "monthly" ? "รายเดือน" : "ทยอยจ่าย"}
               </span>
+              {debt.counterparty && (
+                <span className="inline-block mt-1 px-2 py-[1px] text-[9px] rounded-full border border-green-500 text-green-600">
+                  ผูกบัญชีเพื่อน
+                </span>
+              )}
             </div>
 
             {/* ปุ่มแก้ไข */}
@@ -99,17 +114,14 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
 
           {/* Counterparty */}
           <p className="text-[9px] text-gray-500 mt-1">
-            คู่สัญญา: {debt.counterparty_name}
+            {debt.type === "borrowed" ? "เจ้าหนี้:" : "ลูกหนี้:"} {debt.counterparty_name}
           </p>
 
-          <p className="text-[9px] text-gray-500">
-            หมายเหตุ: {debt.note}
-          </p>
-
-          {/* Date */}
-          <p className="text-[9px] text-gray-500 ">
-            ครบกำหนด: {debt.due_date}
-          </p>
+          {debt.note?.trim() && (
+            <p className="text-[9px] text-gray-500">
+              หมายเหตุ: {debt.note}
+            </p>
+          )}
 
         </div>
       </div>

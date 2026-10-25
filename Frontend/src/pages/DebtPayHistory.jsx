@@ -96,6 +96,31 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
         });
     };
 
+    //สถานะการชำระหนี้ตามเวลา
+    const getPaymentTimingStatus = (payment) => {
+        if (!payment.paid_date || !payment.due_date) {
+            return null;
+        }
+
+        // เปรียบเทียบวันที่ในรูปแบบ YYYY-MM-DD
+        // วันที่ชำระตรงกับวันครบกำหนดถือว่าชำระภายในกำหนด
+        const paidDate = payment.paid_date.slice(0, 10);
+        const dueDate = payment.due_date.slice(0, 10);
+
+        if (paidDate <= dueDate) {
+            return {
+                label: "ชำระภายในกำหนด",
+                className: "border-green-500 text-green-600",
+            };
+        }
+
+        return {
+            label: "ชำระเกินกำหนด",
+            className: "border-red-500 text-red-600",
+        };
+    };
+
+
     const statusText = {
         pending: "กำลังรอยืนยัน",
         confirmed: "ยืนยันแล้ว",
@@ -301,35 +326,34 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                             key={payment.id}
                             className="bg-white border border-[#c5c5c5] rounded-lg mb-3 p-[14px] relative"
                         >
-                            {/* ชื่อและวันที่ */}
+                            {/* ชื่อและสถานะการชำระตามเวลา */}
                             <div className="flex items-center gap-2 mb-3">
                                 <div className="bg-[#252525] text-white text-xs px-2 py-2 -ml-[14px]">
                                     งวดที่ {payments.length - index}
                                 </div>
 
-                                <label className="flex items-center gap-1 border border-gray-400 rounded-full px-2 py-1 text-[10px] text-gray-500">
-                                    <CalendarDays size={13} />
+                                {/* สถานะการชำระ*/}
+                                {(() => {
+                                    const timingStatus = getPaymentTimingStatus(payment);
 
-                                    {isEditing ? (
-                                        <input
-                                            type="date"
-                                            value={payment.paid_date || ""}
-                                            onChange={(e) =>
-                                                updatePayment(payment.id, {
-                                                    paid_date: e.target.value,
-                                                })
-                                            }
-                                            className="w-[120px] outline-none bg-transparent"
-                                        />
-                                    ) : (
-                                        <span>วันที่ชำระ : {formatDate(payment.paid_date)}</span>
-                                    )}
-                                </label>
+                                    if (!timingStatus) return null;
+
+                                    return (
+                                        <span
+                                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-medium ${timingStatus.className}`}
+                                        >
+                                            {timingStatus.label}
+                                        </span>
+                                    );
+                                })()}
+
                             </div>
 
                             {/* ข้อมูลและหลักฐาน */}
                             <div className="grid grid-cols-[1fr_120px] gap-3">
                                 <div className="min-w-0">
+
+                                    {/* ถ้ามีการผูกบัญชีเพื่อนจะแสดงสถานะการยืนยันชำระ */}
                                     {isBorrow && debt.counterparty && (
                                         <div className="mb-2">
                                             <p className="text-[10px] mb-1">
@@ -344,6 +368,31 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                             </span>
                                         </div>
                                     )}
+
+                                    <div className="flex flex-wrap items-center gap-2 mb-2 text-xs">
+                                        <label className="flex items-center gap-1 border border-gray-400 rounded-full px-2 py-1 text-[10px] text-gray-500">
+                                            {isEditing ? (
+                                                <input
+                                                    type="date"
+                                                    value={payment.paid_date || ""}
+                                                    onChange={(e) =>
+                                                        updatePayment(payment.id, {
+                                                            paid_date: e.target.value,
+                                                        })
+                                                    }
+                                                    className="w-[120px] outline-none bg-transparent"
+                                                />
+                                            ) : (
+                                                <span>วันที่ชำระ : {formatDate(payment.paid_date)}</span>
+                                            )}
+                                        </label>
+
+                                        <span className="flex items-center gap-1 border border-gray-400 rounded-full px-2 py-1 text-[10px] text-gray-500">
+                                            วันที่ครบกำหนด: {payment.due_date
+                                                ? formatDate(payment.due_date)
+                                                : "-"}
+                                        </span>
+                                    </div>
 
                                     <div className="mb-2">
                                         <label className="text-[10px] block mb-1">
@@ -530,24 +579,18 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                             </>
                                         )}
 
-                                        {/* รูปที่แสดง: รูปใหม่มาก่อนรูปเดิม */}
+                                        {/* รูปที่แสดง*/}
                                         {(payment.evidencePreview ||
                                             (payment.proof_image && !payment.removeProofImage)) ? (
                                             <button
                                                 type="button"
                                                 className="h-full w-full"
                                                 onClick={() => {
-                                                    if (isEditing) {
-                                                        document.getElementById(`evidence-${payment.id}`)?.click();
-                                                    } else {
-                                                        setPreviewImage(
-                                                            payment.evidencePreview || payment.proof_image
-                                                        );
-                                                    }
+                                                    setPreviewImage(
+                                                        payment.evidencePreview || payment.proof_image
+                                                    );
                                                 }}
-                                                aria-label={
-                                                    isEditing ? "เปลี่ยนรูปหลักฐาน" : "ขยายรูปหลักฐาน"
-                                                }
+                                                aria-label="ดูรูปหลักฐานขนาดใหญ่"
                                             >
                                                 <img
                                                     src={payment.evidencePreview || payment.proof_image}
