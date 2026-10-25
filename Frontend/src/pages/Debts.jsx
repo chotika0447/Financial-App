@@ -583,78 +583,77 @@ function Debts() {
 
         </div>
 
-        {/* เลือกสถานะหนี้ที่ปิดแล้ว/ยังไม่ปิด */}
-        <div className="mb-4 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveStatus("ongoing")}
-            className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-3 text-xs font-medium transition ${activeStatus === "ongoing"
-              ? "border-green-500 bg-green-50 text-green-700"
-              : "border-gray-200 bg-white text-gray-500"
-              }`}
-          >
-            <Clock3 size={15} />
-            หนี้ที่ยังดำเนินการอยู่
-          </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveStatus("paid")}
-            className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-3 text-xs font-medium transition ${activeStatus === "paid"
-              ? "border-green-500 bg-green-50 text-green-700"
-              : "border-gray-200 bg-white text-gray-500"
-              }`}
-          >
-            <CheckCircle size={15} />
-            หนี้ชำระครบแล้ว
-          </button>
-        </div>
+        {/*เลือกสถานะหนี้และประเภทรายการ */}
+        <div className="mx-5 mb-4 rounded-xl border border-gray-200 bg-white p-3">
 
-        {/* แท็บเลือกประเภทรายการ */}
-        <div className="px-5 bg-white pb-3">
+          {/* สถานะหนี้: แถบสลับซ้าย-ขวา */}
+          <div className="mb-3">
+            <p className="mb-2 text-[11px] font-medium text-gray-500">
+              สถานะหนี้
+            </p>
 
-          <div className="flex w-full">
+            <div className="flex w-full rounded-lg bg-gray-100 p-1">
+              <button
+                type="button"
+                onClick={() => setActiveStatus("ongoing")}
+                className={`flex-1 rounded-md px-2 py-2 text-[11px] font-medium transition-all ${activeStatus === "ongoing"
+                    ? "bg-white text-green-700 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                  }`}
+              >
+                ยังดำเนินการอยู่
+              </button>
 
-            <button
-              onClick={() => setActiveTab("borrow")}
-              className={`
-              flex-1
-              h-[30px]
-              rounded-l-md
-              border
-              border-gray-300
-              text-[12px]
-              transition
-              ${activeTab === "borrow"
-                  ? "bg-white text-black font-medium"
-                  : "bg-[#d5d5d5] text-gray-500"
-                }
-            `}
-            >
-              ยืมคนอื่น({borrowDebts.length})
-            </button>
-
-            <button
-              onClick={() => setActiveTab("lend")}
-              className={`
-              flex-1
-              h-[30px]
-              rounded-r-md
-              border
-              border-gray-300
-              text-[12px]
-              transition
-              ${activeTab === "lend"
-                  ? "bg-white text-black font-medium"
-                  : "bg-[#d5d5d5] text-gray-500"
-                }
-            `}
-            >
-              ให้คนอื่นยืม({lendDebts.length})
-            </button>
-
+              <button
+                type="button"
+                onClick={() => setActiveStatus("paid")}
+                className={`flex-1 rounded-md px-2 py-2 text-[11px] font-medium transition-all ${activeStatus === "paid"
+                    ? "bg-white text-green-700 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                  }`}
+              >
+                ชำระครบแล้ว
+              </button>
+            </div>
           </div>
+
+          {/* เส้นแบ่ง */}
+          <div className="mb-3 border-t border-gray-100" />
+
+          {/* แท็บเลือกประเภทรายการ */}
+          <div>
+            <p className="mb-2 text-[11px] font-medium text-gray-500">
+              ประเภทรายการ
+            </p>
+
+            <div className="flex w-full">
+              <button
+                type="button"
+                onClick={() => setActiveTab("borrow")}
+                className={`flex-1 h-[32px] rounded-l-md border text-[12px] transition ${activeTab === "borrow"
+                    ? "border-green-500 bg-green-50 text-green-700 font-medium"
+                    : "border-gray-300 bg-white text-gray-500"
+                  }`}
+              >
+                ยืมคนอื่น ({borrowDebts.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("lend")}
+                className={`flex-1 h-[32px] rounded-r-md border border-l-0 text-[12px] transition ${activeTab === "lend"
+                    ? "border-green-500 bg-green-50 text-green-700 font-medium"
+                    : "border-gray-300 bg-white text-gray-500"
+                  }`}
+              >
+                ให้คนอื่นยืม ({lendDebts.length})
+              </button>
+            </div>
+          </div>
+
         </div>
+
 
         {/* แถบค้นหาและตัวกรองเรียงรายการ */}
         <div className="bg-white px-5 py-3">
@@ -830,7 +829,7 @@ function Debts() {
           className="fixed right-5 bottom-[78px] w-[45px] h-[45px] rounded-full 
                 bg-[#ffbd3d] flex items-center justify-center shadow-md mb-5">
 
-          <Plus size={27} strokeWidth={2.5} className="text-white"/>
+          <Plus size={27} strokeWidth={2.5} className="text-white" />
           <span className="absolute top-[45px] text-[11px] w-[70px]">
             เพิ่มรายการ
           </span>
