@@ -13,6 +13,8 @@ import {
   ArrowUpDown,
   ArrowDown,
   ArrowUp,
+  Clock3,
+  CheckCircle,
   Pencil,
   Trash2,
   Plus,
@@ -54,7 +56,7 @@ function Debts() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [openingLinkedDebt, setOpeningLinkedDebt] = useState(false);
 
-
+  const [activeStatus, setActiveStatus] = useState("ongoing");
   //useEffect สำหรับดึงข้อมูลหนี้สิน
   useEffect(() => {
     const fetchDebts = async () => {
@@ -373,18 +375,21 @@ function Debts() {
     }
   };
 
-  const borrowDebts = debts.filter(
+  const statusFilteredDebts = debts.filter(
+    (debt) => debt.status === activeStatus
+  );
+
+  const borrowDebts = statusFilteredDebts.filter(
     (debt) => debt.type === "borrowed"
   );
 
-  const lendDebts = debts.filter(
+  const lendDebts = statusFilteredDebts.filter(
     (debt) => debt.type === "lent"
   );
 
   const currentDebtsList =
-    activeTab === "borrow"
-      ? borrowDebts
-      : lendDebts;
+    activeTab === "borrow" ? borrowDebts : lendDebts;
+
   // ค้นหาด้วยชื่อรายการ และเรียงตามเงื่อนไขที่เลือก
   const filteredDebtsList = [...currentDebtsList]
     .filter((debt) =>
@@ -578,6 +583,79 @@ function Debts() {
 
         </div>
 
+        {/* เลือกสถานะหนี้ที่ปิดแล้ว/ยังไม่ปิด */}
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveStatus("ongoing")}
+            className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-3 text-xs font-medium transition ${activeStatus === "ongoing"
+              ? "border-green-500 bg-green-50 text-green-700"
+              : "border-gray-200 bg-white text-gray-500"
+              }`}
+          >
+            <Clock3 size={15} />
+            หนี้ที่ยังดำเนินการอยู่
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveStatus("paid")}
+            className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-3 text-xs font-medium transition ${activeStatus === "paid"
+              ? "border-green-500 bg-green-50 text-green-700"
+              : "border-gray-200 bg-white text-gray-500"
+              }`}
+          >
+            <CheckCircle size={15} />
+            หนี้ชำระครบแล้ว
+          </button>
+        </div>
+
+        {/* แท็บเลือกประเภทรายการ */}
+        <div className="px-5 bg-white pb-3">
+
+          <div className="flex w-full">
+
+            <button
+              onClick={() => setActiveTab("borrow")}
+              className={`
+              flex-1
+              h-[30px]
+              rounded-l-md
+              border
+              border-gray-300
+              text-[12px]
+              transition
+              ${activeTab === "borrow"
+                  ? "bg-white text-black font-medium"
+                  : "bg-[#d5d5d5] text-gray-500"
+                }
+            `}
+            >
+              ยืมคนอื่น({borrowDebts.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab("lend")}
+              className={`
+              flex-1
+              h-[30px]
+              rounded-r-md
+              border
+              border-gray-300
+              text-[12px]
+              transition
+              ${activeTab === "lend"
+                  ? "bg-white text-black font-medium"
+                  : "bg-[#d5d5d5] text-gray-500"
+                }
+            `}
+            >
+              ให้คนอื่นยืม({lendDebts.length})
+            </button>
+
+          </div>
+        </div>
+
         {/* แถบค้นหาและตัวกรองเรียงรายการ */}
         <div className="bg-white px-5 py-3">
           <div className="flex items-center gap-2">
@@ -594,11 +672,7 @@ function Debts() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="ค้นหาชื่อรายการหนี้..."
                 aria-label="ค้นหาชื่อรายการหนี้"
-                className="
-          w-full h-9 rounded-full border border-gray-300
-          pl-8 pr-3 text-sm outline-none
-          focus:border-gray-500
-        "
+                className="w-full h-9 rounded-full border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-gray-500 "
               />
             </div>
 
@@ -706,55 +780,6 @@ function Debts() {
               </p>
             );
           })()}
-
-
-        </div>
-
-
-        {/* แท็บเลือกประเภทรายการ */}
-        <div className="px-5 bg-white pb-3">
-
-          <div className="flex w-full">
-
-            <button
-              onClick={() => setActiveTab("borrow")}
-              className={`
-              flex-1
-              h-[30px]
-              rounded-l-md
-              border
-              border-gray-300
-              text-[12px]
-              transition
-              ${activeTab === "borrow"
-                  ? "bg-white text-black font-medium"
-                  : "bg-[#d5d5d5] text-gray-500"
-                }
-            `}
-            >
-              ยืมคนอื่น({borrowDebts.length})
-            </button>
-
-            <button
-              onClick={() => setActiveTab("lend")}
-              className={`
-              flex-1
-              h-[30px]
-              rounded-r-md
-              border
-              border-gray-300
-              text-[12px]
-              transition
-              ${activeTab === "lend"
-                  ? "bg-white text-black font-medium"
-                  : "bg-[#d5d5d5] text-gray-500"
-                }
-            `}
-            >
-              ให้คนอื่นยืม({lendDebts.length})
-            </button>
-
-          </div>
         </div>
 
         {/* พื้นที่แสดงรายการ */}
@@ -805,7 +830,7 @@ function Debts() {
           className="fixed right-5 bottom-[78px] w-[45px] h-[45px] rounded-full 
                 bg-[#ffbd3d] flex items-center justify-center shadow-md mb-5">
 
-          <Plus size={27} strokeWidth={2.5} />
+          <Plus size={27} strokeWidth={2.5} className="text-white"/>
           <span className="absolute top-[45px] text-[11px] w-[70px]">
             เพิ่มรายการ
           </span>
