@@ -84,11 +84,11 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
                 {debt.name}
               </h3>
               {/* หมวดหมู่หนี้สิน */}
-              <span className="inline-block mt-1 px-2 py-[1px] rounded-full border border-pink-300 text-[9px] text-pink-500">
+              <span className="inline-block mt-1 px-2 py-[1px] text-[9px] rounded-full border border-pink-300 text-pink-500">
                 {debt.payment_type === "monthly" ? "รายเดือน" : "ทยอยจ่าย"}
               </span>
               {debt.counterparty && (
-                <span className="inline-flex items-center whitespace-nowrap rounded-full border border-green-500 px-2 py-1 text-xs font-medium text-green-600">
+                <span className="inline-block mt-1 px-2 py-[1px] text-[9px] rounded-full border border-green-500 text-green-600">
                   ผูกบัญชีเพื่อน
                 </span>
               )}
@@ -104,11 +104,7 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
 
           {/* Counterparty */}
           <p className="text-[9px] text-gray-500 mt-1">
-            {debt.type === "borrowed" ? "เจ้าหนี้:" : "ลูกหนี้:"}
-          </p>
-
-          <p className="text-[9px] text-gray-500">
-            หมายเหตุ: {debt.note}
+            {debt.type === "borrowed" ? "เจ้าหนี้:" : "ลูกหนี้:"} {debt.counterparty_name}
           </p>
 
           {/* Date */}
@@ -119,6 +115,12 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
                 : debt.due_date
             }
           </p>
+
+          {debt.note?.trim() && (
+            <p className="text-[9px] text-gray-500">
+              หมายเหตุ: {debt.note}
+            </p>
+          )}
 
         </div>
       </div>
