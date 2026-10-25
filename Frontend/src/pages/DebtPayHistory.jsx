@@ -96,6 +96,31 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
         });
     };
 
+    //สถานะการชำระหนี้ตามเวลา
+    const getPaymentTimingStatus = (payment) => {
+        if (!payment.paid_date || !payment.due_date) {
+            return null;
+        }
+
+        // เปรียบเทียบวันที่ในรูปแบบ YYYY-MM-DD
+        // วันที่ชำระตรงกับวันครบกำหนดถือว่าชำระภายในกำหนด
+        const paidDate = payment.paid_date.slice(0, 10);
+        const dueDate = payment.due_date.slice(0, 10);
+
+        if (paidDate <= dueDate) {
+            return {
+                label: "ชำระภายในกำหนด",
+                className: "border-green-500 text-green-600",
+            };
+        }
+
+        return {
+            label: "ชำระเกินกำหนด",
+            className: "border-red-500 text-red-600",
+        };
+    };
+
+
     const statusText = {
         pending: "กำลังรอยืนยัน",
         confirmed: "ยืนยันแล้ว",
@@ -308,7 +333,6 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                 </div>
 
                                 <label className="flex items-center gap-1 border border-gray-400 rounded-full px-2 py-1 text-[10px] text-gray-500">
-                                    <CalendarDays size={13} />
 
                                     {isEditing ? (
                                         <input
@@ -325,6 +349,22 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                         <span>วันที่ชำระ : {formatDate(payment.paid_date)}</span>
                                     )}
                                 </label>
+
+                                {/* สถานะการชำระ*/}
+                                {(() => {
+                                    const timingStatus = getPaymentTimingStatus(payment);
+
+                                    if (!timingStatus) return null;
+
+                                    return (
+                                        <span
+                                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-medium ${timingStatus.className}`}
+                                        >
+                                            {timingStatus.label}
+                                        </span>
+                                    );
+                                })()}
+
                             </div>
 
                             {/* ข้อมูลและหลักฐาน */}
