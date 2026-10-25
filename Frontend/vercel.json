@@ -2,39 +2,39 @@
   "rewrites": [
     {
       "source": "/users/me/",
-      "destination": "https://debtmodule-backend.onrender.com/users/me/"
+      "destination": "https://financial-app-xgc0.onrender.com/users/me/"
     },
     {
       "source": "/users/line-login/",
-      "destination": "https://debtmodule-backend.onrender.com/users/line-login/"
+      "destination": "https://financial-app-xgc0.onrender.com/users/line-login/"
     },
     {
       "source": "/users/line-register/",
-      "destination": "https://debtmodule-backend.onrender.com/users/line-register/"
+      "destination": "https://financial-app-xgc0.onrender.com/users/line-register/"
     },
     {
       "source": "/users/:path*/",
-      "destination": "https://debtmodule-backend.onrender.com/users/:path*/"
+      "destination": "https://financial-app-xgc0.onrender.com/users/:path*/"
     },
     {
       "source": "/users/:path*",
-      "destination": "https://debtmodule-backend.onrender.com/users/:path*"
+      "destination": "https://financial-app-xgc0.onrender.com/users/:path*"
     },
     {
       "source": "/transactions/",
-      "destination": "https://debtmodule-backend.onrender.com/transactions/"
+      "destination": "https://financial-app-xgc0.onrender.com/transactions/"
     },
     {
       "source": "/transactions/:id/",
-      "destination": "https://debtmodule-backend.onrender.com/transactions/:id/"
+      "destination": "https://financial-app-xgc0.onrender.com/transactions/:id/"
     },
     {
       "source": "/transactions/:path*/",
-      "destination": "https://debtmodule-backend.onrender.com/transactions/:path*/"
+      "destination": "https://financial-app-xgc0.onrender.com/transactions/:path*/"
     },
     {
       "source": "/transactions/:path*",
-      "destination": "https://debtmodule-backend.onrender.com/transactions/:path*"
+      "destination": "https://financial-app-xgc0.onrender.com/transactions/:path*"
     },
     {
       "source": "/debts/",
@@ -44,7 +44,7 @@
           "key": "authorization"
         }
       ],
-      "destination": "https://debtmodule-backend.onrender.com/debts/"
+      "destination": "https://financial-app-xgc0.onrender.com/debts/"
     },
     {
       "source": "/debts/",
@@ -58,75 +58,75 @@
     },
     {
       "source": "/debts/:debtId/payments/",
-      "destination": "https://debtmodule-backend.onrender.com/debts/:debtId/payments/"
+      "destination": "https://financial-app-xgc0.onrender.com/debts/:debtId/payments/"
     },
     {
       "source": "/debts/:debtId/",
-      "destination": "https://debtmodule-backend.onrender.com/debts/:debtId/"
+      "destination": "https://financial-app-xgc0.onrender.com/debts/:debtId/"
     },
     {
       "source": "/debts/payments/:paymentId/",
-      "destination": "https://debtmodule-backend.onrender.com/debts/payments/:paymentId/"
+      "destination": "https://financial-app-xgc0.onrender.com/debts/payments/:paymentId/"
     },
     {
       "source": "/line/:path*/",
-      "destination": "https://debtmodule-backend.onrender.com/line/:path*/"
+      "destination": "https://financial-app-xgc0.onrender.com/line/:path*/"
     },
     {
       "source": "/line/:path*",
-      "destination": "https://debtmodule-backend.onrender.com/line/:path*"
+      "destination": "https://financial-app-xgc0.onrender.com/line/:path*"
     },
     {
       "source": "/friends/request/",
-      "destination": "https://debtmodule-backend.onrender.com/friends/request/"
+      "destination": "https://financial-app-xgc0.onrender.com/friends/request/"
     },
     {
       "source": "/friends/requests/",
-      "destination": "https://debtmodule-backend.onrender.com/friends/requests/"
+      "destination": "https://financial-app-xgc0.onrender.com/friends/requests/"
     },
     {
       "source": "/friends/requests/:friendId/accept/",
-      "destination": "https://debtmodule-backend.onrender.com/friends/requests/:friendId/accept/"
+      "destination": "https://financial-app-xgc0.onrender.com/friends/requests/:friendId/accept/"
     },
     {
       "source": "/friends/requests/:friendId/reject/",
-      "destination": "https://debtmodule-backend.onrender.com/friends/requests/:friendId/reject/"
+      "destination": "https://financial-app-xgc0.onrender.com/friends/requests/:friendId/reject/"
     },
     {
       "source": "/friends/list/",
-      "destination": "https://debtmodule-backend.onrender.com/friends/list/"
+      "destination": "https://financial-app-xgc0.onrender.com/friends/list/"
     },
     {
       "source": "/friends/:friendId/",
-      "destination": "https://debtmodule-backend.onrender.com/friends/:friendId/"
+      "destination": "https://financial-app-xgc0.onrender.com/friends/:friendId/"
     },
     {
       "source": "/friends/:path*/",
-      "destination": "https://debtmodule-backend.onrender.com/friends/:path*/"
+      "destination": "https://financial-app-xgc0.onrender.com/friends/:path*/"
     },
     {
       "source": "/friends/:path*",
-      "destination": "https://debtmodule-backend.onrender.com/friends/:path*"
+      "destination": "https://financial-app-xgc0.onrender.com/friends/:path*"
     },
     {
       "source": "/debts/:path*/",
-      "destination": "https://debtmodule-backend.onrender.com/debts/:path*/"
+      "destination": "https://financial-app-xgc0.onrender.com/debts/:path*/"
     },
     {
       "source": "/debts/:path*",
-      "destination": "https://debtmodule-backend.onrender.com/debts/:path*"
+      "destination": "https://financial-app-xgc0.onrender.com/debts/:path*"
     },
     {
       "source": "/categories/",
-      "destination": "https://debtmodule-backend.onrender.com/categories/"
+      "destination": "https://financial-app-xgc0.onrender.com/categories/"
     },
     {
       "source": "/categories/:path*/",
-      "destination": "https://debtmodule-backend.onrender.com/categories/:path*/"
+      "destination": "https://financial-app-xgc0.onrender.com/categories/:path*/"
     },
     {
       "source": "/categories/:path*",
-      "destination": "https://debtmodule-backend.onrender.com/categories/:path*"
+      "destination": "https://financial-app-xgc0.onrender.com/categories/:path*"
     }
   ]
 }

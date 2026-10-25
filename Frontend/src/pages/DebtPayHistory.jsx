@@ -579,24 +579,18 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                             </>
                                         )}
 
-                                        {/* รูปที่แสดง: รูปใหม่มาก่อนรูปเดิม */}
+                                        {/* รูปที่แสดง*/}
                                         {(payment.evidencePreview ||
                                             (payment.proof_image && !payment.removeProofImage)) ? (
                                             <button
                                                 type="button"
                                                 className="h-full w-full"
                                                 onClick={() => {
-                                                    if (isEditing) {
-                                                        document.getElementById(`evidence-${payment.id}`)?.click();
-                                                    } else {
-                                                        setPreviewImage(
-                                                            payment.evidencePreview || payment.proof_image
-                                                        );
-                                                    }
+                                                    setPreviewImage(
+                                                        payment.evidencePreview || payment.proof_image
+                                                    );
                                                 }}
-                                                aria-label={
-                                                    isEditing ? "เปลี่ยนรูปหลักฐาน" : "ขยายรูปหลักฐาน"
-                                                }
+                                                aria-label="ดูรูปหลักฐานขนาดใหญ่"
                                             >
                                                 <img
                                                     src={payment.evidencePreview || payment.proof_image}
