@@ -554,38 +554,28 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                                 />
 
                                                 {/* ปุ่มลบรูป มุมขวาบน */}
-                                                {(payment.evidencePreview || (payment.proof_image && !payment.removeProofImage)) && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            if (payment.evidencePreview) {
-                                                                URL.revokeObjectURL(payment.evidencePreview);
-                                                            }
+                                                {(payment.evidencePreview ||
+                                                    (payment.proof_image && !payment.removeProofImage)) && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (payment.evidencePreview) {
+                                                                    URL.revokeObjectURL(payment.evidencePreview);
+                                                                }
 
-                                                            updatePayment(payment.id, {
-                                                                evidencePreview: null,
-                                                                evidenceFile: null,
-                                                                proof_image: null,
-                                                                removeProofImage: true,
-                                                            });
-                                                        }}
-                                                        className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-white shadow hover:bg-red-600"
-                                                        aria-label="ลบรูปหลักฐาน"
-                                                    >
-                                                        <Trash2 size={15} />
-                                                    </button>
-                                                )}
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        document.getElementById(`evidence-${payment.id}`)?.click()
-                                                    }
-                                                    className="absolute bottom-2 right-2 z-10 rounded-md bg-black/70 px-3 py-2 text-xs text-white hover:bg-black/90"
-                                                >
-                                                    เปลี่ยนรูป
-                                                </button>
-
+                                                                updatePayment(payment.id, {
+                                                                    evidencePreview: null,
+                                                                    evidenceFile: null,
+                                                                    proof_image: null,
+                                                                    removeProofImage: true,
+                                                                });
+                                                            }}
+                                                            className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-white shadow hover:bg-red-600"
+                                                            aria-label="ลบรูปหลักฐาน"
+                                                        >
+                                                            <Trash2 size={15} />
+                                                        </button>
+                                                    )}
                                             </>
                                         )}
 
@@ -596,9 +586,13 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                                 type="button"
                                                 className="h-full w-full"
                                                 onClick={() => {
-                                                    setPreviewImage(
-                                                        payment.evidencePreview || payment.proof_image
-                                                    );
+                                                    if (isEditing) {
+                                                        document.getElementById(`evidence-${payment.id}`)?.click();
+                                                    } else {
+                                                        setPreviewImage(
+                                                            payment.evidencePreview || payment.proof_image
+                                                        );
+                                                    }
                                                 }}
                                                 aria-label={
                                                     isEditing ? "เปลี่ยนรูปหลักฐาน" : "ขยายรูปหลักฐาน"
