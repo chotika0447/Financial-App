@@ -10,7 +10,8 @@ import {
   Dumbbell,
   BookOpen,
   Pencil,
-  Trash2
+  Trash2,
+  BellRing
 } from "lucide-react";
 
 const iconMap = {
@@ -39,7 +40,7 @@ const colorMap = {
   gray: "bg-gray-300",
 };
 
-function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDelete }) {
+function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDelete, onSendReminder, sendingReminderId }) {
 
   const isBorrow = debt.type === "borrowed";
 
@@ -176,6 +177,21 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
         >
           <Trash2 size={15} />
         </button>
+
+        {/* ส่งแจ้งเตือนชำระหนี้ไปยัง LINE ของเพื่อน */}
+        {!isBorrow && debt.counterparty && (
+          <button
+            type="button"
+            onClick={() => onSendReminder?.(debt)}
+            disabled={sendingReminderId === debt.id}
+            aria-label={`ส่งแจ้งเตือนชำระหนี้ ${debt.name} ทาง LINE`}
+            title="ส่งแจ้งเตือนชำระหนี้ทาง LINE"
+            className="h-[30px] px-2 border border-green-500 rounded-md flex items-center justify-center gap-1 text-green-700 text-[10px] whitespace-nowrap disabled:opacity-50"
+          >
+            <BellRing size={13} />
+            {sendingReminderId === debt.id ? "กำลังส่ง..." : "ส่งเตือน LINE"}
+          </button>
+        )}
 
         {/* Action */}
         {isBorrow ? (

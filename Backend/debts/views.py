@@ -12,7 +12,7 @@ from .models import Debts, Payments
 from .serializers import DebtSerializer, PaymentSerializer
 
 from decimal import Decimal
-from line_bot.messaging import push_new_debt_notification
+from line_bot.messaging import (push_new_debt_notification, push_debt_payment_reminder)
 
 import os
 import uuid
@@ -392,6 +392,94 @@ def calculate_payment_due_date(debt):
     raise ValueError(
         "ไม่พบประเภทการชำระหนี้ที่ถูกต้อง"
     )
+
+
+class SendDebtReminderView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, debt_id):
+        # ต้องเป็นรายการหนี้ของผู้ใช้ที่ล็อกอินอยู่
+        debt = get_object_or_404(
+            Debts,
+            id=debt_id,
+            user=request.user,
+        )
+
+        # ส่งเตือนเพื่อนจากรายการที่เราเป็นเจ้าหนี้เท่านั้น
+        if debt.type != "lent":
+            return Response(
+                {"detail": "ส่งแจ้งเตือนได้จากรายการให้คนอื่นยืมเท่านั้น"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if debt.status == "paid" or debt.remaining_amount <= 0:
+            return Response(
+                {"detail": "รายการหนี้นี้ชำระครบแล้ว"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ต้องมีรายการหนี้คู่กันของเพื่อน
+        paired_debt = debt.paired_debt
+
+        if not paired_debt or paired_debt.type != "borrowed":
+            return Response(
+                {"detail": "ไม่พบรายการหนี้ของเพื่อนที่เชื่อมกัน"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ป้องกันการส่งไปยังบัญชีที่ไม่ได้เชื่อมกับรายการนี้
+        if paired_debt.paired_debt_id != debt.id:
+            return Response(
+                {"detail": "ความสัมพันธ์ของรายการหนี้ไม่ถูกต้อง"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not paired_debt.user.line_uid:
+            return Response(
+                {
+                    "detail": (
+                        "เพื่อนยังไม่มี LINE User ID "
+                        "กรุณาให้เพื่อนเข้าสู่ระบบผ่าน LINE ก่อน"
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            due_date = calculate_payment_due_date(paired_debt)
+        except (ValueError, TypeError) as error:
+            return Response(
+                {"detail": str(error)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ส่งข้อความไปยัง LINE ของเพื่อนทันที
+        sent = push_debt_payment_reminder(
+            paired_debt,
+            due_date,
+            None,
+        )
+
+        if not sent:
+            return Response(
+                {
+                    "detail": (
+                        "ส่งแจ้งเตือนไม่สำเร็จ "
+                        "กรุณาตรวจสอบ LINE OA และ Backend logs"
+                    )
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response(
+            {
+                "detail": (
+                    f"ส่งแจ้งเตือนชำระหนี้ไปยัง "
+                    f"{debt.counterparty_name} สำเร็จแล้ว"
+                )
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 def get_related_debts(debt):

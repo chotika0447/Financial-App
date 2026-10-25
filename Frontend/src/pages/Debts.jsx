@@ -57,6 +57,8 @@ function Debts() {
   const [openingLinkedDebt, setOpeningLinkedDebt] = useState(false);
 
   const [activeStatus, setActiveStatus] = useState("ongoing");
+
+  const [sendingReminderId, setSendingReminderId] = useState(null);
   //useEffect สำหรับดึงข้อมูลหนี้สิน
   useEffect(() => {
     const fetchDebts = async () => {
@@ -374,6 +376,53 @@ function Debts() {
       alert(error.message || "เกิดข้อผิดพลาดในการลบรายการหนี้");
     }
   };
+
+
+  const handleSendDebtReminder = async (debt) => {
+    const confirmed = window.confirm(
+      `ต้องการส่งแจ้งเตือนชำระหนี้ "${debt.name}" ` +
+      `ไปยัง LINE ของ ${debt.counterparty_name} ทันทีหรือไม่?`
+    );
+
+    if (!confirmed) return;
+
+    const accessToken = sessionStorage.getItem("accessToken");
+
+    if (!accessToken) {
+      alert("ไม่พบข้อมูลการเข้าสู่ระบบ");
+      return;
+    }
+
+    setSendingReminderId(debt.id);
+
+    try {
+      const response = await fetch(
+        `/debts/${debt.id}/send-reminder/`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || "ไม่สามารถส่งแจ้งเตือน LINE ได้"
+        );
+      }
+
+      alert(data.detail || "ส่งแจ้งเตือน LINE สำเร็จ");
+    } catch (error) {
+      console.error("Send debt reminder error:", error);
+      alert(error.message || "เกิดข้อผิดพลาดในการส่งแจ้งเตือน");
+    } finally {
+      setSendingReminderId(null);
+    }
+  };
+
 
   const statusFilteredDebts = debts.filter(
     (debt) => debt.status === activeStatus
@@ -789,6 +838,8 @@ function Debts() {
                 key={debt.id}
                 debt={debt}
                 onDelete={handleDeleteDebt}
+                onSendReminder={handleSendDebtReminder}
+                sendingReminderId={sendingReminderId}
                 onPayment={() => {
                   setSelectedDebt(debt);
                   setShowDebtPay(true);

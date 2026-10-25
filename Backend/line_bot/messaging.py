@@ -345,13 +345,23 @@ def push_debt_payment_reminder(debt, due_date, pay_url):
         )
         return False
 
-    frontend_url = settings.FRONTEND_URL.rstrip("/")
+    frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+
+    if not frontend_url:
+        print("ส่งแจ้งเตือนไม่ได้: ไม่พบ FRONTEND_URL")
+        return False
+
     query = urlencode({"debtId": debt.id})
     pay_url = f"{frontend_url}/debts/?{query}"
 
-    if not frontend_url:
-        print("ไม่สามารถส่งแจ้งเตือน: ยังไม่ได้ตั้งค่า FRONTEND_URL")
-        return False
+    if debt.payment_amount is not None:
+        amount_text = (
+            f"ยอดชำระต่องวด: {debt.payment_amount:,.2f} บาท"
+        )
+    else:
+        amount_text = (
+            f"ยอดหนี้คงเหลือ: {debt.remaining_amount:,.2f} บาท"
+        )
 
     due_date_text = due_date.strftime("%d/%m/%Y")
 
@@ -379,7 +389,7 @@ def push_debt_payment_reminder(debt, due_date, pay_url):
         },
         {
             "type": "text",
-            "text": f"ยอดชำระต่อเดือน: {debt.payment_amount:,.2f} บาท",
+            "text": amount_text,
             "size": "md",
             "weight": "bold",
             "color": "#6C4BC1",
@@ -446,6 +456,10 @@ def push_debt_payment_reminder(debt, due_date, pay_url):
             json=data,
             timeout=10,
         )
+
+        print("LINE REMINDER STATUS:", response.status_code)
+        print("LINE REMINDER RESPONSE:", response.text)
+
         response.raise_for_status()
         return True
 
