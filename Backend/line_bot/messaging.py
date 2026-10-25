@@ -2,6 +2,7 @@ import httpx
 from django.conf import settings
 
 from users.models import PersonalProfile
+from urllib.parse import urlencode
 
 def push_friend_request(receiver, sender, friend_request):
     """
@@ -324,4 +325,132 @@ def push_new_debt_notification(debt, target_debt=None):
 
     except httpx.HTTPError as error:
         print("ส่งแจ้งเตือนรายการหนี้ทาง LINE ไม่สำเร็จ:", error)
+        return False
+
+# ฟังก์ชันแจ้งเตือนชำระหนี้
+def push_debt_payment_reminder(debt, due_date, pay_url):
+    """
+    ส่ง Flex Message เตือนชำระหนี้ผ่าน LINE OA
+
+    debt: รายการหนี้ของลูกหนี้
+    due_date: วันครบกำหนดของงวดที่กำลังแจ้ง
+    pay_url: URL ที่เปิดหน้าชำระหนี้ของงวดนั้นโดยตรง
+    """
+    receiver = debt.user
+
+    if not receiver.line_uid:
+        print(
+            f"ข้ามการแจ้งเตือนหนี้ {debt.pk}: "
+            "ผู้ใช้ไม่มี LINE User ID"
+        )
+        return False
+
+    frontend_url = settings.FRONTEND_URL.rstrip("/")
+    query = urlencode({"debtId": debt.id})
+    pay_url = f"{frontend_url}/debts/?{query}"
+
+    if not frontend_url:
+        print("ไม่สามารถส่งแจ้งเตือน: ยังไม่ได้ตั้งค่า FRONTEND_URL")
+        return False
+
+    due_date_text = due_date.strftime("%d/%m/%Y")
+
+    contents = [
+        {
+            "type": "text",
+            "text": "แจ้งเตือนชำระหนี้",
+            "weight": "bold",
+            "size": "xl",
+            "color": "#30294A",
+            "wrap": True,
+        },
+        {
+            "type": "separator",
+            "margin": "md",
+            "color": "#E8E5F0",
+        },
+        {
+            "type": "text",
+            "text": f"รายการ: {debt.name}"[:500],
+            "size": "md",
+            "color": "#30294A",
+            "wrap": True,
+            "margin": "md",
+        },
+        {
+            "type": "text",
+            "text": f"ยอดชำระต่อเดือน: {debt.payment_amount:,.2f} บาท",
+            "size": "md",
+            "weight": "bold",
+            "color": "#6C4BC1",
+            "wrap": True,
+            "margin": "md",
+        },
+        {
+            "type": "text",
+            "text": f"วันครบกำหนด: {due_date_text}",
+            "size": "sm",
+            "color": "#777286",
+            "wrap": True,
+            "margin": "sm",
+        },
+        {
+            "type": "button",
+            "style": "primary",
+            "color": "#6C4BC1",
+            "height": "md",
+            "margin": "xl",
+            "action": {
+                "type": "uri",
+                "label": "ชำระหนี้",
+                "uri": pay_url,
+            },
+        },
+    ]
+
+    data = {
+        "to": receiver.line_uid,
+        "messages": [
+            {
+                "type": "flex",
+                "altText": (
+                    f"แจ้งเตือนชำระหนี้ {debt.name} "
+                    f"ครบกำหนด {due_date_text}"
+                )[:400],
+                "contents": {
+                    "type": "bubble",
+                    "size": "kilo",
+                    "body": {
+                        "type": "box",
+                        "layout": "vertical",
+                        "spacing": "md",
+                        "paddingAll": "20px",
+                        "contents": contents,
+                    },
+                },
+            }
+        ],
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": (
+            f"Bearer {settings.LINE_BOT_CHANNEL_ACCESS_TOKEN}"
+        ),
+    }
+
+    try:
+        response = httpx.post(
+            "https://api.line.me/v2/bot/message/push",
+            headers=headers,
+            json=data,
+            timeout=10,
+        )
+        response.raise_for_status()
+        return True
+
+    except httpx.HTTPError as error:
+        print(
+            f"ส่งแจ้งเตือนชำระหนี้ {debt.pk} ไม่สำเร็จ: {error}"
+        )
         return False

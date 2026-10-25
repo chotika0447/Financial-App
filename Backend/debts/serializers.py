@@ -29,6 +29,9 @@ class DebtSerializer(serializers.ModelSerializer):
             'due_date',
             'payment_date',
             'current_due_date',
+            'reminder_days_before',
+            'reminder_time',
+            'reminder_repeat',
             'status',
             'note',
             'icon',
@@ -68,6 +71,16 @@ class DebtSerializer(serializers.ModelSerializer):
             getattr(self.instance, 'payment_date', None)
         )
 
+        reminder_days_before = data.get(
+            "reminder_days_before",
+            getattr(self.instance, "reminder_days_before", 3),
+        )
+
+        if reminder_days_before < 0 or reminder_days_before > 28:
+            raise serializers.ValidationError({
+                "reminder_days_before": "จำนวนวันต้องอยู่ระหว่าง 0-28"
+            })
+        
         # จำนวนหนี้ต้องมากกว่า 0
         if total_amount is not None and total_amount <= 0:
             raise serializers.ValidationError({
@@ -120,6 +133,13 @@ class DebtSerializer(serializers.ModelSerializer):
         )
 
         return debt
+
+    def validate_reminder_days_before(self, value):
+        if value < 0 or value > 28:
+            raise serializers.ValidationError(
+                "จำนวนวันแจ้งเตือนต้องอยู่ระหว่าง 0-28 วัน"
+            )
+        return value
 
 
 class PaymentSerializer(serializers.ModelSerializer):

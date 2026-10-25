@@ -114,27 +114,27 @@ function Debts() {
     );
 
     if (!targetDebt) {
-      // ไม่พบในรายการของผู้ใช้ที่ล็อกอินอยู่
       setError("ไม่พบรายการหนี้นี้ในบัญชีของคุณ");
       setSearchParams({}, { replace: true });
       return;
     }
 
-    setOpeningLinkedDebt(true);
-
+    // เลือกหนี้ที่ตรงกับ ID จาก LINE
     setSelectedDebt(targetDebt);
+
+    // เลือกแท็บให้ตรงกับประเภทหนี้
     setActiveTab(
       targetDebt.type === "borrowed" ? "borrow" : "lend"
     );
 
-    // เปิดรายละเอียดประวัติการชำระของรายการนั้น
-    setShowDebtHistory(true);
+    // เปิด Modal สำหรับบันทึกการชำระหนี้
+    setShowDebtHistory(false);
+    setShowDebtPay(true);
 
-    // เอา ID ออกจาก URL หลังเลือกได้แล้ว
+    // ลบ query string ออกจาก URL หลังเลือกหนี้แล้ว
     setSearchParams({}, { replace: true });
-
-    setOpeningLinkedDebt(false);
   }, [debts, loading, searchParams, setSearchParams]);
+
 
   //useEffect สำหรับดึงรายชื่อเพื่อน
   useEffect(() => {
@@ -598,8 +598,8 @@ function Debts() {
                 type="button"
                 onClick={() => setActiveStatus("ongoing")}
                 className={`flex-1 rounded-md px-2 py-2 text-[11px] font-medium transition-all ${activeStatus === "ongoing"
-                    ? "bg-white text-green-700 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white text-green-700 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
                   }`}
               >
                 ยังดำเนินการอยู่
@@ -609,8 +609,8 @@ function Debts() {
                 type="button"
                 onClick={() => setActiveStatus("paid")}
                 className={`flex-1 rounded-md px-2 py-2 text-[11px] font-medium transition-all ${activeStatus === "paid"
-                    ? "bg-white text-green-700 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white text-green-700 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
                   }`}
               >
                 ชำระครบแล้ว
@@ -632,8 +632,8 @@ function Debts() {
                 type="button"
                 onClick={() => setActiveTab("borrow")}
                 className={`flex-1 h-[32px] rounded-l-md border text-[12px] transition ${activeTab === "borrow"
-                    ? "border-green-500 bg-green-50 text-green-700 font-medium"
-                    : "border-gray-300 bg-white text-gray-500"
+                  ? "border-green-500 bg-green-50 text-green-700 font-medium"
+                  : "border-gray-300 bg-white text-gray-500"
                   }`}
               >
                 ยืมคนอื่น ({borrowDebts.length})
@@ -643,8 +643,8 @@ function Debts() {
                 type="button"
                 onClick={() => setActiveTab("lend")}
                 className={`flex-1 h-[32px] rounded-r-md border border-l-0 text-[12px] transition ${activeTab === "lend"
-                    ? "border-green-500 bg-green-50 text-green-700 font-medium"
-                    : "border-gray-300 bg-white text-gray-500"
+                  ? "border-green-500 bg-green-50 text-green-700 font-medium"
+                  : "border-gray-300 bg-white text-gray-500"
                   }`}
               >
                 ให้คนอื่นยืม ({lendDebts.length})
