@@ -22,6 +22,7 @@ ALLOWED_HOSTS = [
     "tammara-semivolcanic-randee.ngrok-free.dev",
 
     "financial-app-xgc0.onrender.com",
+    "debtmodule-backend.onrender.com"
 ]
 
 # =================== LINE ===================
@@ -60,7 +61,7 @@ CORS_ALLOWED_ORIGINS = [
     'https://tammara-semivolcanic-randee.ngrok-free.dev',
 
     'https://financial-app-delta-taupe.vercel.app',
-    'https://financial-ogk0nhlmw-project-teb-zaaa007.vercel.app/'
+    'https://financial-ogk0nhlmw-project-teb-zaaa007.vercel.app'
 
 ]
 #URL ที่ Django ยอมให้ส่ง POST/CSRF
@@ -70,7 +71,7 @@ CSRF_TRUSTED_ORIGINS = [
     'https://tammara-semivolcanic-randee.ngrok-free.dev',
 
     'https://financial-app-delta-taupe.vercel.app',
-    'https://financial-ogk0nhlmw-project-teb-zaaa007.vercel.app/'
+    'https://financial-ogk0nhlmw-project-teb-zaaa007.vercel.app'
 ]
 
 # =================== Frontend URL ===================

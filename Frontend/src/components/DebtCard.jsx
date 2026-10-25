@@ -108,7 +108,11 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
 
           {/* Date */}
           <p className="text-[9px] text-gray-500 ">
-            ครบกำหนด: {debt.due_date}
+            ครบกำหนด: {
+              debt.payment_type === "monthly"
+                ? (debt.current_due_date || debt.due_date)
+                : debt.due_date
+            }
           </p>
 
         </div>
