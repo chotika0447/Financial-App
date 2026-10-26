@@ -4,6 +4,11 @@ import WalletCard from '../components/WalletCard'
 import './Wallet.css'
 import Navbar from '../components/Navbar'
 
+import {
+  Calculator,
+  Plus
+} from "lucide-react";
+
 function Wallet() {
   const navigate = useNavigate()
 
@@ -238,11 +243,7 @@ function Wallet() {
           aria-label="เครื่องมือคำนวณ"
           title="เครื่องมือคำนวณ"
         >
-          <img
-            src="/icons/calculator.svg"
-            alt=""
-            className="wallet-calculator-icon"
-          />
+          <Calculator size={27} strokeWidth={2.3} />
         </button>
       </div>
 
@@ -262,9 +263,7 @@ function Wallet() {
           aria-label="เพิ่มรายการ"
           title="เพิ่มรายการ"
         >
-          <span className="wallet-add-icon" aria-hidden="true">
-            +
-          </span>
+          <Plus size={27} strokeWidth={2.5} />
         </button>
       </div>
 

@@ -13,17 +13,7 @@ import {
   ArrowUpDown,
   ArrowDown,
   ArrowUp,
-  Clock3,
-  CheckCircle,
-  Pencil,
-  Trash2,
   Plus,
-  GraduationCap,
-  Bell,
-  Home,
-  FileText,
-  WalletCards,
-  HandCoins,
 } from "lucide-react";
 
 function Debts() {
