@@ -413,11 +413,26 @@ function Debts() {
     }
   };
 
-
-  const statusFilteredDebts = debts.filter(
-    (debt) => debt.status === activeStatus
+  // แยกรายการหนี้ตามสถานะการชำระ
+  const ongoingDebts = debts.filter(
+    (debt) =>
+      debt.status === "ongoing" &&
+      Number(debt.remaining_amount) > 0
   );
 
+  const paidDebts = debts.filter(
+    (debt) =>
+      debt.status === "paid" ||
+      Number(debt.remaining_amount) <= 0
+  );
+
+  // กรองรายการตามแท็บสถานะที่เลือก
+  const statusFilteredDebts =
+    activeStatus === "ongoing"
+      ? ongoingDebts
+      : paidDebts;
+
+  // แยกตามประเภทหนี้หลังจากเลือกสถานะแล้ว
   const borrowDebts = statusFilteredDebts.filter(
     (debt) => debt.type === "borrowed"
   );
@@ -427,7 +442,9 @@ function Debts() {
   );
 
   const currentDebtsList =
-    activeTab === "borrow" ? borrowDebts : lendDebts;
+    activeTab === "borrow"
+      ? borrowDebts
+      : lendDebts;
 
   // ค้นหาด้วยชื่อรายการ และเรียงตามเงื่อนไขที่เลือก
   const filteredDebtsList = [...currentDebtsList]
@@ -499,15 +516,21 @@ function Debts() {
     });
 
 
-  const totalBorrow = borrowDebts.reduce(
-    (sum, debt) => sum + Number(debt.remaining_amount),
-    0
-  );
+  // ยอดที่ต้องจ่ายคืน: รวมเฉพาะหนี้ที่ยังดำเนินการอยู่ทั้งหมด
+  const totalBorrow = ongoingDebts
+    .filter((debt) => debt.type === "borrowed")
+    .reduce(
+      (sum, debt) => sum + Number(debt.remaining_amount || 0),
+      0
+    );
 
-  const totalLend = lendDebts.reduce(
-    (sum, debt) => sum + Number(debt.remaining_amount),
-    0
-  );
+  // ยอดที่ต้องได้รับคืน: รวมเฉพาะหนี้ที่ยังดำเนินการอยู่ทั้งหมด
+  const totalLend = ongoingDebts
+    .filter((debt) => debt.type === "lent")
+    .reduce(
+      (sum, debt) => sum + Number(debt.remaining_amount || 0),
+      0
+    );
 
   //เช็คข้อมูลหนี้สินที่ผู้ใช้เลือกว่ามีอยู่จริงหรือไม่ 
   if (loading) {
@@ -861,7 +884,7 @@ function Debts() {
 
 
         {/* ปุ่มเพิ่มรายการ */}
-        
+
         <div className="fixed right-[30px] bottom-[85px] z-[99] flex items-center gap-[10px]">
           <span className="whitespace-nowrap text-sm font-bold text-black">
             เพิ่มรายการ
@@ -873,7 +896,7 @@ function Debts() {
               setShowAddDebt(true);
               setCurrentDebtType(activeTab); //เซ็ตประเภทหนี้สินเริ่มต้นตามแท็บที่ผู้ใช้เลือกอยู่
             }}
-            
+
             className="flex h-12 w-12 items-center justify-center rounded-full
                       bg-[#ffbd3d] text-white shadow-md transition-all duration-200
                       hover:scale-105 hover:bg-[#f57f8b] active:scale-95"

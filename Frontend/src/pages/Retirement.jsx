@@ -35,17 +35,15 @@ function Retirement() {
 
   return (
     <div className="retirement-page">
+
       <header className="retirement-header">
         <button
           type="button"
           className="retirement-back-button"
           onClick={() => navigate('/saving/')}
-          aria-label="กลับไปหน้ากระเป๋าเงิน"
+          aria-label="กลับไปหน้า Wallet"
         >
-          <span className="retirement-back-arrow" aria-hidden="true">
-            ←
-          </span>
-          <span>กลับ</span>
+          ‹
         </button>
 
         <h1 className="retirement-title">
@@ -163,9 +161,9 @@ function Retirement() {
           <h2>สรุปแผนเกษียณเบื้องต้น</h2>
 
           {monthlyExpenses !== '' &&
-          yearsInRetirement !== '' &&
-          expenses >= 0 &&
-          years > 0 ? (
+            yearsInRetirement !== '' &&
+            expenses >= 0 &&
+            years > 0 ? (
             <p>
               คุณควรมีเงินเก็บประมาณ{' '}
               <strong>{formatMoney(retirementMoney)} บาท</strong>{' '}
