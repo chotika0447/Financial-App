@@ -214,135 +214,176 @@ function Wallet() {
 
   return (
     <div className="wallet-page">
-      <div className="wallet-header">
+      {/* Header */}
+      <header className="wallet-header">
         <h1 className="wallet-title">กระเป๋าเงินออม</h1>
-      </div>
+      </header>
 
-      <div>
-        <h2 className="wallet-total">
-          <p>ยอดเงินออมทั้งหมด {totalSaving.toLocaleString()} บาท</p>
-          <p>เป้าหมายเงินออมทั้งหมด {totalTarget.toLocaleString()} บาท</p>
-        </h2>
-      </div>
+      <main className="wallet-content">
+        {/* Summary */}
+        <section className="wallet-summary">
+          <div className="wallet-summary-icon">
+            🐷
+          </div>
 
-      {error && (
-        <p role="alert" className="wallet-error">
-          {error}
-        </p>
-      )}
+          <div className="wallet-summary-info">
+            <p className="wallet-summary-caption">ยอดเงินออมทั้งหมด</p>
 
-      <div className="wallet-calculator-control">
-        <span className="wallet-calculator-label">
-          เครื่องมือคำนวณ
-        </span>
+            <h2 className="wallet-summary-balance">
+              {totalSaving.toLocaleString()} บาท
+            </h2>
 
-        <button
-          type="button"
-          className="wallet-calculator-button"
-          onClick={() => navigate('/calculator')}
-          aria-label="เครื่องมือคำนวณ"
-          title="เครื่องมือคำนวณ"
-        >
-          <Calculator size={27} strokeWidth={2.3} />
-        </button>
-      </div>
+            <p className="wallet-summary-target">
+              จากเป้าหมายทั้งหมด {totalTarget.toLocaleString()} บาท
+            </p>
 
-      <div className="wallet-add-control">
-        <span className="wallet-add-label">เพิ่มรายการ</span>
-
-        <button
-          type="button"
-          className="wallet-add-button"
-          onClick={() => {
-            setEditingWalletId(null)
-            setName('')
-            setTarget('')
-            setTargetDate('')
-            setShowForm(true)
-          }}
-          aria-label="เพิ่มรายการ"
-          title="เพิ่มรายการ"
-        >
-          <Plus size={27} strokeWidth={2.5} />
-        </button>
-      </div>
-
-      {showForm && (
-        <div className="modal-overlay">
-          <div className="wallet-form-card">
-            <h2>{fromTitle}</h2>
-
-            <h1>ชื่อกระเป๋า</h1>
-            <input
-              type="text"
-              placeholder="ชื่อกระเป๋า"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={30}
-            />
-
-            <h1>เป้าหมายเงินออม (บาท)</h1>
-            <input
-              type="number"
-              placeholder="0.00"
-              value={target}
-              min="0"
-              onChange={(e) => setTarget(e.target.value)}
-            />
-
-            <h1>วันที่สิ้นสุดเป้าหมาย</h1>
-            <input
-              type="date"
-              value={targetDate}
-              min={today}
-              onChange={(e) => setTargetDate(e.target.value)}
-            />
-
-            <div className="form-buttons">
-              <button
-                className="cancel-button"
-                disabled={saving}
-                onClick={() => {
-                  setShowForm(false)
-                  setEditingWalletId(null)
+            <div className="wallet-summary-progress">
+              <div
+                className="wallet-summary-progress-fill"
+                style={{
+                  width: `${totalTarget > 0
+                      ? Math.min((totalSaving / totalTarget) * 100, 100)
+                      : 0
+                    }%`,
                 }}
-              >
-                ยกเลิก
-              </button>
+              />
+            </div>
 
-              <button
-                className="save-button"
-                disabled={saving}
-                onClick={addWallet}
-              >
-                {saving ? 'กำลังบันทึก...' : 'ตกลง'}
-              </button>
+            <p className="wallet-summary-percent">
+              {totalTarget > 0
+                ? Math.round((totalSaving / totalTarget) * 100)
+                : 0}
+              % ของเป้าหมายทั้งหมด
+            </p>
+          </div>
+        </section>
+
+        {error && (
+          <p role="alert" className="wallet-error">
+            {error}
+          </p>
+        )}
+
+        {/* ปุ่มลอยด้านขวา */}
+        <div className="wallet-calculator-control">
+          <span className="wallet-calculator-label">
+            เครื่องมือคำนวณ
+          </span>
+
+          <button
+            type="button"
+            className="wallet-calculator-button"
+            onClick={() => navigate('/calculator')}
+            aria-label="เครื่องมือคำนวณ"
+            title="เครื่องมือคำนวณ"
+          >
+            <Calculator size={27} strokeWidth={2.3} />
+          </button>
+        </div>
+
+        <div className="wallet-add-control">
+          <span className="wallet-add-label">เพิ่มรายการ</span>
+
+          <button
+            type="button"
+            className="wallet-add-button"
+            onClick={() => {
+              setEditingWalletId(null)
+              setName('')
+              setTarget('')
+              setTargetDate('')
+              setShowForm(true)
+            }}
+            aria-label="เพิ่มรายการ"
+            title="เพิ่มรายการ"
+          >
+            <Plus size={27} strokeWidth={2.5} />
+          </button>
+        </div>
+
+        {/* Wallet Form */}
+        {showForm && (
+          <div className="modal-overlay">
+            <div className="wallet-form-card">
+              <h2>{fromTitle}</h2>
+
+              <h1>ชื่อกระเป๋า</h1>
+              <input
+                type="text"
+                placeholder="ชื่อกระเป๋า"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={30}
+              />
+
+              <h1>เป้าหมายเงินออม (บาท)</h1>
+              <input
+                type="number"
+                placeholder="0.00"
+                value={target}
+                min="0"
+                onChange={(e) => setTarget(e.target.value)}
+              />
+
+              <h1>วันที่สิ้นสุดเป้าหมาย</h1>
+              <input
+                type="date"
+                value={targetDate}
+                min={today}
+                onChange={(e) => setTargetDate(e.target.value)}
+              />
+
+              <div className="form-buttons">
+                <button
+                  className="cancel-button"
+                  disabled={saving}
+                  onClick={() => {
+                    setShowForm(false)
+                    setEditingWalletId(null)
+                  }}
+                >
+                  ยกเลิก
+                </button>
+
+                <button
+                  className="save-button"
+                  disabled={saving}
+                  onClick={addWallet}
+                >
+                  {saving ? 'กำลังบันทึก...' : 'ตกลง'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
-      <div className="wallet-list">
-        {loading ? (
-          <p>กำลังโหลดกระเป๋าเงิน...</p>
-        ) : wallets.length === 0 ? (
-          <p>ยังไม่มีกระเป๋าเงินออม</p>
-        ) : (
-          wallets.map((wallet) => (
-            <WalletCard
-              key={wallet.id}
-              name={wallet.name}
-              target={wallet.target}
-              date={wallet.date}
-              balance={wallet.balance}
-              onDeposit={(amount) => deposit(wallet.id, amount)}
-              onWithdraw={(amount) => withdraw(wallet.id, amount)}
-              onEdit={() => editWallet(wallet)}
-              onDelete={() => deleteWallet(wallet.id)}
-            />
-          ))
         )}
-      </div>
+
+        {/* Wallet Cards */}
+        <section className="wallet-section">
+          <h2 className="wallet-section-title">กระเป๋าเงินออมของฉัน</h2>
+
+          <div className="wallet-list">
+            {loading ? (
+              <p>กำลังโหลดกระเป๋าเงิน...</p>
+            ) : wallets.length === 0 ? (
+              <p>ยังไม่มีกระเป๋าเงินออม</p>
+            ) : (
+              wallets.map((wallet) => (
+                <WalletCard
+                  key={wallet.id}
+                  name={wallet.name}
+                  target={wallet.target}
+                  date={wallet.date}
+                  balance={wallet.balance}
+                  onDeposit={(amount) => deposit(wallet.id, amount)}
+                  onWithdraw={(amount) => withdraw(wallet.id, amount)}
+                  onEdit={() => editWallet(wallet)}
+                  onDelete={() => deleteWallet(wallet.id)}
+                />
+              ))
+            )}
+          </div>
+        </section>
+      </main>
 
       <Navbar />
     </div>

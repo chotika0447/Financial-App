@@ -863,7 +863,7 @@ function Debts() {
         {/* ปุ่มเพิ่มรายการ */}
         
         <div className="fixed right-[30px] bottom-[85px] z-[99] flex items-center gap-[10px]">
-          <span className="whitespace-nowrap text-sm font-bold text-[#e66f6f]">
+          <span className="whitespace-nowrap text-sm font-bold text-black">
             เพิ่มรายการ
           </span>
 
@@ -875,10 +875,8 @@ function Debts() {
             }}
             
             className="flex h-12 w-12 items-center justify-center rounded-full
-                      border border-[#ff9292] bg-[#ffbd3d] text-white
-                      shadow-md transition-all duration-200
-                      hover:scale-105 hover:bg-[#f57f8b]
-                      active:scale-95"
+                      bg-[#ffbd3d] text-white shadow-md transition-all duration-200
+                      hover:scale-105 hover:bg-[#f57f8b] active:scale-95"
           >
             <Plus size={27} strokeWidth={2.5} />
           </button>
