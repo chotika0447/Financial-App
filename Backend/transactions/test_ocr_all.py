@@ -1,25 +1,40 @@
+"""
+Manual smoke-test helper for local OCR sample images.
 
-from Backend.transactions.ocr import (
-    read_receipt,
-    get_receipt_amount,
-    extract_datetime,
-)
+Run from the Backend directory:
+    python -m transactions.test_ocr_all
 
-for i in range(1, 8):
-    image_path = f"Backend/testpic_{i}.jpg"
+Place sample files at Backend/transactions/scb.jpg or update SAMPLE_IMAGES.
+This module is for local diagnosis only; it is not imported by Django views.
+"""
+from pathlib import Path
 
-    print(f"\n========== รูปที่ {i} ==========")
+from transactions.ocr import read_receipt, get_receipt_amount, extract_datetime
 
-    try:
-        text = read_receipt(image_path)
-        amount, status = get_receipt_amount(text)
-        date_time = extract_datetime(text)
+BASE_DIR = Path(__file__).resolve().parent
+SAMPLE_IMAGES = [
+    BASE_DIR / "scb.jpg",
+]
 
-        print("ยอดเงิน:", amount)
-        print("สถานะ:", status)
-        print("วันที่และเวลา:", date_time)
-        print("ข้อความ OCR:")
-        print(text)
 
-    except Exception as e:
-        print("เกิดข้อผิดพลาด:", e)
+def main():
+    for image_path in SAMPLE_IMAGES:
+        print(f"\\n========== {image_path.name} ==========")
+        if not image_path.is_file():
+            print("ไม่พบไฟล์:", image_path)
+            continue
+
+        try:
+            text = read_receipt(image_path)
+            amount, amount_status = get_receipt_amount(text)
+            print("ยอดเงิน:", amount)
+            print("สถานะ:", amount_status)
+            print("วันที่และเวลา:", extract_datetime(text))
+            print("ข้อความ OCR:")
+            print(text)
+        except Exception as exc:
+            print(f"เกิดข้อผิดพลาด: {type(exc).__name__}: {exc}")
+
+
+if __name__ == "__main__":
+    main()
