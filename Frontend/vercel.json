@@ -143,6 +143,22 @@
     {
       "source": "/categories/:path*",
       "destination": "https://financial-app-xgc0.onrender.com/categories/:path*"
+    },
+    {
+      "source": "/savings/",
+      "destination": "https://financial-app-xgc0.onrender.com/savings/"
+    },
+    {
+      "source": "/savings/:savingId/",
+      "destination": "https://financial-app-xgc0.onrender.com/savings/:savingId/"
+    },
+    {
+      "source": "/savings/:path*/",
+      "destination": "https://financial-app-xgc0.onrender.com/savings/:path*/"
+    },
+    {
+      "source": "/savings/:path*",
+      "destination": "https://financial-app-xgc0.onrender.com/savings/:path*"
     }
   ]
 }
