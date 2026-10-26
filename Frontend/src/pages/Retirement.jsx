@@ -1,82 +1,195 @@
-import { useState } from "react";
-import './Retirement.css'
-import CalNavbar from "../components/CalNavbar";
-import RetirementChart from "../components/RetirementChart";
+
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import './Retirement.css';
+import CalNavbar from '../components/CalNavbar';
+import RetirementChart from '../components/RetirementChart';
 import Navbar from '../components/Navbar';
 
 function Retirement() {
-  const [monthlyExpenses, setMonthlyExpenses] = useState(localStorage.getItem('retirementMonthlyExpenses') || '');
-  const [retirementAge, setRetirementAge] = useState(localStorage.getItem('retirementAge') || '');
-  const [yearsInRetirement, setYearsInRetirement] = useState(localStorage.getItem('retirementYearsInRetirement') || '');
+  const navigate = useNavigate();
 
-  let retirementMoney = 0;
-  
-  if(monthlyExpenses && retirementAge && yearsInRetirement) {
-    retirementMoney = Number(monthlyExpenses) * 12 * Number(yearsInRetirement)
-  }
+  const [monthlyExpenses, setMonthlyExpenses] = useState(
+    localStorage.getItem('retirementMonthlyExpenses') || ''
+  );
+  const [retirementAge, setRetirementAge] = useState(
+    localStorage.getItem('retirementAge') || ''
+  );
+  const [yearsInRetirement, setYearsInRetirement] = useState(
+    localStorage.getItem('retirementYearsInRetirement') || ''
+  );
+
+  const expenses = Number(monthlyExpenses);
+  const age = Number(retirementAge);
+  const years = Number(yearsInRetirement);
+
+  const retirementMoney =
+    monthlyExpenses !== '' && yearsInRetirement !== ''
+      ? expenses * 12 * years
+      : 0;
+
+  const formatMoney = (amount) =>
+    amount.toLocaleString('th-TH', {
+      maximumFractionDigits: 2,
+    });
 
   return (
     <div className="retirement-page">
-      <div className="retirement-header">
-      <h1 className="retirement-title">
-        คำนวณแผนเกษียณเบื้องต้น</h1>
-      </div>
-      
-      <CalNavbar />
+      <header className="retirement-header">
+        <button
+          type="button"
+          className="retirement-back-button"
+          onClick={() => navigate('/saving/')}
+          aria-label="กลับไปหน้ากระเป๋าเงิน"
+        >
+          <span className="retirement-back-arrow" aria-hidden="true">
+            ←
+          </span>
+          <span>กลับ</span>
+        </button>
 
-      <label className="retirement-label">
-        ค่าใช้จ่ายต่อเดือนหลังเกษียณ (บาท)</label>
+        <h1 className="retirement-title">
+          คำนวณแผนเกษียณเบื้องต้น
+        </h1>
+      </header>
 
-      <input
-        className="retirement-input"
-        type="number"
-        value={monthlyExpenses}
-        onChange={(e) => {
-          setMonthlyExpenses(e.target.value);
-          localStorage.setItem('retirementMonthlyExpenses', e.target.value);
-        }}
-      />
+      <main className="retirement-content">
+        <CalNavbar />
 
-      <label className="retirement-label">
-        อายุที่เกษียณ (ปี)</label>
+        <section className="retirement-form">
+          <div className="retirement-field">
+            <label
+              className="retirement-label"
+              htmlFor="monthlyExpenses"
+            >
+              ค่าใช้จ่ายต่อเดือนหลังเกษียณ (บาท)
+            </label>
+            <input
+              id="monthlyExpenses"
+              className="retirement-input"
+              type="number"
+              min="0"
+              inputMode="decimal"
+              placeholder="เช่น 20000"
+              value={monthlyExpenses}
+              onChange={(e) => {
+                const value = e.target.value;
+                setMonthlyExpenses(value);
+                localStorage.setItem(
+                  'retirementMonthlyExpenses',
+                  value
+                );
+              }}
+            />
+          </div>
 
-      <input
-        className="retirement-input"
-        type="number"
-        value={retirementAge}
-        onChange={(e) => {
-          setRetirementAge(e.target.value);
-          localStorage.setItem('retirementAge', e.target.value);
-        }}
-      />
+          <div className="retirement-field">
+            <label
+              className="retirement-label"
+              htmlFor="retirementAge"
+            >
+              อายุที่เกษียณ (ปี)
+            </label>
+            <input
+              id="retirementAge"
+              className="retirement-input"
+              type="number"
+              min="1"
+              max="100"
+              inputMode="numeric"
+              placeholder="เช่น 60"
+              value={retirementAge}
+              onChange={(e) => {
+                const value = e.target.value;
+                setRetirementAge(value);
+                localStorage.setItem('retirementAge', value);
+              }}
+            />
+          </div>
 
-      <label className="retirement-label">
-        จำนวนปีที่คาดว่าจะใช้ชีวิตหลังเกษียณ (ปี)</label>
+          <div className="retirement-field">
+            <label
+              className="retirement-label"
+              htmlFor="yearsInRetirement"
+            >
+              จำนวนปีที่คาดว่าจะใช้ชีวิตหลังเกษียณ (ปี)
+            </label>
+            <input
+              id="yearsInRetirement"
+              className="retirement-input"
+              type="number"
+              min="1"
+              max="100"
+              inputMode="numeric"
+              placeholder="เช่น 25"
+              value={yearsInRetirement}
+              onChange={(e) => {
+                const value = e.target.value;
+                setYearsInRetirement(value);
+                localStorage.setItem(
+                  'retirementYearsInRetirement',
+                  value
+                );
+              }}
+            />
+          </div>
+        </section>
 
-      <input
-        className="retirement-input"
-        type="number"
-        value={yearsInRetirement}
-        onChange={(e) => {
-          setYearsInRetirement(e.target.value);
-          localStorage.setItem('retirementYearsInRetirement', e.target.value);
-        }}
-      />
+        <section className="retirement-summary">
+          <h2 className="retirement-summary-title">
+            เงินเกษียณที่ต้องการ
+          </h2>
 
-      <div className="retirement-label">
-        <h3>เงินเกษียณที่ต้องการ</h3> </div>
+          <div className="retirement-result" aria-live="polite">
+            <span className="retirement-result-amount">
+              {formatMoney(retirementMoney)}
+            </span>
+            <span className="retirement-result-unit">บาท</span>
+          </div>
 
-      <div className="retirement-result">
-        {retirementMoney.toLocaleString()} บาท</div>
+          <p className="retirement-summary-note">
+            ประมาณการเงินเก็บสำหรับค่าใช้จ่ายหลังเกษียณ
+          </p>
+        </section>
 
-      <RetirementChart
-        monthlyExpenses={monthlyExpenses}
-        yearsInRetirement={yearsInRetirement}
-      />
+        <div className="retirement-chart-section">
+          <RetirementChart
+            monthlyExpenses={monthlyExpenses}
+            yearsInRetirement={yearsInRetirement}
+          />
+        </div>
 
-      <div className="retirement-explanation">
-        <h3>คุณควรมีเงินเก็บประมาณ {retirementMoney.toLocaleString()} บาท ก่อนเกษียณเพื่อรองรับค่าใช้จ่ายเดือนละ {Number(monthlyExpenses).toLocaleString()} บาท เป็นเวลา {Number(yearsInRetirement)} ปี</h3>
-      </div>
+        <section className="retirement-explanation">
+          <h2>สรุปแผนเกษียณเบื้องต้น</h2>
+
+          {monthlyExpenses !== '' &&
+          yearsInRetirement !== '' &&
+          expenses >= 0 &&
+          years > 0 ? (
+            <p>
+              คุณควรมีเงินเก็บประมาณ{' '}
+              <strong>{formatMoney(retirementMoney)} บาท</strong>{' '}
+              ก่อนเกษียณ เพื่อรองรับค่าใช้จ่ายเดือนละ{' '}
+              <strong>{formatMoney(expenses)} บาท</strong>{' '}
+              เป็นเวลา <strong>{years} ปี</strong>
+              {retirementAge !== '' && age > 0
+                ? ` โดยมีอายุเกษียณที่ ${age} ปี`
+                : ''}
+            </p>
+          ) : (
+            <p>
+              กรอกค่าใช้จ่ายต่อเดือนและจำนวนปีหลังเกษียณ
+              เพื่อดูประมาณการเงินที่ควรเตรียมไว้
+            </p>
+          )}
+
+          <p className="retirement-disclaimer">
+            * ผลคำนวณนี้เป็นการประมาณการเบื้องต้น
+            ยังไม่รวมอัตราเงินเฟ้อ ผลตอบแทนจากการลงทุน
+            หรือรายได้อื่นหลังเกษียณ
+          </p>
+        </section>
+      </main>
 
       <Navbar />
     </div>
