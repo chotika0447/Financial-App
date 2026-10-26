@@ -224,7 +224,11 @@ class Payments(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.debt.name} - {self.paid_amount} บาท - {self.payment_date}"
+        return (
+            f"{self.debt.name} - "
+            f"{self.paid_amount} บาท - "
+            f"{self.paid_date or self.due_date}"
+        )
 
 
 # Model บันทึกประวัติการแจ้งเตือน เอาไว้ป้องกันไม่ให้ระบบส่งข้อความซ้ำจากการตรวจสอบรอบเดิมหลายครั้ง

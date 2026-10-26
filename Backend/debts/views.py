@@ -251,7 +251,8 @@ class DebtDetailView(APIView):
 
         serializer = DebtSerializer(
             debt,
-            data=data
+            data=data,
+            partial=True
         )
 
         serializer.is_valid(
