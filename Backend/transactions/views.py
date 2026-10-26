@@ -222,7 +222,11 @@ class ReceiptOCRView(APIView):
             note_data = parsed.get("note") or {}
             memo = note_data.get("memo") if isinstance(note_data, dict) else None
 
-            logger.info("Receipt OCR: parsing completed")
+            logger.info(
+                "Receipt OCR: parsing completed amount_status=%s date_found=%s",
+                amount_status,
+                bool(transaction_datetime),
+            )
 
             return Response({
                 "amount": amount,
@@ -246,7 +250,6 @@ class ReceiptOCRView(APIView):
                 {"error": "เกิดข้อผิดพลาดในการประมวลผล OCR"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
 
 
 # ดูและแก้ไขรายการร่างจาก LINE OA
