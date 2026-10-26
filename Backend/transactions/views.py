@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -12,7 +14,14 @@ from PIL import UnidentifiedImageError
 from .services import confirm_transaction_draft
 from .models import Transaction, TransactionDraft
 from .serializers import TransactionSerializer, TransactionDraftSerializer
-from .ocr import read_receipt, get_receipt_amount, extract_datetime
+from .ocr import (
+    read_receipt_data,
+    get_receipt_amount,
+    extract_datetime,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 # ดูรายการรายรับ-รายจ่ายทั้งหมด และเพิ่มรายการใหม่
@@ -193,15 +202,21 @@ class ReceiptOCRView(APIView):
             )
 
         try:
-            text = read_receipt(image)
+            receipt_data = read_receipt_data(image)
+            text = receipt_data["raw_text"]
+            parsed = receipt_data["parsed"]
 
             amount, amount_status = get_receipt_amount(text)
-            transaction_datetime = extract_datetime(text)
+            transaction_datetime = (
+                extract_datetime(text) or parsed.get("date")
+            )
+            memo = parsed.get("note", {}).get("memo")
 
             return Response({
                 "amount": amount,
                 "amount_status": amount_status,
                 "transaction_datetime": transaction_datetime,
+                "memo": memo,
                 "raw_text": text,
                 "requires_confirmation": True
             })
@@ -213,6 +228,7 @@ class ReceiptOCRView(APIView):
             )
 
         except Exception:
+            logger.exception("Receipt OCR processing failed")
             return Response(
                 {"error": "เกิดข้อผิดพลาดในการประมวลผล OCR"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

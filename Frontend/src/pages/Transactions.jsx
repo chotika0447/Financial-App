@@ -463,7 +463,8 @@ function Transactions() {
       if (!response.ok) {
         throw new Error(response.status === 401
           ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'
-          : data.error || 'ไม่สามารถอ่านใบเสร็จได้');
+          : data.error || data.detail ||
+            `อ่านใบเสร็จไม่สำเร็จ (HTTP ${response.status})`);
       }
 
       setForm((current) => {
@@ -471,7 +472,6 @@ function Transactions() {
           ...current,
           transaction_type: 'expense',
           account: '',
-          description: '',
         };
 
         if (data.amount != null && Number(data.amount) > 0) {
@@ -481,6 +481,9 @@ function Transactions() {
           const [date, time] = data.transaction_datetime.split(' ');
           if (date) updated.transaction_date = date;
           updated.transaction_time = time?.slice(0, 5) || '';
+        }
+        if (data.memo) {
+          updated.description = data.memo;
         }
         return updated;
       });

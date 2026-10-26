@@ -25,9 +25,9 @@ def _get_texts(raw_pages):
     return lines
 
 
-def read_receipt(image_path):
+def read_receipt_data(image_path):
     """
-    อ่านข้อความจากรูปด้วย PaddleOCR
+    อ่านข้อความและแยกข้อมูลจากรูปด้วย PaddleOCR
     รองรับทั้งตำแหน่งไฟล์และ file object จาก Django
     """
     temp_path = None
@@ -73,11 +73,19 @@ def read_receipt(image_path):
         if parsed.get("date"):
             text += f"\nวันที่ {parsed['date']}"
 
-        return text
+        return {
+            "raw_text": text,
+            "parsed": parsed,
+        }
 
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
+
+
+def read_receipt(image_path):
+    """อ่านและคืนข้อความ OCR ในรูปแบบที่ API เดิมใช้"""
+    return read_receipt_data(image_path)["raw_text"]
 
 
 def find_numbers(line):
