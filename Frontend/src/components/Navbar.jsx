@@ -6,7 +6,6 @@ import transactionIcon from '../assets/icons/transac.svg';
 import savingIcon from '../assets/icons/saving.svg';
 import debtIcon from '../assets/icons/debt.svg';
 import notificationIcon from '../assets/icons/bell.svg';
-import calculatorIcon from '../assets/icons/calculator.svg';
 
 
 function Navbar() {
@@ -36,11 +35,6 @@ function Navbar() {
       <NavLink to="/notifications/" className="nav-item">
         <img className="nav-icon" src={notificationIcon} alt="แจ้งเตือน" />
         <span>แจ้งเตือน</span>
-      </NavLink>
-
-      <NavLink to="/calculator/" className="nav-item">
-        <img className="nav-icon" src={calculatorIcon} alt="เครื่องมือคำนวณ" />
-        <span >เครื่องมือคำนวณ</span>
       </NavLink>
 
     </nav>

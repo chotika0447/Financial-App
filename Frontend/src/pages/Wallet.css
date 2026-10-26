@@ -35,23 +35,52 @@
   background-color: #fee8e8;
   position: relative;
 }
-
-.wallet-add-button {
+.wallet-add-control {
   position: fixed;
   right: 30px;
   bottom: 90px;
-  width: 120px;
-  height: 40px;
-  border-radius: 10px;
-  background-color: #ff9292;
-  color: white;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 99;
+}
+
+.wallet-add-label {
   font-size: 14px;
   font-weight: bold;
-  cursor: pointer;
+  color: #e66f6f;
+  white-space: nowrap;
+}
+
+.wallet-add-button {
+  width: 48px;
+  height: 48px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  
+  border-radius: 50%;
+  background-color: #ff9292;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.wallet-add-button:hover {
+  background-color: #fff0f0;
+  transform: scale(1.05);
+}
+
+.wallet-add-button:active {
+  transform: scale(0.95);
+}
+
+.wallet-add-icon {
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1;
+  color: #e66f6f;
 }
 
 .wallet-card {
@@ -228,4 +257,60 @@
   border-radius: 10px;
   background-color: #fd9e9e;
   color: black;
+}
+
+/* กลุ่มปุ่มและข้อความ */
+.wallet-calculator-control {
+  position: fixed;
+  right: 30px;
+  bottom: 140px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  z-index: 99;
+}
+
+/* ข้อความอยู่ทางซ้ายของปุ่ม */
+.wallet-calculator-label {
+  font-size: 14px;
+  font-weight: bold;
+  color: #e66f6f;
+  white-space: nowrap;
+}
+
+/* ปุ่มวงกลม */
+.wallet-calculator-button {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #ff9292;
+  border-radius: 50%;
+  background-color: #ffffff;
+  cursor: pointer;
+
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.wallet-calculator-button:hover {
+  background-color: #fff0f0;
+  transform: scale(1.05);
+}
+
+.wallet-calculator-button:active {
+  transform: scale(0.95);
+}
+
+/* ไอคอนด้านใน */
+.wallet-calculator-icon {
+  width: 23px;
+  height: 23px;
+  object-fit: contain;
 }

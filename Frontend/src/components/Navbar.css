@@ -1,7 +1,7 @@
 
 .nav {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   
   position: fixed;
   bottom: 0;
@@ -58,8 +58,4 @@
 
 .nav-item:nth-child(5).active {
   color: var(--color-notifications);
-}
-
-.nav-item:nth-child(6).active {
-  color: var(--color-calculator);
 }

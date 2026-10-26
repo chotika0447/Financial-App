@@ -1,10 +1,12 @@
-
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import WalletCard from '../components/WalletCard'
 import './Wallet.css'
 import Navbar from '../components/Navbar'
 
 function Wallet() {
+  const navigate = useNavigate()
+
   const [wallets, setWallets] = useState([])
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
@@ -224,18 +226,47 @@ function Wallet() {
         </p>
       )}
 
-      <button
-        className="wallet-add-button"
-        onClick={() => {
-          setEditingWalletId(null)
-          setName('')
-          setTarget('')
-          setTargetDate('')
-          setShowForm(true)
-        }}
-      >
-        + เพิ่มรายการ
-      </button>
+      <div className="wallet-calculator-control">
+        <span className="wallet-calculator-label">
+          เครื่องมือคำนวณ
+        </span>
+
+        <button
+          type="button"
+          className="wallet-calculator-button"
+          onClick={() => navigate('/calculator')}
+          aria-label="เครื่องมือคำนวณ"
+          title="เครื่องมือคำนวณ"
+        >
+          <img
+            src="/icons/calculator.svg"
+            alt=""
+            className="wallet-calculator-icon"
+          />
+        </button>
+      </div>
+
+      <div className="wallet-add-control">
+        <span className="wallet-add-label">เพิ่มรายการ</span>
+
+        <button
+          type="button"
+          className="wallet-add-button"
+          onClick={() => {
+            setEditingWalletId(null)
+            setName('')
+            setTarget('')
+            setTargetDate('')
+            setShowForm(true)
+          }}
+          aria-label="เพิ่มรายการ"
+          title="เพิ่มรายการ"
+        >
+          <span className="wallet-add-icon" aria-hidden="true">
+            +
+          </span>
+        </button>
+      </div>
 
       {showForm && (
         <div className="modal-overlay">
