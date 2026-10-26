@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import WalletCard from '../components/WalletCard'
 import './Wallet.css'
 import Navbar from '../components/Navbar'
-
+import CustomHeader from '../components/CustomHeader';
 import {
   Calculator,
   Plus
@@ -193,14 +193,59 @@ function Wallet() {
     }
   }
 
-  // ฝาก–ถอนยังไม่เปิดใช้จนกว่า Backend จะมี API บันทึก balance
-  const deposit = () => {
-    alert('ระบบฝากเงินยังต้องเชื่อม API บันทึกยอดเงินใน Backend ก่อน')
+
+  // ฝากเงินและอัปเดต state จากข้อมูลที่ backend ส่งกลับ
+  const deposit = async (id, amount) => {
+    setError('')
+
+    try {
+      const updated = await apiRequest(`/savings/${id}/deposit/`, {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+      })
+
+      const updatedWallet = normalizeWallet(updated)
+
+      setWallets((current) =>
+        current.map((wallet) =>
+          wallet.id === updatedWallet.id ? updatedWallet : wallet
+        )
+      )
+
+      return true
+    } catch (err) {
+      setError(err.message)
+      alert(`ฝากเงินไม่สำเร็จ: ${err.message}`)
+      return false
+    }
   }
 
-  const withdraw = () => {
-    alert('ระบบถอนเงินยังต้องเชื่อม API บันทึกยอดเงินใน Backend ก่อน')
+  // ถอนเงินและรับยอดล่าสุดจาก backend
+  const withdraw = async (id, amount) => {
+    setError('')
+
+    try {
+      const updated = await apiRequest(`/savings/${id}/withdraw/`, {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+      })
+
+      const updatedWallet = normalizeWallet(updated)
+
+      setWallets((current) =>
+        current.map((wallet) =>
+          wallet.id === updatedWallet.id ? updatedWallet : wallet
+        )
+      )
+
+      return true
+    } catch (err) {
+      setError(err.message)
+      alert(`ถอนเงินไม่สำเร็จ: ${err.message}`)
+      return false
+    }
   }
+
 
   const totalSaving = wallets.reduce(
     (total, wallet) => total + wallet.balance,
@@ -215,10 +260,7 @@ function Wallet() {
   return (
     <div className="wallet-page">
       {/* Header */}
-      <header className="wallet-header">
-        <h1 className="wallet-title">กระเป๋าเงินออม</h1>
-      </header>
-
+      <CustomHeader title="กระเป๋าเงินออม" color="#e66f6f" />
       <main className="wallet-content">
         {/* Summary */}
         <section className="wallet-summary">
@@ -242,8 +284,8 @@ function Wallet() {
                 className="wallet-summary-progress-fill"
                 style={{
                   width: `${totalTarget > 0
-                      ? Math.min((totalSaving / totalTarget) * 100, 100)
-                      : 0
+                    ? Math.min((totalSaving / totalTarget) * 100, 100)
+                    : 0
                     }%`,
                 }}
               />

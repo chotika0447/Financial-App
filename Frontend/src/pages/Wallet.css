@@ -569,6 +569,36 @@
   cursor: not-allowed;
 }
 
+/* ฝากเงิน / ถอนเงิน: input และปุ่มอยู่แถวเดียวกัน */
+.money-action-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.money-action-row .money-input {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  margin: 0;
+}
+
+.money-action-row .deposit-button,
+.money-action-row .withdraw-button {
+  flex: 0 0 auto;
+  min-height: 42px;
+  margin: 0;
+  padding: 10px 16px;
+  white-space: nowrap;
+}
+
+.money-action-row button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* =========================================
    Tablet
 ========================================= */
@@ -739,5 +769,16 @@
 
   .wallet-form-card {
     padding: 18px;
+  }
+}
+@media (max-width: 380px) {
+  .money-action-row {
+    gap: 6px;
+  }
+
+  .money-action-row .deposit-button,
+  .money-action-row .withdraw-button {
+    padding: 10px 12px;
+    font-size: 13px;
   }
 }
