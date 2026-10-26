@@ -29,6 +29,7 @@ class DebtSerializer(serializers.ModelSerializer):
             'due_date',
             'payment_date',
             'current_due_date',
+            'reminder_enabled',
             'reminder_days_before',
             'reminder_time',
             'reminder_repeat',

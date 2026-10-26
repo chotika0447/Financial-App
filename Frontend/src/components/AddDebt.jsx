@@ -31,6 +31,7 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
     note: "",
     icon: "school",
     color: "purple",
+    reminderEnabled: false,
     reminderDaysBefore: "3",
     reminderTime: "09:00",
     reminderRepeat: false,
@@ -73,8 +74,9 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
         note: editingDebt.note || "",
         icon: editingDebt.icon || "school",
         color: editingDebt.color || "purple",
+        reminderEnabled: editingDebt.reminder_enabled ?? false,
         reminderDaysBefore: String(editingDebt.reminder_days_before ?? 3),
-        reminderTime: editingDebt.reminder_time?.slice(0, 5) || "09:00",
+        reminderTime: String(editingDebt.reminder_time ?? "09:00").slice(0, 5),
         reminderRepeat: editingDebt.reminder_repeat ?? false,
         image: editingDebt.image || null,
       });
@@ -119,7 +121,11 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
       form.paymentDate ||
       form.dueDate ||
       form.note ||
-      form.image
+      form.image ||
+      form.reminderEnabled ||
+      form.reminderRepeat ||
+      form.reminderDaysBefore !== "3" ||
+      form.reminderTime !== "09:00"
     );
   };
   const iconOptions = [
@@ -256,7 +262,8 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
         );
       }
 
-      if (form.paymentType === "monthly") {
+      // ตั้งค่าการแจ้งเตือนชำระหนี้
+      if (form.reminderEnabled) {
         const days = Number(form.reminderDaysBefore);
 
         if (!Number.isInteger(days) || days < 0 || days > 28) {
@@ -269,12 +276,18 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
           return;
         }
 
+        formData.append("reminder_enabled", "true");
         formData.append("reminder_days_before", String(days));
         formData.append("reminder_time", form.reminderTime);
         formData.append(
           "reminder_repeat",
           String(form.reminderRepeat)
         );
+      } else {
+        formData.append("reminder_enabled", "false");
+        formData.append("reminder_days_before", "3");
+        formData.append("reminder_time", "09:00");
+        formData.append("reminder_repeat", "false");
       }
 
       // วันสิ้นสุด
@@ -865,21 +878,46 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                 <input type="number" min="1" max="31" value={form.paymentDate} onChange={(e) => handleChange("paymentDate", e.target.value)}
                   className="h-[30px] w-full rounded-[8px] border border-gray-300 bg-white px-2 text-[12px]" />
               </div>
+            </div>
+          )}
 
-              {/* การแจ้งเตือน */}
-              <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3">
-                <div className="mb-3">
-                  <p className="text-sm font-semibold text-gray-800">
-                    แจ้งเตือนชำระหนี้ผ่าน LINE OA
-                  </p>
-                  <p className="mt-1 text-[11px] text-gray-500">
-                    ส่งแจ้งเตือนให้บัญชีลูกหนี้ตามกำหนดของแต่ละงวด
-                  </p>
-                </div>
 
-                <div className="mb-3">
+          {/* การแจ้งเตือนชำระหนี้ */}
+          <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-800">
+                  แจ้งเตือนชำระหนี้ผ่าน LINE OA
+                </p>
+              </div>
+
+              {/* สวิตช์เปิด/ปิดหลัก */}
+              <button
+                type="button"
+                role="switch"
+                aria-label="เปิดหรือปิดการแจ้งเตือนชำระหนี้"
+                aria-checked={form.reminderEnabled}
+                onClick={() =>
+                  handleChange("reminderEnabled", !form.reminderEnabled)
+                }
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${form.reminderEnabled ? "bg-green-500" : "bg-gray-300"
+                  }`}
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.reminderEnabled
+                    ? "translate-x-[22px]"
+                    : "translate-x-0.5"
+                    }`}
+                />
+              </button>
+            </div>
+
+            {/* เปิดสวิตช์แล้วจึงแสดงรายละเอียด */}
+            {form.reminderEnabled && (
+              <div className="mt-4 space-y-4 border-t border-gray-100 pt-4">
+                <div>
                   <label className="mb-1 block text-xs text-gray-700">
-                    แจ้งเตือนล่วงหน้าก่อนถึงกำหนด (วัน)
+                    แจ้งเตือนล่วงหน้า(วัน)
                   </label>
                   <input
                     type="number"
@@ -887,15 +925,17 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                     max="28"
                     step="1"
                     value={form.reminderDaysBefore}
-                    onChange={(e) => handleChange("reminderDaysBefore", e.target.value) }
+                    onChange={(e) =>
+                      handleChange("reminderDaysBefore", e.target.value)
+                    }
                     className="h-9 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm"
                   />
                   <p className="mt-1 text-[10px] text-gray-500">
-                    เช่น 3 วัน จะเริ่มแจ้งเตือน 3 วันก่อนวันครบกำหนด
+                    0 = แจ้งเตือนในวันครบกำหนด
                   </p>
                 </div>
 
-                <div className="mb-4">
+                <div>
                   <label className="mb-1 block text-xs text-gray-700">
                     เวลาแจ้งเตือน
                   </label>
@@ -907,9 +947,7 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                     }
                     className="h-9 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm"
                   />
-                  <p className="mt-1 text-[10px] text-gray-500">
-                    ใช้เวลาในประเทศไทย
-                  </p>
+                  
                 </div>
 
                 <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
@@ -918,13 +956,14 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                       แจ้งเตือนซ้ำ
                     </p>
                     <p className="mt-1 text-[10px] text-gray-500">
-                      แจ้งทุกวันจนถึงวันครบกำหนด
+                      แจ้งเตือนทุกวันตามเวลาที่ตั้งจนถึงวันครบกำหนด
                     </p>
                   </div>
 
                   <button
                     type="button"
                     role="switch"
+                    aria-label="เปิดหรือปิดการแจ้งเตือนซ้ำ"
                     aria-checked={form.reminderRepeat}
                     onClick={() =>
                       handleChange("reminderRepeat", !form.reminderRepeat)
@@ -941,8 +980,8 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                   </button>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
 
           {/* =========================

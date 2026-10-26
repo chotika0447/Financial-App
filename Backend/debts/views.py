@@ -147,6 +147,7 @@ class DebtListCreateView(APIView):
                     due_date=debt.due_date,
                     payment_date=debt.payment_date,
                     current_due_date=debt.current_due_date,
+                    reminder_enabled=debt.reminder_enabled,
                     reminder_days_before=debt.reminder_days_before,
                     reminder_time=debt.reminder_time,
                     reminder_repeat=debt.reminder_repeat,

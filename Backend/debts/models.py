@@ -100,6 +100,9 @@ class Debts(models.Model):
         null=True,
         blank=True
     )
+    #เปิด-ปิดการแจ้งเตือน
+    reminder_enabled = models.BooleanField(default=False)
+
     # จำนวนวันแจ้งเตือนก่อนถึงกำหนดชำระ
     reminder_days_before = models.PositiveSmallIntegerField(
         default=3,
