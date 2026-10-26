@@ -1,8 +1,10 @@
-
 import os
+import logging
+import time
 
 # ปิด oneDNN เพื่อหลีกเลี่ยงปัญหา CPU inference
 os.environ["PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT"] = "False"
+logger = logging.getLogger(__name__)
 
 import json
 
@@ -23,9 +25,16 @@ def get_ocr_model():
 
 
 def run_ocr(image_path):
-    """รับ path ของภาพและคืนผล OCR ดิบ"""
+    """รับ path ของภาพและคืนผล OCR ดิบ พร้อมวัดเวลา"""
+    start = time.perf_counter()
+
+    model_start = time.perf_counter()
     ocr = get_ocr_model()
+    model_seconds = time.perf_counter() - model_start
+
+    predict_start = time.perf_counter()
     results = ocr.predict(str(image_path))
+    predict_seconds = time.perf_counter() - predict_start
 
     raw_pages = []
 
@@ -36,5 +45,13 @@ def run_ocr(image_path):
             page_data = json.loads(page_data)
 
         raw_pages.append(page_data)
+
+    logger.info(
+        "OCR timing: model=%.2fs predict=%.2fs total=%.2fs pages=%d",
+        model_seconds,
+        predict_seconds,
+        time.perf_counter() - start,
+        len(raw_pages),
+    )
 
     return raw_pages
