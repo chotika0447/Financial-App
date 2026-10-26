@@ -1,23 +1,25 @@
 import os
-import logging
-import time
 
-# ปิด oneDNN เพื่อหลีกเลี่ยงปัญหา CPU inference
 os.environ["PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT"] = "False"
-logger = logging.getLogger(__name__)
+os.environ["PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK"] = "True"
 
 import json
-
+import logging
+import time
 from functools import lru_cache
-
 from paddleocr import PaddleOCR
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
 def get_ocr_model():
-    """สร้างโมเดลครั้งเดียวและนำกลับมาใช้ซ้ำ"""
+    logger.info("Initializing PaddleOCR mobile model...")
+
     return PaddleOCR(
         lang="th",
+        text_detection_model_name="PP-OCRv5_mobile_det",
+        text_recognition_model_name="PP-OCRv5_mobile_rec",
         use_doc_orientation_classify=False,
         use_doc_unwarping=False,
         use_textline_orientation=False,
@@ -25,7 +27,6 @@ def get_ocr_model():
 
 
 def run_ocr(image_path):
-    """รับ path ของภาพและคืนผล OCR ดิบ พร้อมวัดเวลา"""
     start = time.perf_counter()
 
     model_start = time.perf_counter()
