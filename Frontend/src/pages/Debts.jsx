@@ -861,21 +861,28 @@ function Debts() {
 
 
         {/* ปุ่มเพิ่มรายการ */}
-        <button
-          onClick={() => {
-            setEditingDebt(null);
-            setShowAddDebt(true);
-            setCurrentDebtType(activeTab); //เซ็ตประเภทหนี้สินเริ่มต้นตามแท็บที่ผู้ใช้เลือกอยู่
-          }}
-          className="fixed right-5 bottom-[78px] w-[45px] h-[45px] rounded-full 
-                bg-[#ffbd3d] flex items-center justify-center shadow-md mb-5">
-
-          <Plus size={27} strokeWidth={2.5} className="text-white" />
-          <span className="absolute top-[45px] text-[11px] w-[70px]">
+        
+        <div className="fixed right-[30px] bottom-[85px] z-[99] flex items-center gap-[10px]">
+          <span className="whitespace-nowrap text-sm font-bold text-[#e66f6f]">
             เพิ่มรายการ
           </span>
 
-        </button>
+          <button
+            onClick={() => {
+              setEditingDebt(null);
+              setShowAddDebt(true);
+              setCurrentDebtType(activeTab); //เซ็ตประเภทหนี้สินเริ่มต้นตามแท็บที่ผู้ใช้เลือกอยู่
+            }}
+            
+            className="flex h-12 w-12 items-center justify-center rounded-full
+                      border border-[#ff9292] bg-[#ffbd3d] text-white
+                      shadow-md transition-all duration-200
+                      hover:scale-105 hover:bg-[#f57f8b]
+                      active:scale-95"
+          >
+            <Plus size={27} strokeWidth={2.5} />
+          </button>
+        </div>
 
       </main >
 
