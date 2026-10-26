@@ -224,3 +224,29 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+# OCR diagnostics: expose stage timings in Render logs.
+# Keep this logger scoped so application-wide logs are not made noisier.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "ocr_console": {
+            "format": "%(asctime)s %(levelname)s %(name)s: %(message)s",
+        },
+    },
+    "handlers": {
+        "ocr_console": {
+            "class": "logging.StreamHandler",
+            "formatter": "ocr_console",
+        },
+    },
+    "loggers": {
+        "transactions": {
+            "handlers": ["ocr_console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
