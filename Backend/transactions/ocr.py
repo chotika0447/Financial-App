@@ -1,67 +1,136 @@
-
+import os
 import re
+import tempfile
 
-import pytesseract
-from PIL import Image, ImageOps, ImageEnhance
+from datetime import datetime
+from pathlib import Path
 
-pytesseract.pytesseract.tesseract_cmd = (
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-)
+from .ocr_engine import run_ocr
+from .slip_parser import parse_slip
+
+
+def _get_texts(raw_pages):
+    """ดึงข้อความจากผลลัพธ์ PaddleOCR"""
+    lines = []
+
+    for page in raw_pages:
+        data = page.get("res", page)
+        texts = data.get("rec_texts", [])
+
+        for item in texts:
+            text = str(item).strip()
+            if text:
+                lines.append(text)
+
+    return lines
 
 
 def read_receipt(image_path):
-    image = Image.open(image_path)
-    image = ImageOps.exif_transpose(image)
-    image = image.convert("L")
-    image = ImageEnhance.Contrast(image).enhance(2)
+    """
+    อ่านข้อความจากรูปด้วย PaddleOCR
+    รองรับทั้งตำแหน่งไฟล์และ file object จาก Django
+    """
+    temp_path = None
 
-    # ใช้สองโหมดเพื่อรองรับภาพหลายประเภท
-    text_psm11 = pytesseract.image_to_string(
-        image, lang="tha+eng", config="--psm 11"
-    )
+    try:
+        if isinstance(image_path, (str, os.PathLike)):
+            path = str(image_path)
+        else:
+            suffix = Path(
+                getattr(image_path, "name", "receipt.jpg")
+            ).suffix or ".jpg"
 
-    text_psm6 = pytesseract.image_to_string(
-        image, lang="tha+eng", config="--psm 6"
-    )
+            with tempfile.NamedTemporaryFile(
+                suffix=suffix, delete=False
+            ) as temp_file:
+                if hasattr(image_path, "seek"):
+                    image_path.seek(0)
 
-    return text_psm11 + "\n" + text_psm6
+                if hasattr(image_path, "chunks"):
+                    for chunk in image_path.chunks():
+                        temp_file.write(chunk)
+                else:
+                    temp_file.write(image_path.read())
+
+                temp_path = temp_file.name
+
+            path = temp_path
+
+        raw_pages = run_ocr(path)
+        lines = _get_texts(raw_pages)
+
+        # ใช้ parser ของสลิป SCB ช่วยตรวจสอบข้อมูล
+        parsed = parse_slip(raw_pages)
+
+        # คงรูปแบบข้อความสำหรับ API เดิม
+        text = "\n".join(lines)
+
+        # เพิ่มข้อมูลที่ parser อ่านได้ในกรณีข้อความ OCR
+        # ไม่มี label แต่ parser สามารถแยกข้อมูลได้
+        if parsed.get("amount") is not None:
+            text += f"\nยอดโอน {parsed['amount']}"
+
+        if parsed.get("date"):
+            text += f"\nวันที่ {parsed['date']}"
+
+        return text
+
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
 
 
 def find_numbers(line):
-    numbers = re.findall(r"\d[\d,]*\.\d{2}\b", line)
-    return [float(n.replace(",", "")) for n in numbers]
+    """ค้นหาตัวเลขที่อาจเป็นจำนวนเงิน"""
+    pattern = (
+        r"(?<!\d)(\d{1,3}(?:,\d{3})+|\d+)"
+        r"(?:\.(\d{1,2}))?(?!\d)"
+    )
+
+    results = []
+
+    for match in re.finditer(pattern, line):
+        integer_part = match.group(1).replace(",", "")
+        decimal_part = (match.group(2) or "0").ljust(2, "0")
+
+        try:
+            results.append(
+                float(f"{integer_part}.{decimal_part}")
+            )
+        except ValueError:
+            continue
+
+    return results
 
 
 def extract_amount(text):
+    """ค้นหายอดเงินโดยใช้คำสำคัญ"""
     lines = [
         line.strip()
         for line in text.splitlines()
         if line.strip()
     ]
 
-    # 1. ค้นหายอดสุทธิก่อน
-    for line in lines:
-        if "สุทธิ" in line:
-            numbers = find_numbers(line)
-            if numbers:
-                return numbers[-1]
-
-    # 2. ค้นหายอดจากคำสำคัญ
     keywords = [
-        "จำนวน", "จํานวน", "จานวน",
-        "ยอดรวม", "รวมสุทธิ"
+        "ยอดโอน",
+        "ยอดชำระ",
+        "จำนวนเงิน",
+        "จำนวน",
+        "ยอดรวม",
+        "รวมสุทธิ",
+        "สุทธิ",
+        "amount",
+        "total",
     ]
 
     for i, line in enumerate(lines):
-        if any(word in line for word in keywords):
-            for next_line in lines[i:i + 6]:
-                if (
-                    "ค่าธรรมเนียม" in next_line
-                    or "คาธรรมเนยม" in next_line
-                ):
+        if any(word.casefold() in line.casefold()
+               for word in keywords):
+            for candidate in lines[i:i + 3]:
+                if "ค่าธรรมเนียม" in candidate:
                     break
 
-                numbers = find_numbers(next_line)
+                numbers = find_numbers(candidate)
                 if numbers:
                     return numbers[-1]
 
@@ -69,38 +138,23 @@ def extract_amount(text):
 
 
 def estimate_items_total(text):
-    """
-    ประมาณยอดจากราคาสินค้าในใบเสร็จ 7Delivery
-    ใช้เมื่อไม่พบยอดชำระจริงเท่านั้น
-    """
-    # read_receipt รวมผล OCR สองโหมด
-    # ใช้เฉพาะส่วนแรก (PSM 11) เพื่อไม่ให้นับซ้ำ
-    text = text.split("\n\n", 1)[0] if False else text
-
-    # ยังไม่คำนวณจากตัวเลขทั้งหมด เพราะมีเลขใบเสร็จ
-    # ราคาโปรโมชัน และตัวเลขอื่นปะปนกัน
+    """สงวนฟังก์ชันเดิมไว้เพื่อให้ส่วนอื่นเรียกได้"""
     return None
 
 
 def estimate_7delivery_total(text):
-    # ใช้เฉพาะผล OCR จาก PSM 6
-    # เพราะ read_receipt() รวม PSM 11 และ PSM 6 ไว้
+    """ประมาณยอดจากรายการสินค้า 7Delivery เมื่อหาไม่พบ"""
     if "รายการสินค้า" not in text:
         return None
 
-    # เลือกข้อความส่วน PSM 6 ซึ่งมีรายการสินค้าเรียงเป็นบรรทัด
-    sections = text.split("รายการสินค้า")
-    if len(sections) < 2:
-        return None
+    item_text = text.split("รายการสินค้า")[-1]
 
-    # ใช้ส่วนรายการสินค้าจากครั้งสุดท้าย (PSM 6)
-    item_text = sections[-1]
-
-    # หยุดอ่านเมื่อถึงส่วนโปรโมชันหรือใบกำกับภาษี
     stop_words = [
-        "M-Stamp", "ภารกิรช้อป",
-        "สิทธิ์แลก", "ดูใบกํากับ",
-        "ขอใบกํากับ"
+        "M-Stamp",
+        "ภารกิจช้อป",
+        "สิทธิ์แลก",
+        "ดูใบกำกับ",
+        "ขอใบกำกับ",
     ]
 
     prices = []
@@ -110,9 +164,7 @@ def estimate_7delivery_total(text):
             break
 
         numbers = find_numbers(line)
-
         if numbers:
-            # ราคาสินค้ารวมมักอยู่ท้ายบรรทัด
             prices.append(numbers[-1])
 
     if not prices:
@@ -122,13 +174,30 @@ def estimate_7delivery_total(text):
 
 
 def get_receipt_amount(text):
-    # หายอดสุทธิหรือยอดโอนก่อน
+    """คืนค่า (จำนวนเงิน, สถานะ) ให้ตรงกับ API เดิม"""
     amount = extract_amount(text)
 
     if amount is not None:
         return amount, "confirmed_by_ocr"
 
-    # ถ้าไม่พบ ลองรวมราคาสินค้า 7Delivery
+    # ใช้ parser เดิมช่วยค้นหาจำนวนเงินจากข้อความ
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    raw_pages = [{
+        "res": {
+            "rec_texts": lines,
+            "rec_scores": [],
+        }
+    }]
+
+    try:
+        parsed = parse_slip(raw_pages)
+        amount = parsed.get("amount")
+
+        if amount is not None:
+            return float(amount), "confirmed_by_ocr"
+    except (TypeError, ValueError, KeyError):
+        pass
+
     amount = estimate_7delivery_total(text)
 
     if amount is not None:
@@ -137,20 +206,31 @@ def get_receipt_amount(text):
     return None, "not_found"
 
 
-from datetime import datetime
+def format_datetime(day, month, year, hour, minute):
+    """แปลงวันที่เป็น ค.ศ. ในรูปแบบ YYYY-MM-DD HH:MM"""
+    if year >= 2400:
+        year -= 543
+    elif year < 100:
+        year += 1957
+
+    try:
+        result = datetime(year, month, day, hour, minute)
+        return result.strftime("%Y-%m-%d %H:%M")
+    except ValueError:
+        return None
 
 
 def extract_datetime(text):
-    # รองรับตัวเลขไทย
+    """อ่านวันที่และเวลาจากข้อความ OCR"""
     thai_digits = "๐๑๒๓๔๕๖๗๘๙"
+
     for i, digit in enumerate(thai_digits):
         text = text.replace(digit, str(i))
 
-    # รูปแบบวันที่ 08/10/69 หรือ 05/10/65
+    # ตัวอย่าง 08/10/69 14:30 หรือ 08-10-2569 14:30
     numeric_pattern = (
-        r"(\d{1,2})/(\d{1,2})/(\d{2,4})"
-        r"\s*(?:\||-|,)?\s*"
-        r"(\d{1,2}):(\d{2})"
+        r"(?<!\d)(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})"
+        r"\s*(?:\||-|,)?\s*(\d{1,2}):(\d{2})(?!\d)"
     )
 
     match = re.search(numeric_pattern, text)
@@ -159,27 +239,17 @@ def extract_datetime(text):
         day, month, year, hour, minute = map(int, match.groups())
         return format_datetime(day, month, year, hour, minute)
 
-    # รูปแบบวันที่ 8 ต.ค. 69 หรือ 08 ต.ค. 2569
     months = {
-        "ม.ค.": 1,
-        "ก.พ.": 2,
-        "มี.ค.": 3,
-        "เม.ย.": 4,
-        "พ.ค.": 5,
-        "มิ.ย.": 6,
-        "ก.ค.": 7,
-        "ส.ค.": 8,
-        "ก.ย.": 9,
-        "ต.ค.": 10,
-        "พ.ย.": 11,
-        "ธ.ค.": 12,
+        "ม.ค.": 1, "ก.พ.": 2, "มี.ค.": 3,
+        "เม.ย.": 4, "พ.ค.": 5, "มิ.ย.": 6,
+        "ก.ค.": 7, "ส.ค.": 8, "ก.ย.": 9,
+        "ต.ค.": 10, "พ.ย.": 11, "ธ.ค.": 12,
     }
 
     for month_name, month_number in months.items():
         pattern = (
-            rf"(\d{{1,2}})\s*{re.escape(month_name)}"
-            rf"\s*(\d{{2,4}})"
-            rf"\s*(?:-|,)?\s*"
+            rf"(\d{{1,2}})\s*{re.escape(month_name)}\s*"
+            rf"(\d{{2,4}})\s*(?:-|,)?\s*"
             rf"(\d{{1,2}}):(\d{{2}})"
         )
 
@@ -192,19 +262,3 @@ def extract_datetime(text):
             )
 
     return None
-
-
-def format_datetime(day, month, year, hour, minute):
-    # แปลง พ.ศ. เป็น ค.ศ.
-    if year >= 2400:
-        year -= 543
-    elif year < 100:
-        # ปีสองหลัก เช่น 69 = พ.ศ. 2569
-        year += 1957
-
-    try:
-        result = datetime(year, month, day, hour, minute)
-        return result.strftime("%Y-%m-%d %H:%M")
-    except ValueError:
-        return None
-
