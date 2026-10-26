@@ -180,7 +180,6 @@ class ReceiptOCRView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request):
-
         image = request.FILES.get("image")
 
         if not image:
@@ -201,8 +200,17 @@ class ReceiptOCRView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        logger.info(
+            "Receipt OCR: request received size=%s content_type=%s",
+            image.size,
+            image.content_type,
+        )
+
         try:
+            logger.info("Receipt OCR: starting read_receipt_data")
             receipt_data = read_receipt_data(image)
+            logger.info("Receipt OCR: read_receipt_data completed")
+
             text = receipt_data["raw_text"]
             parsed = receipt_data["parsed"]
 
@@ -210,7 +218,11 @@ class ReceiptOCRView(APIView):
             transaction_datetime = (
                 extract_datetime(text) or parsed.get("date")
             )
-            memo = parsed.get("note", {}).get("memo")
+
+            note_data = parsed.get("note") or {}
+            memo = note_data.get("memo") if isinstance(note_data, dict) else None
+
+            logger.info("Receipt OCR: parsing completed")
 
             return Response({
                 "amount": amount,
@@ -218,10 +230,11 @@ class ReceiptOCRView(APIView):
                 "transaction_datetime": transaction_datetime,
                 "memo": memo,
                 "raw_text": text,
-                "requires_confirmation": True
+                "requires_confirmation": True,
             })
 
         except (UnidentifiedImageError, OSError):
+            logger.exception("Receipt OCR: invalid or unreadable image")
             return Response(
                 {"error": "ไม่สามารถอ่านไฟล์รูปภาพได้"},
                 status=status.HTTP_400_BAD_REQUEST
@@ -233,6 +246,7 @@ class ReceiptOCRView(APIView):
                 {"error": "เกิดข้อผิดพลาดในการประมวลผล OCR"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 
 # ดูและแก้ไขรายการร่างจาก LINE OA
