@@ -17,34 +17,66 @@ DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    "financial-app-xgc0.onrender.com",
+    
     'glimmer-grunt-obstruct.ngrok-free.dev',
     "tammara-semivolcanic-randee.ngrok-free.dev",
+
+    "financial-app-xgc0.onrender.com",
 ]
 
 # =================== LINE ===================
-LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")#LINE Messaging API / LINE OA
-LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")#ตรวจสอบ webhook signature
-LINE_LOGIN_CHANNEL_ID = os.getenv("LINE_LOGIN_CHANNEL_ID")#LINE Login
+
+# LINE Messaging API / LINE OA
+# LINE Messaging API / LINE OA (ของเดิมจากเพื่อน)
+LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
+LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
+
+# LINE OA ของเรา (ใช้ค่าของเดิมเป็นตัวสำรอง)
+LINE_BOT_CHANNEL_ACCESS_TOKEN = (
+    os.getenv("LINE_BOT_CHANNEL_ACCESS_TOKEN")
+    or LINE_CHANNEL_ACCESS_TOKEN
+)
+
+LINE_BOT_CHANNEL_SECRET = (
+    os.getenv("LINE_BOT_CHANNEL_SECRET")
+    or LINE_CHANNEL_SECRET
+)
+
+# LINE Login
+LINE_LOGIN_CHANNEL_ID = os.getenv("LINE_LOGIN_CHANNEL_ID")
+LINE_LOGIN_CHANNEL_SECRET = os.getenv("LINE_LOGIN_CHANNEL_SECRET")
+LINE_LOGIN_REDIRECT_URI = os.getenv("LINE_LOGIN_REDIRECT_URI")
 
 # รองรับ line_bot/views.py
-LINE_BOT_CHANNEL_ACCESS_TOKEN = LINE_CHANNEL_ACCESS_TOKEN
-LINE_BOT_CHANNEL_SECRET = LINE_CHANNEL_SECRET
+# LINE_BOT_CHANNEL_ACCESS_TOKEN = LINE_CHANNEL_ACCESS_TOKEN
+# LINE_BOT_CHANNEL_SECRET = LINE_CHANNEL_SECRET
 # =================== CORS / CSRF ===================
 #ส่วนนี้ใช้กับ React ที่เป็นระบบ frontend
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    'https://financial-app-delta-taupe.vercel.app',
+    
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
+    'https://tammara-semivolcanic-randee.ngrok-free.dev',
+
+    'https://financial-app-delta-taupe.vercel.app',
+
 ]
 #URL ที่ Django ยอมให้ส่ง POST/CSRF
 CSRF_TRUSTED_ORIGINS = [
-    'https://financial-app-delta-taupe.vercel.app',
+    'https://rogue-washer-cola.ngrok-free.dev',
     'https://glimmer-grunt-obstruct.ngrok-free.dev',
     'https://tammara-semivolcanic-randee.ngrok-free.dev',
+
+    'https://financial-app-delta-taupe.vercel.app',
 ]
 
+# =================== Frontend URL ===================
+FRONTEND_URL = os.getenv(
+    "FRONTEND_URL",
+    "https://financial-app-delta-taupe.vercel.app"
+    # "https://tammara-semivolcanic-randee.ngrok-free.dev"
+)
 
 # =================== Applications ===================
 # บอก Django ว่ามี App อะไรบ้าง *สำคัญ*ต้องใส่ App ที่เราสร้างขึ้นเองด้วย
@@ -63,12 +95,12 @@ INSTALLED_APPS = [
     'line_bot',
     'debts',
     'friends',
-    
+
     'notifications',
     'savings',
     'transactions',
     'categories',
-    
+
 ]
 # =================== Authentication ===================
 AUTHENTICATION_BACKENDS = [
@@ -90,6 +122,7 @@ SIMPLE_JWT = {
 # =========================== Middleware ===========================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
 
     'corsheaders.middleware.CorsMiddleware',
@@ -100,7 +133,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    
+
 ]
 
 
@@ -171,8 +204,9 @@ USE_TZ = True
 
 # =================== Static files (CSS, JavaScript, Images) ===================
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
- 
-STATIC_URL = 'static/' 
+
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # =================== Media files ===================
 # ใช้สำหรับรูปใบเสร็จของ Transaction

@@ -15,6 +15,9 @@ export default defineConfig({
     allowedHosts: [
       'glimmer-grunt-obstruct.ngrok-free.dev',
       'tammara-semivolcanic-randee.ngrok-free.dev',
+      'rogue-washer-cola.ngrok-free.dev',
+
+      'financial-app-delta-taupe.vercel.app',
       'financial-app-xgc0.onrender.com',
     ],
 
@@ -25,6 +28,27 @@ export default defineConfig({
       },
 
       '/transactions': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+        bypass(req) {
+        const pathname = new URL(req.url, 'http://localhost').pathname;
+
+          if (
+            req.method === 'GET' &&
+            req.headers.accept?.includes('text/html') &&
+            (pathname === '/transactions' || pathname === '/transactions/')
+          ) {
+            return '/index.html';
+          }
+        },
+      },
+
+      '/savings': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+
+      '/categories': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
@@ -42,9 +66,14 @@ export default defineConfig({
       '/debts': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        bypass: (request) => {
+          if (!request.headers.authorization) {
+            return request.url;
+          }
+        },
       },
-
-      '/categories': {
+      
+      '/check-backend': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },

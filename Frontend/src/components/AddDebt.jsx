@@ -174,6 +174,42 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
 
   // ฟังก์ชันบันทึกข้อมูลหนี้สิน
   const handleSubmit = async () => {
+    let validationError = "";
+    if (!form.name.trim()) {
+      validationError = "กรุณากรอกชื่อรายการหนี้";
+    } else if (!form.counterparty.trim()) {
+      validationError = "กรุณากรอกชื่อเจ้าหนี้หรือลูกหนี้";
+    } else if (
+      !Number.isFinite(Number(form.totalAmount))
+      || Number(form.totalAmount) <= 0
+    ) {
+      validationError = "กรุณากรอกจำนวนหนี้ที่มากกว่า 0";
+    } else if (!form.dueDate) {
+      validationError = "กรุณากำหนดวันสิ้นสุดการชำระหนี้";
+    } else if (
+      form.paymentType === "monthly"
+      && (
+        !Number.isFinite(Number(form.paymentAmount))
+        || Number(form.paymentAmount) <= 0
+      )
+    ) {
+      validationError = "กรุณากรอกจำนวนเงินที่ต้องชำระรายงวดให้มากกว่า 0";
+    } else if (
+      form.paymentType === "monthly"
+      && (
+        !Number.isInteger(Number(form.paymentDate))
+        || Number(form.paymentDate) < 1
+        || Number(form.paymentDate) > 31
+      )
+    ) {
+      validationError = "กรุณากำหนดวันชำระรายเดือนระหว่างวันที่ 1-31";
+    }
+
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -586,34 +622,60 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
               </label>
             </div>
 
+
             <div className="flex items-center gap-2">
-              {/* ช่องกรอกชื่อ */}
+              {/* ช่องชื่อคู่สัญญา */}
               <input
                 type="text"
                 value={form.counterparty}
-                placeholder="กรอกชื่อเจ้าหนี้ / ลูกหนี้"
+                placeholder={currentDebtType === "borrow"
+                  ? "กรอกชื่อเจ้าหนี้"
+                  : "กรอกชื่อลูกหนี้"}
+                readOnly={counterpartyMode === "friend" && !!form.counterpartyId}
                 onChange={(e) => {
+                  // ถ้าเลือกเพื่อนอยู่ จะไม่ให้แก้ไขชื่อ
+                  if (counterpartyMode === "friend" && form.counterpartyId) {
+                    return;
+                  }
+
                   handleChange("counterparty", e.target.value);
-
-                  // ถ้าพิมพ์เอง ให้ยกเลิกการผูกบัญชีเพื่อน
-                  handleChange("counterpartyId", null);
-                  setCounterpartyMode("manual");
                 }}
-                className="h-[30px] w-full rounded-[9px] border border-gray-300 bg-gray-100 px-2 text-[12px] outline-none " />
+                className={`h-[30px] w-full rounded-[9px] border border-gray-300 px-2 text-[12px] outline-none ${counterpartyMode === "friend" && form.counterpartyId
+                    ? "cursor-not-allowed bg-gray-200 text-gray-600"
+                    : "bg-gray-100"
+                  }`}
+              />
 
-              {/* ปุ่ม + สำหรับเลือกเพื่อน */}
-              <button
-                type="button"
-                title="เลือกเพื่อน"
-                onClick={() => {
-                  setCounterpartyMode("friend");
-                  setShowFriendPicker(true);
-                }}
-                className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] border border-gray-300 bg-gray-100 text-gray-600 hover:bg-gray-200"
-              >
-                <Plus size={17} />
-              </button>
+              {/* เลือกเพื่อน หรือยกเลิกการเลือกเพื่อน */}
+              {counterpartyMode === "friend" && form.counterpartyId ? (
+                <button
+                  type="button"
+                  title="ยกเลิกการเลือกเพื่อนและกรอกชื่อเอง"
+                  aria-label="ยกเลิกการเลือกเพื่อน"
+                  onClick={() => {
+                    handleChange("counterpartyId", null);
+                    handleChange("counterparty", "");
+                    setCounterpartyMode("manual");
+                  }}
+                  className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] border border-red-200 bg-red-50 text-red-500 hover:bg-red-100"
+                >
+                  <X size={17} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  title="เลือกเพื่อน"
+                  onClick={() => {
+                    setCounterpartyMode("friend");
+                    setShowFriendPicker(true);
+                  }}
+                  className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[8px] border border-gray-300 bg-gray-100 text-gray-600 hover:bg-gray-200"
+                >
+                  <Plus size={17} />
+                </button>
+              )}
             </div>
+
 
             {/* แสดงสถานะเมื่อเลือกเพื่อนแล้ว */}
             {counterpartyMode === "friend" && form.counterpartyId && (

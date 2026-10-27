@@ -1,8 +1,16 @@
+
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 
 import Register from './pages/Register';
-import './App.css'
+import './App.css';
 
 import Home from './pages/Home';
 import Transactions from './pages/Transactions';
@@ -20,6 +28,9 @@ import SavingPlan from './pages/SavingPlan';
 import Retirement from './pages/Retirement';
 import CompoundInterest from './pages/CompoundInterest';
 
+import FinancialHealth from './pages/FinancialHealth';
+import Dashboard from './pages/Dashboard';
+
 import { initializeLineLiff, liff, readLineIdentity } from './lineAuth';
 
 function EntryRoute() {
@@ -30,6 +41,19 @@ function EntryRoute() {
     let cancelled = false;
 
     async function routeUser() {
+      const queryParams = new URLSearchParams(window.location.search);
+      const debtId = queryParams.get('debtId');
+      const returnTo = queryParams.get('returnTo');
+      let destination = '/home/';
+      if (returnTo === '/debts/') {
+        destination = '/debts/';
+      }
+      if (debtId) {
+        destination = `/debts/?debtId=${encodeURIComponent(debtId)}`;
+      }
+      const redirectUri =
+        `${window.location.origin}${window.location.pathname}${window.location.search}`;
+        
       const accessToken = sessionStorage.getItem('accessToken');
       console.log('Access Token:', accessToken);
 
@@ -38,12 +62,15 @@ function EntryRoute() {
           const response = await fetch('/users/me/', {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
+
           if (response.ok) {
-            navigate('/home/', { replace: true });
+            navigate(destination, { replace: true });
             return;
           }
         } catch {
-          if (!cancelled) setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+          if (!cancelled) {
+            setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+          }
           return;
         }
 
@@ -55,11 +82,12 @@ function EntryRoute() {
         await initializeLineLiff();
 
         if (!liff.isLoggedIn()) {
-          liff.login({ redirectUri: `${window.location.origin}/` });
+          liff.login({ redirectUri });
           return;
         }
 
         const { idToken } = await readLineIdentity();
+
         const response = await fetch('/users/line-login/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -71,26 +99,54 @@ function EntryRoute() {
           return;
         }
 
-        const data = await response.json();
+        const responseText = await response.text();
+        let data = {};
+        if (responseText) {
+          try {
+            data = JSON.parse(responseText);
+          } catch {
+            if (!response.ok) {
+              throw new Error(
+                `เชื่อมต่อ Backend ไม่สำเร็จ (HTTP ${response.status})`,
+              );
+            }
+            throw new Error('Backend ส่งข้อมูลกลับมาไม่ถูกต้อง');
+          }
+        } else if (!response.ok) {
+          throw new Error(
+            `เชื่อมต่อ Backend ไม่สำเร็จ (HTTP ${response.status})`,
+          );
+        }
+
         if (!response.ok) {
-          if (response.status === 401 && data.error === 'LINE_ID_TOKEN_EXPIRED') {
+          if (
+            response.status === 401 &&
+            data.error === 'LINE_ID_TOKEN_EXPIRED'
+          ) {
             liff.logout();
-            liff.login({ redirectUri: `${window.location.origin}/` });
+            liff.login({ redirectUri });
             return;
           }
 
-          throw new Error(data.error || 'เข้าสู่ระบบด้วย LINE ไม่สำเร็จ');
+          throw new Error(
+            data.error || 'เข้าสู่ระบบด้วย LINE ไม่สำเร็จ'
+          );
         }
 
         sessionStorage.setItem('accessToken', data.access);
         sessionStorage.setItem('refreshToken', data.refresh);
-        navigate('/home/', { replace: true });
+        navigate(destination, { replace: true });
       } catch (routeError) {
-        if (!cancelled) setError(routeError.message || 'เข้าสู่ระบบไม่สำเร็จ');
+        if (!cancelled) {
+          setError(
+            routeError.message || 'เข้าสู่ระบบไม่สำเร็จ'
+          );
+        }
       }
     }
 
     routeUser();
+
     return () => {
       cancelled = true;
     };
@@ -99,8 +155,12 @@ function EntryRoute() {
   return (
     <main className="entry-route">
       <p>{error || 'กำลังตรวจสอบบัญชีของคุณ...'}</p>
+
       {error && (
-        <button type="button" onClick={() => window.location.reload()}>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+        >
           ลองอีกครั้ง
         </button>
       )}
@@ -108,12 +168,77 @@ function EntryRoute() {
   );
 }
 
+function DebtEntryRoute() {
+  const location = useLocation();
+  const [authorizationState, setAuthorizationState] = useState('checking');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function verifyAccessToken() {
+      const accessToken = sessionStorage.getItem('accessToken');
+
+      if (!accessToken) {
+        setAuthorizationState('unauthorized');
+        return;
+      }
+
+      try {
+        const response = await fetch('/users/me/', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (!response.ok) {
+          sessionStorage.removeItem('accessToken');
+          sessionStorage.removeItem('refreshToken');
+          if (!cancelled) setAuthorizationState('unauthorized');
+          return;
+        }
+
+        if (!cancelled) setAuthorizationState('authorized');
+      } catch {
+        if (!cancelled) {
+          setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+          setAuthorizationState('error');
+        }
+      }
+    }
+
+    verifyAccessToken();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (authorizationState === 'unauthorized') {
+    const queryParams = new URLSearchParams(location.search);
+    queryParams.set('returnTo', '/debts/');
+    const search = '?' + queryParams.toString();
+
+    return (
+      <Navigate
+        to={{ pathname: '/', search }}
+        replace
+      />
+    );
+  }
+
+  if (authorizationState === 'error') {
+    return <main className="entry-route"><p>{error}</p></main>;
+  }
+
+  if (authorizationState !== 'authorized') {
+    return <main className="entry-route"><p>กำลังตรวจสอบบัญชีของคุณ...</p></main>;
+  }
+
+  return <Debts />;
+}
+
 function App() {
   return (
     <BrowserRouter>
-
       <Routes>
-
         <Route
           path="/"
           element={<EntryRoute />}
@@ -133,18 +258,27 @@ function App() {
           path="/home/"
           element={<Home />}
         />
+
         <Route
           path="/transactions/"
           element={<Transactions />}
         />
+
+        {/* หน้าแก้ไข Draft จาก LINE Flex Card */}
+        <Route
+          path="/edit-transaction/"
+          element={<Transactions />}
+        />
+
         <Route
           path="/saving/"
           element={<Wallet />}
         />
         <Route
           path="/debts/"
-          element={<Debts />}
+          element={<DebtEntryRoute />}
         />
+
         <Route
           path="/notifications/"
           element={<Notifications />}
@@ -169,11 +303,12 @@ function App() {
           path="/friends/scan-qr"
           element={<ScanFriendQR />}
         />
-        
+
         <Route
           path="/retirement"
           element={<Retirement />}
         />
+
         <Route
           path="/compound-interest"
           element={<CompoundInterest />}
@@ -187,10 +322,18 @@ function App() {
           path="/calculator"
           element={<Retirement />}
         />}
-        
+
+        <Route
+          path="/financial-health"
+          element={<FinancialHealth />}
+        />
+
+        <Route
+          path="/dashboard"
+          element={<Dashboard />}
+        />
 
       </Routes>
-
     </BrowserRouter>
   );
 }

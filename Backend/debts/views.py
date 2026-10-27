@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from django.shortcuts import get_object_or_404 
 #ฟังก์ชันของ Django ที่ใช้ตรวจว่าถ้าเจอข้อมูลให้ return obj ถ้าไม่เจอส่ง http 404
 
@@ -12,6 +12,7 @@ from .models import Debts, Payments
 from .serializers import DebtSerializer, PaymentSerializer
 
 from decimal import Decimal
+from line_bot.messaging import push_new_debt_notification
 
 import os
 import uuid
@@ -83,50 +84,101 @@ class DebtListCreateView(APIView):
     # สร้างหนี้ใหม่
     def post(self, request):
         data = request.data.copy()
-
         image_file = request.FILES.get("image")
 
-        print("========== DEBUG IMAGE ==========")
-        print("FILES:", request.FILES)
-        print("IMAGE FILE:", image_file)
-        print("=================================")
-        
+        # อัปโหลดรูปก่อนเริ่มสร้างรายการ
         if image_file:
             try:
-                image_url = upload_debt_image(image_file)
-                data["image"] = image_url
-
+                data["image"] = upload_debt_image(image_file)
             except Exception as error:
                 return Response(
                     {"detail": str(error)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
-        serializer = DebtSerializer(
-            data=data
-        )
+        serializer = DebtSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
 
-        serializer = DebtSerializer(
-            data=data
-        )
+        counterparty = serializer.validated_data.get("counterparty")
 
-        if not serializer.is_valid():
-            print("========== SERIALIZER ERROR ==========")
-            print(serializer.errors)
-            print("======================================")
+        # ไม่อนุญาตให้เลือกตัวเองเป็นคู่สัญญา
+        if counterparty and counterparty.pk == request.user.pk:
             return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
+                {"counterparty": "ไม่สามารถเลือกตัวเองเป็นคู่สัญญาได้"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        serializer.save(
-            user=request.user
-        )
+        paired_debt = None
+
+        # สร้างรายการของทั้งสองคนภายใน transaction เดียวกัน
+        with transaction.atomic():
+            debt = serializer.save(user=request.user)
+
+            if counterparty:
+                opposite_type = (
+                    "lent" if debt.type == "borrowed" else "borrowed"
+                )
+
+                # สร้างรายการในบัญชีของเพื่อน
+                paired_debt = Debts.objects.create(
+                    name=debt.name,
+                    user=counterparty,
+                    counterparty=request.user,
+                    counterparty_name=str(request.user),
+                    type=opposite_type,
+                    total_amount=debt.total_amount,
+                    remaining_amount=debt.total_amount,
+                    payment_type=debt.payment_type,
+                    payment_amount=debt.payment_amount,
+                    due_date=debt.due_date,
+                    payment_date=debt.payment_date,
+                    status="ongoing",
+                    note=debt.note,
+                    icon=debt.icon,
+                    color=debt.color,
+                    image=debt.image,
+                )
+
+                # เชื่อมรายการของทั้งสองฝั่งเข้าด้วยกัน
+                debt.paired_debt = paired_debt
+                paired_debt.paired_debt = debt
+
+                debt.save(update_fields=["paired_debt", "updated_at"])
+                paired_debt.save(
+                    update_fields=["paired_debt", "updated_at"]
+                )
+
+            # ส่งแจ้งเตือนหลังจาก transaction สำเร็จแล้วเท่านั้น
+            if paired_debt:
+                transaction.on_commit(
+                    lambda debt_id=debt.pk, paired_id=paired_debt.pk:
+                        self.send_debt_notification(debt_id, paired_id)
+                )
+
+        debt.refresh_from_db()
 
         return Response(
-            serializer.data,
-            status=status.HTTP_201_CREATED
+            DebtSerializer(debt).data,
+            status=status.HTTP_201_CREATED,
         )
+
+
+    def send_debt_notification(self, debt_id, paired_debt_id):
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        try:
+            debt = Debts.objects.get(pk=debt_id)
+            paired_debt = Debts.objects.get(pk=paired_debt_id)
+
+            # รอปรับฟังก์ชัน LINE ให้รองรับ ID รายการของผู้รับ
+            push_new_debt_notification(
+                debt,
+                target_debt=paired_debt,
+            )
+        except Exception:
+            logger.exception("Failed to send LINE debt notification")
 
 
 class DebtDetailView(APIView):
@@ -201,18 +253,37 @@ class DebtDetailView(APIView):
         )
 
     # ลบหนี้
+    
+    # ลบหนี้ของตัวเองและรายการหนี้ที่เชื่อมกับเพื่อน
+    @transaction.atomic
     def delete(self, request, debt_id):
-        debt = self.get_debt(
-            request,
-            debt_id
-        )
+        debt = self.get_debt(request, debt_id)
 
-        debt.delete()
+        # เก็บ ID ของหนี้ทั้งสองฝั่งก่อนลบ
+        debt_ids = [debt.pk]
+
+        if debt.paired_debt_id:
+            paired_debt = Debts.objects.filter(
+                pk=debt.paired_debt_id
+            ).first()
+
+            if paired_debt:
+                # ลบรายการคู่กันเฉพาะเมื่อเชื่อมกลับมาหากันจริง
+                if paired_debt.paired_debt_id == debt.pk:
+                    debt_ids.append(paired_debt.pk)
+
+        # ลบพร้อมกันภายใน transaction เดียว
+        # Payments จะถูกลบตาม on_delete=models.CASCADE
+        Debts.objects.filter(pk__in=debt_ids).delete()
 
         return Response(
-            {'detail': 'ลบหนี้เรียบร้อยแล้ว'},
-            status=status.HTTP_200_OK
+            {
+                "detail": "ลบรายการหนี้เรียบร้อยแล้ว",
+                "deleted_debt_ids": debt_ids,
+            },
+            status=status.HTTP_200_OK,
         )
+
 
 # ======================================ส่วนการชำระหนี้======================================
 # กำหนดวันครบกำหนดชำระหนี้ตามประเภทการชำระ
@@ -279,45 +350,69 @@ def calculate_payment_due_date(debt):
     raise ValueError(
         "ไม่พบประเภทการชำระหนี้ที่ถูกต้อง"
     )
-#ฟังก์ชันคำนวณยอดหนี้คงเหลือ = ยอดทั้งหมด - ยอดที่ชำระ/ได้รับคืนจาก Payments ทั้งหมด
+
+
+def get_related_debts(debt):
+    """
+    คืนรายการหนี้ของทั้งสองฝ่ายที่เชื่อมกัน
+    """
+    debts = [debt]
+
+    if debt.paired_debt_id:
+        paired_debt = Debts.objects.get(
+            pk=debt.paired_debt_id
+        )
+        debts.append(paired_debt)
+
+    return debts
+
+
 def recalculate_debt_remaining(debt):
     """
-    คำนวณยอดคงเหลือจากยอดทั้งหมด
-    หักด้วยยอดที่ชำระ/ได้รับคืนจาก Payments ทั้งหมด
+    คำนวณยอดคงเหลือของหนี้ทั้งสองฝั่ง
+    โดยใช้ประวัติการชำระร่วมกัน
     """
+    related_debts = get_related_debts(debt)
+    related_debt_ids = [d.pk for d in related_debts]
 
-    paid_total = Payments.objects.filter(
-        debt=debt
-    ).aggregate(
-        total=Sum("paid_amount")
-    )["total"] or Decimal("0.00")
-
-    remaining = (
-        Decimal(debt.total_amount) -
-        Decimal(paid_total)
+    paid_total = (
+        Payments.objects.filter(
+            debt_id__in=related_debt_ids
+        ).aggregate(
+            total=Sum("paid_amount")
+        )["total"]
+        or Decimal("0.00")
     )
 
-    if remaining < 0:
-        remaining = Decimal("0.00")
+    for related_debt in related_debts:
+        remaining = (
+            Decimal(related_debt.total_amount)
+            - Decimal(paid_total)
+        )
 
-    debt.remaining_amount = remaining
+        if remaining < Decimal("0.00"):
+            remaining = Decimal("0.00")
 
-    if remaining == Decimal("0.00"):
-        debt.status = "paid"
-    else:
-        debt.status = "ongoing"
+        related_debt.remaining_amount = remaining
+        related_debt.status = (
+            "paid"
+            if remaining == Decimal("0.00")
+            else "ongoing"
+        )
 
-    debt.save(
-        update_fields=[
-            "remaining_amount",
-            "status",
-            "updated_at",
-        ]
-    )
+        related_debt.save(
+            update_fields=[
+                "remaining_amount",
+                "status",
+                "updated_at",
+            ]
+        )
 
-    return remaining
+    return related_debts[0].remaining_amount
+
 
 #รายการชำระหนี้
+
 class PaymentListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -325,55 +420,52 @@ class PaymentListCreateView(APIView):
         return get_object_or_404(
             Debts,
             id=debt_id,
-            user=request.user
+            user=request.user,
         )
 
-    # ดูประวัติการชำระของหนี้
+    # ดึงประวัติของหนี้ทั้งสองฝั่ง
     def get(self, request, debt_id):
-        debt = self.get_debt(
-            request,
-            debt_id
-        )
+        debt = self.get_debt(request, debt_id)
+
+        related_debts = get_related_debts(debt)
+        related_debt_ids = [
+            item.pk for item in related_debts
+        ]
 
         payments = Payments.objects.filter(
-            debt=debt
-        ).order_by('-due_date', '-created_at')
+            debt_id__in=related_debt_ids
+        ).order_by("-paid_date", "-created_at")
 
         serializer = PaymentSerializer(
             payments,
-            many=True
+            many=True,
         )
 
         return Response(serializer.data)
 
-    # เพิ่มรายการชำระหนี้
+    # สร้างรายการชำระ
     @transaction.atomic
     def post(self, request, debt_id):
-        debt = self.get_debt(
-            request,
-            debt_id
-        )
+        debt = self.get_debt(request, debt_id)
+
+        # อัปเดตยอดหนี้ทั้งสองฝั่งให้เป็นปัจจุบันก่อน
+        recalculate_debt_remaining(debt)
+        debt.refresh_from_db()
 
         data = request.data.copy()
-
-        # อัปโหลดหลักฐานการชำระ
         proof_file = request.FILES.get("proof_image")
 
         if proof_file:
             try:
-                proof_url = upload_debt_image(proof_file)
-                data["proof_image"] = proof_url
-
+                data["proof_image"] = upload_debt_image(
+                    proof_file
+                )
             except Exception as error:
                 return Response(
                     {"detail": str(error)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
-            
-        # =========================
-        # ถ้าเป็น monthly
-        # ให้ scheduled_amount เป็น payment_amount
-        # =========================
+
         if (
             debt.payment_type == "monthly"
             and debt.payment_amount is not None
@@ -381,56 +473,64 @@ class PaymentListCreateView(APIView):
         ):
             data["scheduled_amount"] = debt.payment_amount
 
-        # =========================
-        # กำหนดวันครบกำหนดของรายการชำระ
-        # =========================
         try:
-            data["due_date"] = calculate_payment_due_date(debt).isoformat()
-
+            data["due_date"] = (
+                calculate_payment_due_date(debt).isoformat()
+            )
         except ValueError as error:
             return Response(
                 {"detail": str(error)},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        serializer = PaymentSerializer(
-            data=data
-        )
-
-        serializer.is_valid(
-            raise_exception=True
-        )
+        serializer = PaymentSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
 
         paid_amount = serializer.validated_data.get(
-            'paid_amount',
-            Decimal('0.00')
+            "paid_amount",
+            Decimal("0.00"),
         )
 
-        # ห้ามจ่ายเกินยอดหนี้
-        if paid_amount > debt.remaining_amount:
+        # ตรวจสอบยอดรวมจากหนี้ทั้งสองฝั่ง
+        related_debts = get_related_debts(debt)
+        related_debt_ids = [
+            item.pk for item in related_debts
+        ]
+
+        paid_total = (
+            Payments.objects.filter(
+                debt_id__in=related_debt_ids
+            ).aggregate(total=Sum("paid_amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        shared_remaining = (
+            Decimal(debt.total_amount) - Decimal(paid_total)
+        )
+
+        if paid_amount < Decimal("0.00"):
             return Response(
-                {
-                    'detail': 'จำนวนเงินที่ชำระเกินยอดหนี้คงเหลือ'
-                },
-                status=status.HTTP_400_BAD_REQUEST
+                {"detail": "ยอดชำระต้องไม่ติดลบ"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # =========================
-        # สร้างประวัติการชำระ
-        # =========================
-        payment = serializer.save(
-            debt=debt
-        )
+        if paid_amount > shared_remaining:
+            return Response(
+                {"detail": "จำนวนเงินที่ชำระเกินยอดหนี้คงเหลือ"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        # =========================
-        # คำนวณยอดหนี้คงเหลือโดยเรียกใช้ฟังก์ชัน recalculate_debt_remaining
-        # =========================
+        # สร้าง Payment เพียงรายการเดียว
+        payment = serializer.save(debt=debt)
+
+        # คำนวณยอดหนี้ทั้งสองฝั่ง
         recalculate_debt_remaining(debt)
 
         return Response(
             PaymentSerializer(payment).data,
-            status=status.HTTP_201_CREATED
+            status=status.HTTP_201_CREATED,
         )
+
 
 
 class PaymentDetailView(APIView):
@@ -438,9 +538,11 @@ class PaymentDetailView(APIView):
 
     def get_payment(self, request, payment_id):
         return get_object_or_404(
-            Payments,
-            id=payment_id,
-            debt__user=request.user
+            Payments.objects.filter(
+                Q(debt__user=request.user)
+                | Q(debt__paired_debt__user=request.user)
+            ),
+            id=payment_id
         )
 
     # ดูรายละเอียดการชำระ
@@ -519,7 +621,7 @@ class PaymentDetailView(APIView):
         updated_payment = serializer.save()
 
         # คำนวณยอดหนี้คงเหลือใหม่จาก Payments ทั้งหมด
-        recalculate_debt_remaining(debt)
+        recalculate_debt_remaining(updated_payment.debt)
 
         # ปรับสถานะรายการชำระตามยอดที่บันทึก
         if new_paid_amount <= 0:
@@ -551,7 +653,6 @@ class PaymentDetailView(APIView):
         )
 
         debt = payment.debt
-
         payment.delete()
 
         # คำนวณยอดคงเหลือใหม่จาก Payments ที่เหลือ

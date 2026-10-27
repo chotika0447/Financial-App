@@ -86,14 +86,6 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
         }
     }, [debt]);
 
-    const updatePayment = (id, changes) => {
-        setPayments((previous) =>
-            previous.map((payment) =>
-                payment.id === id ? { ...payment, ...changes } : payment
-            )
-        );
-    };
-
     const formatDate = (date) => {
         if (!date) return "วว/ดด/ปปปป";
 
@@ -212,6 +204,65 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
             setSavingId(null);
         }
     };
+    const updatePayment = (id, changes) => {
+        setPayments((previous) =>
+            previous.map((payment) =>
+                payment.id === id ? { ...payment, ...changes } : payment
+            )
+        );
+    };
+
+    const updateConfirmStatus = async (payment, confirm_status) => {
+        const accessToken = sessionStorage.getItem("accessToken");
+
+        if (!accessToken) {
+            alert("ไม่พบข้อมูลการเข้าสู่ระบบ");
+            return;
+        }
+
+        setSavingId(payment.id);
+
+        try {
+            const response = await fetch(
+                `/debts/payments/${payment.id}/`,
+                {
+                    method: "PUT",
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ confirm_status }),
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.detail ||
+                    Object.values(data).flat().join(" ") ||
+                    "ไม่สามารถเปลี่ยนสถานะได้"
+                );
+            }
+
+            setPayments((previous) =>
+                previous.map((item) =>
+                    item.id === payment.id
+                        ? { ...item, ...data }
+                        : item
+                )
+            );
+
+            if (onDebtUpdated) {
+                await onDebtUpdated();
+            }
+        } catch (error) {
+            console.error("Update confirmation error:", error);
+            alert(error.message || "ไม่สามารถเปลี่ยนสถานะได้");
+        } finally {
+            setSavingId(null);
+        }
+    };
 
 
     return (
@@ -240,7 +291,7 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                     <span className="text-sm">{debt.name}</span>
                 </div>
 
-                
+
 
                 {payments.map((payment, index) => {
                     const isEditing = editingId === payment.id;
@@ -377,34 +428,61 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                     {/* ถ้าเป็นการยืมและมีการเชื่อมบัญชีเพื่อน ให้แสดงปุ่มยืนยัน/ไม่อนุมัติ */}
                                     {!isBorrow && debt.counterparty && (
                                         <div className="flex gap-1 mt-2">
-                                            <button
-                                                disabled={payment.confirm_status !== "pending"}
-                                                onClick={() =>
-                                                    updatePayment(payment.id, {
-                                                        confirm_status: "confirmed",
-                                                    })
-                                                }
-                                                className="flex-1 rounded-md bg-green-500 text-white text-[10px] py-2 disabled:bg-gray-300">
-                                                {payment.confirm_status === "confirmed"
-                                                    ? "ยืนยันรับทราบแล้ว"
-                                                    : "ยืนยันรับทราบ"}
-                                            </button>
+                                            {payment.confirm_status === "pending" ? (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        disabled={savingId === payment.id}
+                                                        onClick={() =>
+                                                            updateConfirmStatus(payment, "confirmed")
+                                                        }
+                                                        className="flex-1 rounded-md bg-green-500 text-white text-[10px] py-2 disabled:opacity-50"
+                                                    >
+                                                        {savingId === payment.id
+                                                            ? "กำลังบันทึก..."
+                                                            : "ยืนยันรับทราบ"}
+                                                    </button>
 
-                                            <button
-                                                disabled={payment.confirm_status !== "pending"}
-                                                onClick={() =>
-                                                    updatePayment(payment.id, {
-                                                        confirm_status: "rejected",
-                                                    })
-                                                }
-                                                className="flex-1 rounded-md bg-red-500 text-white text-[10px] py-2 disabled:bg-gray-300">
-                                                {payment.confirm_status === "rejected"
-                                                    ? "ไม่อนุมัติแล้ว"
-                                                    : "ไม่อนุมัติ"}
-                                            </button>
+                                                    <button
+                                                        type="button"
+                                                        disabled={savingId === payment.id}
+                                                        onClick={() =>
+                                                            updateConfirmStatus(payment, "rejected")
+                                                        }
+                                                        className="flex-1 rounded-md bg-red-500 text-white text-[10px] py-2 disabled:opacity-50"
+                                                    >
+                                                        ไม่อนุมัติ
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        disabled
+                                                        className="flex-1 rounded-md bg-gray-300 text-gray-600 text-[10px] py-2 cursor-not-allowed"
+                                                    >
+                                                        {payment.confirm_status === "confirmed"
+                                                            ? "ยืนยันรับทราบแล้ว"
+                                                            : "ไม่อนุมัติแล้ว"}
+                                                    </button>
 
+                                                    <button
+                                                        type="button"
+                                                        disabled={savingId === payment.id}
+                                                        onClick={() =>
+                                                            updateConfirmStatus(payment, "pending")
+                                                        }
+                                                        className="flex-1 rounded-md bg-[#252525] text-white text-[10px] py-2 disabled:opacity-50"
+                                                    >
+                                                        {savingId === payment.id
+                                                            ? "กำลังบันทึก..."
+                                                            : "ยกเลิก"}
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     )}
+
                                 </div>
 
 
