@@ -6,7 +6,7 @@ import Navbar from '../components/Navbar';
 
 function Home() {
   const [user, setUser] = useState(null);
-  const navigate = useNavigate();
+
 
   useEffect(() => {
     const accessToken = sessionStorage.getItem('accessToken');
