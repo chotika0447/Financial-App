@@ -25,7 +25,7 @@
   gap: 2px;
   font-size: 10px;
   cursor: pointer;
-  color: #222;
+  color: #818181;
 }
 
 .nav-icon {
@@ -57,5 +57,5 @@
 }
 
 .nav-item:nth-child(5).active {
-  color: var(--color-notifications);
+  color: var(--color-financial-health);
 }

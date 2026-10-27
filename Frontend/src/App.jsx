@@ -28,7 +28,8 @@ import SavingPlan from './pages/SavingPlan';
 import Retirement from './pages/Retirement';
 import CompoundInterest from './pages/CompoundInterest';
 
-import FinancialHealth from './pages/FinancialHealth';
+import FinHealth from './pages/FinHealth';
+import FinHealthDetail from './pages/FinHealthDetail';
 
 import { initializeLineLiff, liff, readLineIdentity } from './lineAuth';
 
@@ -329,7 +330,11 @@ function App() {
 
         <Route
           path="/financial-health"
-          element={<FinancialHealth />}
+          element={<FinHealth />}
+        />
+        <Route
+          path="/financial-health/:id"
+          element={<FinHealthDetail />}
         />
 
       </Routes>

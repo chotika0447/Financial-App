@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 
 from PIL import UnidentifiedImageError
@@ -20,6 +21,9 @@ from .ocr import (
     extract_datetime,
 )
 
+from decimal import Decimal, ROUND_HALF_UP
+
+from users.models import PersonalProfile
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +94,71 @@ class TransactionListCreateView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+# คำนวณอัตราค่าใช้จ่ายต่อรายได้สำหรับเดือนปัจจุบัน
+class FinancialHealthSpendView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        today = timezone.localdate()
+
+        # ดึงเฉพาะข้อมูลของผู้ใช้ที่เข้าสู่ระบบ
+        current_month_transactions = Transaction.objects.filter(
+            user=request.user,
+            transaction_date__year=today.year,
+            transaction_date__month=today.month,
+        )
+
+        # รวมรายจ่ายของเดือนปัจจุบัน
+        expense_total = (
+            current_month_transactions
+            .filter(transaction_type="expense")
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        # รวมรายรับจากรายการธุรกรรมของเดือนปัจจุบัน
+        transaction_income_total = (
+            current_month_transactions
+            .filter(transaction_type="income")
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        # ดึงรายได้ประจำเดือนจาก PersonalProfile ของผู้ใช้
+        profile = PersonalProfile.objects.filter(
+            user=request.user
+        ).first()
+
+        monthly_income = (
+            profile.monthly_income
+            if profile
+            else Decimal("0.00")
+        )
+
+        # รายได้สุทธิที่ใช้คำนวณตามสูตรที่กำหนด
+        net_monthly_income = monthly_income + transaction_income_total
+
+        # ถ้ารายได้เป็นศูนย์ จะไม่คำนวณอัตรา
+        if net_monthly_income > 0:
+            expense_ratio = (
+                expense_total / net_monthly_income * Decimal("100")
+            ).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+        else:
+            expense_ratio = None
+
+        return Response({
+            "year": today.year,
+            "month": today.month,
+            "expense_total": expense_total,
+            "transaction_income_total": transaction_income_total,
+            "monthly_income": monthly_income,
+            "net_monthly_income": net_monthly_income,
+            "expense_ratio": expense_ratio,
+        })
+    
 # ดู แก้ไข และลบรายการที่บันทึกแล้ว
 class TransactionDetailView(APIView):
 

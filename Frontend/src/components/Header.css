@@ -14,73 +14,128 @@
   color: Black;
 }
 /*Home Header*/
+/* Home Header */
 .home-header {
-  height: 104px;
+  min-height: 104px;
+  height: auto;
   background: #cdb0f7;
 
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
 
-  padding: 0 24px;
+  padding: 20px 24px;
+  box-sizing: border-box;
 }
 
 .welcome {
-  font-size: 20px;
-  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+
+  color: #fff;
+  font-size: clamp(20px, 5vw, 30px);
+  font-weight: 400;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.home-header-greeting {
+  color: #481a87;
 }
 
 .welcome strong {
-  font-weight: 700;
+  font-weight: 800;
 }
 
-.welcome span {
+.welcome .home-header-date {
   display: block;
-  font-size: 10px;
-  margin-top: 2px;
+  margin-top: 0;
+
+  color: #7c3a99;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.6;
 }
 
 .header-icons {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 12px;
 }
 
-.icon-button,
 .profile-button {
-  border: none;
-  background: transparent;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+
+  background: #fff;
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: 14px;
   padding: 0;
-  cursor: pointer;
-}
-
-.icon-button svg {
-  width: 30px;
-  height: 30px;
-  fill: none;
-  stroke: white;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.profile-button {
-  width: 50px;
-  height: 50px;
-  background: white;
-  border-radius: 50%;
 
   display: flex;
   align-items: center;
   justify-content: center;
+
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.2s ease;
 }
 
-.profile-button svg {
-  width: 28px;
-  height: 28px;
-  fill: none;
-  stroke: #222;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.profile-button:hover {
+  transform: translateY(-1px);
+}
+
+.profile-icon {
+  display: block;
+  width: 27px;
+  height: 27px;
+  object-fit: contain;
+}
+
+.profile-button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+@media (min-width: 600px) {
+  .home-header {
+    min-height: 124px;
+    padding: 24px clamp(24px, 4vw, 64px);
+  }
+
+  .welcome .home-header-date {
+    font-size: 13px;
+  }
+
+  .profile-button {
+    width: 50px;
+    height: 50px;
+    border-radius: 15px;
+  }
+}
+
+@media (max-width: 380px) {
+  .home-header {
+    padding: 18px 16px;
+    gap: 10px;
+  }
+
+  .welcome {
+    font-size: 20px;
+  }
+
+  .welcome .home-header-date {
+    font-size: 11px;
+  }
+
+  .profile-button {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
 }
