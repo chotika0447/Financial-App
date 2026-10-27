@@ -53,7 +53,10 @@ function Transactions() {
 
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('all');
-  const [filterDate, setFilterDate] = useState(getTodayString);//เริ่มต้นต้องแสดงวันที่วันนี้
+  const [filterDate, setFilterDate] = useState(getTodayString);
+  const [period, setPeriod] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [listCategories, setListCategories] = useState([]);
   const [showAll, setShowAll] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
@@ -166,6 +169,32 @@ function Transactions() {
     fetchTransactions();
   }, []);
 
+  // ดึงหมวดหมู่สำหรับตัวกรองรายการ โดยแยกจากหมวดหมู่ในฟอร์ม
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+    async function loadCategories() {
+      try {
+        const types = ['income', 'expense'];
+        const groups = await Promise.all(types.map(async (type) => {
+          const response = await fetch(`/categories/?transaction_type=${type}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (!response.ok) throw new Error('โหลดหมวดหมู่สำหรับตัวกรองไม่สำเร็จ');
+          const data = await response.json();
+          return (Array.isArray(data) ? data : []).map((item) => ({ ...item, transaction_type: type }));
+        }));
+        if (!cancelled) setListCategories(groups.flat());
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadCategories();
+    return () => { cancelled = true; };
+  }, [accessToken]);
+
+
+
 
   // เปิดฟอร์มเดิมโดยอ่าน Draft ID จากลิงก์ LINE OA: /transactions/?draft=123
   useEffect(() => {
@@ -218,109 +247,92 @@ function Transactions() {
   }, [receiptPreview]);
 
 
-  // ถ้าเลือกวันที่ Summary จะคิดเฉพาะวันนั้น
-  const summaryTransactions = useMemo(() => {
-    if (!filterDate) {
-      return transactions;
+  const toDate = (value) => new Date(`${value}T12:00:00`);
+  const toISODate = (date) => [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+
+  const selectedDate = toDate(filterDate);
+  const periodRange = useMemo(() => {
+    if (period === 'all') return null;
+    const start = toDate(filterDate);
+    const end = toDate(filterDate);
+    if (period === 'week') {
+      const mondayOffset = (start.getDay() + 6) % 7;
+      start.setDate(start.getDate() - mondayOffset);
+      end.setTime(start.getTime());
+      end.setDate(start.getDate() + 6);
+    } else if (period === 'month') {
+      start.setDate(1);
+      end.setMonth(start.getMonth() + 1, 0);
+    } else if (period === 'year') {
+      start.setMonth(0, 1);
+      end.setMonth(11, 31);
     }
+    return [toISODate(start), toISODate(end)];
+  }, [period, filterDate]);
 
-    return transactions.filter(
-      (transaction) =>
-        transaction.transaction_date === filterDate
-    );
-  }, [transactions, filterDate]);
+  const matchesPeriod = (transaction) => !periodRange || (
+    transaction.transaction_date >= periodRange[0] &&
+    transaction.transaction_date <= periodRange[1]
+  );
 
+  // ยอดรวมขึ้นกับช่วงเวลาเท่านั้น ไม่ขึ้นกับประเภท/หมวดหมู่/คำค้นหา
+  const summaryTransactions = useMemo(
+    () => transactions.filter(matchesPeriod),
+    [transactions, periodRange]
+  );
+  const summary = useMemo(() => summaryTransactions.reduce((result, item) => {
+    if (item.transaction_type === 'income' || item.transaction_type === 'expense') {
+      result[item.transaction_type] += Number(item.amount || 0);
+    }
+    return result;
+  }, { income: 0, expense: 0 }), [summaryTransactions]);
+  const balance = summary.income - summary.expense;
 
-  const summary = useMemo(() => {
-    return summaryTransactions.reduce(
-      (result, transaction) => {
-        result[transaction.transaction_type] =
-          (result[transaction.transaction_type] || 0) +
-          Number(transaction.amount || 0);
+  const availableCategories = useMemo(() => listCategories.filter(
+    (item) => filterType === 'all' || item.transaction_type === filterType
+  ), [listCategories, filterType]);
 
-        return result;
-      },
-      {
-        income: 0,
-        expense: 0,
-      }
-    );
-  }, [summaryTransactions]);
-
-
-  const balance =
-    summary.income - summary.expense;
-
-
-  // กรองตามประเภท + วันที่ + คำค้นหา
   const filtered = useMemo(() => {
-    const keyword = search
-      .trim()
-      .toLowerCase();
-
+    const keyword = search.trim().toLowerCase();
     return transactions.filter((transaction) => {
-      const typeMatched =
-        filterType === 'all' ||
-        transaction.transaction_type === filterType;
-
-      const dateMatched =
-        !filterDate ||
-        transaction.transaction_date === filterDate;
-
-      const text = [
-        transaction.description,
-        transaction.category_name,
-        transaction.account,
-        transaction.amount,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-
-      const searchMatched =
-        !keyword ||
-        text.includes(keyword);
-
-      return typeMatched && dateMatched && searchMatched;
+      const typeMatched = filterType === 'all' || transaction.transaction_type === filterType;
+      const dateMatched = matchesPeriod(transaction);
+      const categoryMatched = filterCategory === 'all' || (
+        `${transaction.transaction_type}:${transaction.category}` === filterCategory
+      );
+      const text = [transaction.description, transaction.category_name,
+        transaction.account, transaction.amount].filter(Boolean).join(' ').toLowerCase();
+      return typeMatched && dateMatched && categoryMatched && (!keyword || text.includes(keyword));
     });
-  }, [
-    transactions,
-    filterType,
-    filterDate,
-    search,
-  ]);
+  }, [transactions, filterType, filterCategory, periodRange, search]);
 
+  function changePeriod(next) {
+    setPeriod(next);
+    setShowAll(false);
+  }
 
-  // เปลี่ยนวันที่ทีละ 1 วัน โดยยังใช้ตัวกรองวันที่เดิม
-  function moveDate(days) {
-    const date = filterDate
-      ? new Date(`${filterDate}T12:00:00`)
-      : new Date();
-
-    date.setDate(date.getDate() + days);
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-
-    // เก็บวันที่เป็น YYYY-MM-DD เพื่อให้กรองข้อมูลได้
-    setFilterDate(`${year}-${month}-${day}`);
+  function moveDate(direction) {
+    const date = toDate(filterDate);
+    if (period === 'day') date.setDate(date.getDate() + direction);
+    if (period === 'week') date.setDate(date.getDate() + 7 * direction);
+    if (period === 'month') date.setMonth(date.getMonth() + direction);
+    if (period === 'year') date.setFullYear(date.getFullYear() + direction);
+    setFilterDate(toISODate(date));
     setShowAll(false);
   }
 
   const dateLabel = () => {
-    if (!filterDate) return '';
-
-    const [year, month, day] = filterDate.split('-');
-
-    // แปลง ค.ศ. เป็น พ.ศ.
-    const buddhistYear = Number(year) + 543;
-
-    // แสดงผลเป็น วัน/เดือน/ปี
-    return `${day}/${month}/${buddhistYear}`;
+    if (period === 'all') return 'ทุกช่วงเวลา';
+    if (period === 'day') return selectedDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
+    if (period === 'week') return `${formatDate(periodRange[0])} – ${formatDate(periodRange[1])}`;
+    if (period === 'month') return selectedDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+    return selectedDate.toLocaleDateString('th-TH', { year: 'numeric' });
   };
-
-  // แสดง 5 รายการแรกก่อน แล้วค่อยกดดูทั้งหมด
+  const periodDescription = period === 'all' ? 'ทุกช่วงเวลา' : dateLabel();
   const visibleTransactions = showAll ? filtered : filtered.slice(0, 5);
 
   function clearReceiptPreview() {
@@ -800,9 +812,7 @@ function Transactions() {
 
             <div>
               <span>
-                {filterDate
-                  ? 'รายรับวันที่เลือก'
-                  : 'รายรับทั้งหมด'}
+                {period === 'all' ? 'รายรับทั้งหมด' : 'รายรับในช่วงที่เลือก'}
               </span>
 
               <strong>
@@ -819,9 +829,7 @@ function Transactions() {
 
             <div>
               <span>
-                {filterDate
-                  ? 'รายจ่ายวันที่เลือก'
-                  : 'รายจ่ายทั้งหมด'}
+                {period === 'all' ? 'รายจ่ายทั้งหมด' : 'รายจ่ายในช่วงที่เลือก'}
               </span>
 
               <strong>
@@ -839,9 +847,7 @@ function Transactions() {
             <span>คงเหลือสุทธิ</span>
 
             <p>
-              {filterDate
-                ? `ยอดประจำวันที่ ${formatDate(filterDate)}`
-                : 'รายรับทั้งหมด - รายจ่ายทั้งหมด'}
+              {period === 'all' ? 'รายรับทั้งหมด - รายจ่ายทั้งหมด' : `ยอดช่วง ${periodDescription}`}
             </p>
           </div>
 
@@ -890,94 +896,81 @@ function Transactions() {
           </div>
 
 
-          <div className="transaction-tabs">
-
+          <div className="transaction-period-tabs" aria-label="เลือกช่วงเวลา">
             {[
-              ['all', 'ทั้งหมด'],
-              ['income', 'รายรับ'],
-              ['expense', 'รายจ่าย'],
+              ['all', 'ทั้งหมด'], ['day', 'รายวัน'], ['week', 'สัปดาห์'],
+              ['month', 'เดือน'], ['year', 'ปี'],
             ].map(([value, label]) => (
+              <button type="button" key={value}
+                className={period === value ? 'active' : ''}
+                onClick={() => changePeriod(value)}>{label}</button>
+            ))}
+          </div>
 
-              <button
-                type="button"
-                key={value}
-                className={
-                  filterType === value
-                    ? 'active'
-                    : ''
-                }
-                onClick={() =>
-                  setFilterType(value)
-                }
-              >
+          {period !== 'all' && (
+            <div className="transaction-date-filter">
+              <div className="date-navigation">
+                <button type="button" className="date-arrow" onClick={() => moveDate(-1)} aria-label="ช่วงเวลาก่อนหน้า">‹</button>
+                <div className="date-picker-column">
+                  {period === 'day' && filterDate === getTodayString() && <span className="today-badge">วันนี้</span>}
+                  <button type="button" className="date-picker-trigger" onClick={() => {
+                    if (period === 'year') {
+                      const value = window.prompt('ระบุปี พ.ศ. ที่ต้องการดู เช่น 2569', String(selectedDate.getFullYear() + 543));
+                      if (value === null) return;
+                      const year = Number(value);
+                      if (!/^\d{4}$/.test(value.trim()) || year < 2443 || year > 2743) {
+                        window.alert('กรุณาระบุปี พ.ศ. 4 หลัก ระหว่าง 2443–2743');
+                        return;
+                      }
+                      setFilterDate(`${year - 543}-01-01`);
+                      setShowAll(false);
+                    } else if (dateInputRef.current?.showPicker) dateInputRef.current.showPicker();
+                    else dateInputRef.current?.click();
+                  }} aria-label="เลือกช่วงเวลา">
+                    <CalendarDays size={17} /><strong>{dateLabel()}</strong>
+                  </button>
+                  <input ref={dateInputRef} type={period === 'month' ? 'month' : 'date'}
+                    className="date-picker-hidden-input" aria-label="เลือกวันที่ เดือน หรือปี"
+                    value={period === 'month' ? filterDate.slice(0, 7) : filterDate}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      if (!value) return;
+                      if (period === 'year') {
+                        if (!/^\d{4}$/.test(value)) return;
+                        setFilterDate(`${value}-01-01`);
+                      } else if (period === 'month') setFilterDate(`${value}-01`);
+                      else setFilterDate(value);
+                      setShowAll(false);
+                    }} tabIndex={-1} />
+                </div>
+                <button type="button" className="date-arrow" onClick={() => moveDate(1)} aria-label="ช่วงเวลาถัดไป">›</button>
+              </div>
+            </div>
+          )}
+
+          <div className="transaction-tabs">
+            {[
+              ['all', 'ทุกประเภท'], ['income', 'รายรับ'], ['expense', 'รายจ่าย'],
+            ].map(([value, label]) => (
+              <button type="button" key={value} className={filterType === value ? 'active' : ''}
+                onClick={() => { setFilterType(value); setFilterCategory('all'); setShowAll(false); }}>
                 {label}
               </button>
-
             ))}
-
           </div>
 
-
-          {/* เลื่อนวัน + ปุ่มปฏิทิน */}
-
-          <div className="transaction-date-filter">
-            <div className="date-navigation">
-              <button
-                type="button"
-                className="date-arrow"
-                onClick={() => moveDate(-1)}
-                aria-label="วันก่อนหน้า"
-              >
-                ‹
-              </button>
-
-              <div className="date-picker-column">
-                {filterDate === getTodayString() && (
-                  <span className="today-badge">วันนี้</span>
-                )}
-
-                <button
-                  type="button"
-                  className="date-picker-trigger"
-                  onClick={() => {
-                    if (dateInputRef.current?.showPicker) {
-                      dateInputRef.current.showPicker();
-                    } else {
-                      dateInputRef.current?.click();
-                    }
-                  }}
-                  aria-label="เลือกวันที่"
-                >
-                  <CalendarDays size={18} />
-                  <strong>{dateLabel()}</strong>
-                </button>
-
-                <input
-                  ref={dateInputRef}
-                  type="date"
-                  className="date-picker-hidden-input"
-                  aria-label="เลือกวันที่จากปฏิทิน"
-                  value={filterDate}
-                  onChange={(event) => {
-                    if (!event.target.value) return;
-                    setFilterDate(event.target.value);
-                    setShowAll(false);
-                  }}
-                  tabIndex={-1}
-                />
-              </div>
-
-              <button
-                type="button"
-                className="date-arrow"
-                onClick={() => moveDate(1)}
-                aria-label="วันถัดไป"
-              >
-                ›
-              </button>
-            </div>
+          <div className="transaction-category-filter">
+            <label htmlFor="transaction-category-select">หมวดหมู่</label>
+            <select id="transaction-category-select" value={filterCategory}
+              onChange={(event) => { setFilterCategory(event.target.value); setShowAll(false); }}>
+              <option value="all">ทุกหมวดหมู่</option>
+              {availableCategories.map((item) => (
+                <option key={`${item.transaction_type}:${item.id}`} value={`${item.transaction_type}:${item.id}`}>
+                  {filterType === 'all' ? `${item.transaction_type === 'income' ? 'รายรับ' : 'รายจ่าย'} · ` : ''}{item.name}
+                </option>
+              ))}
+            </select>
           </div>
-
 
         </section>
 
@@ -990,9 +983,7 @@ function Transactions() {
             <div>
 
               <h2>
-                {filterDate
-                  ? `รายการวันที่ ${formatDate(filterDate)}`
-                  : 'รายการล่าสุด'}
+                {period === 'all' ? 'รายการธุรกรรม' : `รายการช่วง ${periodDescription}`}
               </h2>
 
               <p>
@@ -1010,7 +1001,7 @@ function Transactions() {
                   setShowAll(!showAll || Boolean(filterDate));
                 }}
               >
-                {showAll && !filterDate ? 'แสดงน้อยลง' : 'ดูทั้งหมด ›'}
+                {showAll ? 'แสดงน้อยลง' : 'แสดงทั้งหมด ›'}
               </button>
               <button
                 type="button"
