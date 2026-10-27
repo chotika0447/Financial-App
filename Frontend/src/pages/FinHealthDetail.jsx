@@ -7,7 +7,7 @@ import finHealthCriteria from '../data/finHealthCriteria';
 import './FinHealthDetail.css';
 
 const PLAN_ANSWERS_KEY = 'financialHealthPlanAnswers';
-
+const PLAN_ANSWERS_EVENT = 'financialHealthPlanAnswersChanged';
 const PLAN_QUESTIONS = [
     {
         id: 'q7',
@@ -42,13 +42,21 @@ const PLAN_QUESTIONS = [
     },
 ];
 
+function calculatePlanAverage(answers) {
+    if (!answers.q7 || !answers.q8) {
+        return null;
+    }
+
+    return (
+        (Number(answers.q7) + Number(answers.q8)) / 2
+    );
+}
+
 function FinHealthDetail() {
     const navigate = useNavigate();
     const { id } = useParams();
-    const [planAnswers, setPlanAnswers] = useState({
-        q7: '',
-        q8: '',
-    });
+    const [planAnswers, setPlanAnswers] = useState({ q7: '', q8: '' });
+    const planAverage = calculatePlanAverage(planAnswers);
 
     const [saveError, setSaveError] = useState('');
 
@@ -88,6 +96,10 @@ function FinHealthDetail() {
                 PLAN_ANSWERS_KEY,
                 JSON.stringify(updatedAnswers)
             );
+
+            window.dispatchEvent(
+                new Event(PLAN_ANSWERS_EVENT)
+            );
         } catch {
             setSaveError('บันทึกคำตอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
         }
@@ -98,6 +110,10 @@ function FinHealthDetail() {
             localStorage.removeItem(PLAN_ANSWERS_KEY);
             setPlanAnswers({ q7: '', q8: '' });
             setSaveError('');
+
+            window.dispatchEvent(
+                new Event(PLAN_ANSWERS_EVENT)
+            );
         } catch {
             setSaveError('ล้างคำตอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
         }
@@ -181,7 +197,7 @@ function FinHealthDetail() {
                     <h2>เกี่ยวกับเกณฑ์นี้</h2>
                     <p>{criterion.description}</p>
                 </section>
-                
+
                 {criterion.id === 'plan' && (
                     <section className="fhd-card fhd-survey-card">
                         <div className="fhd-survey-heading">
@@ -192,6 +208,18 @@ function FinHealthDetail() {
                                     คุณสามารถกลับมาแก้ไขหรือล้างคำตอบได้ตลอดเวลา
                                 </p>
                             </div>
+
+                            <button
+                                type="button"
+                                className="fhd-clear-button fhd-clear-button-top"
+                                onClick={handleClearPlanAnswers}
+                                disabled={!planAnswers.q7 && !planAnswers.q8}
+                                aria-label="ล้างคำตอบแบบประเมินทั้งหมด"
+                                title="ล้างคำตอบทั้งหมด"
+                            >
+                                <Trash2 size={16} />
+                                <span>ล้างคำตอบ</span>
+                            </button>
                         </div>
 
                         {PLAN_QUESTIONS.map((question) => (
@@ -222,8 +250,8 @@ function FinHealthDetail() {
                                     {question.options.map((option) => (
                                         <label
                                             className={`fhd-answer-option ${planAnswers[question.id] === option.value
-                                                    ? 'is-selected'
-                                                    : ''
+                                                ? 'is-selected'
+                                                : ''
                                                 }`}
                                             key={option.value}
                                         >
@@ -260,21 +288,32 @@ function FinHealthDetail() {
                         )}
 
                         <div className="fhd-survey-footer">
-                            <span className="fhd-survey-status">
+                            <div className="fhd-survey-status">
                                 {planAnswers.q7 && planAnswers.q8
                                     ? 'ตอบแบบประเมินครบแล้ว'
-                                    : 'ยังตอบแบบประเมินไม่ครบ'}
-                            </span>
+                                    : 'โปรดตอบคำถามให้ครบทั้ง 2 ข้อเพื่อคำนวณคะแนนเฉลี่ย'}
+                            </div>
 
-                            <button
-                                type="button"
-                                className="fhd-clear-button"
-                                onClick={handleClearPlanAnswers}
-                                disabled={!planAnswers.q7 && !planAnswers.q8}
-                            >
-                                <Trash2 size={16} />
-                                ล้างคำตอบ
-                            </button>
+                            <div className="fhd-average-score">
+                                <span className="fhd-average-score-label">
+                                    คะแนนเฉลี่ยด้านการวางแผนและการคุ้มครอง
+                                </span>
+
+                                <div className="fhd-average-score-value">
+                                    <strong>
+                                        {planAverage === null
+                                            ? '—'
+                                            : Number(planAverage.toFixed(2))}
+                                    </strong>
+                                    <span>/ 100 คะแนน</span>
+                                </div>
+
+                                {planAverage !== null && (
+                                    <p className="fhd-average-score-note">
+                                        คำนวณจากค่าเฉลี่ยของคำตอบทั้ง 2 ข้อ
+                                    </p>
+                                )}
+                            </div>
                         </div>
                     </section>
                 )}

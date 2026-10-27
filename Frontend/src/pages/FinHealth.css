@@ -532,6 +532,87 @@
     }
 }
 
+/* คะแนนเฉลี่ยและน้ำหนักคะแนนบนการ์ดเกณฑ์ */
+
+.fh-category-card {
+    position: relative;
+    align-items: center;
+    min-height: 125px;
+    padding: 38px 36px 15px 13px;
+}
+
+.fh-category-content {
+    gap: 5px;
+}
+
+.fh-category-weight {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    align-self: auto;
+    margin: 0;
+    padding: 4px 8px;
+    border-radius: 7px;
+    background: #f0f5f2;
+    color: #65786d;
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.fh-category-average {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 4px;
+    color: #74847a;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.fh-category-average strong {
+    color: var(--category-color, #159b76);
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.fh-category-average-total {
+    color: #8a9992;
+    font-size: 10px;
+}
+
+.fh-category-arrow {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+}
+
+@media (min-width: 600px) {
+    .fh-category-card {
+        min-height: 140px;
+        padding: 40px 38px 17px 20px;
+    }
+
+    .fh-category-weight {
+        top: 12px;
+        right: 14px;
+        font-size: 11px;
+    }
+
+    .fh-category-average {
+        font-size: 11px;
+    }
+
+    .fh-category-average strong {
+        font-size: 17px;
+    }
+
+    .fh-category-arrow {
+        right: 14px;
+        bottom: 14px;
+    }
+}
 /* =========================
    SMALL SCREENS
 ========================= */
