@@ -6,6 +6,36 @@ import Navbar from '../components/Navbar';
 
 function Home() {
   const [user, setUser] = useState(null);
+  const [monthly, setMonthly] = useState({ income: null, expense: null });
+  const [monthlyError, setMonthlyError] = useState('');
+  const money = (n) => n === null ? '—' : `${n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ฿`;
+  const monthLabel = new Intl.DateTimeFormat('th-TH', { timeZone: 'Asia/Bangkok', month: 'long', year: 'numeric', calendar: 'buddhist' }).format(new Date());
+  const currentMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit' }).format(new Date());
+
+  useEffect(() => {
+    const token = sessionStorage.getItem('accessToken');
+    if (!token) { setMonthlyError('กรุณาเข้าสู่ระบบเพื่อดูยอดเดือนนี้'); return; }
+    const controller = new AbortController();
+    async function load() {
+      try {
+        const response = await fetch('/transactions/', { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
+        if (!response.ok) throw new Error('โหลดรายการธุรกรรมไม่สำเร็จ');
+        const payload = await response.json();
+        const items = Array.isArray(payload) ? payload : Array.isArray(payload.results) ? payload.results : null;
+        if (!items) throw new Error('รูปแบบข้อมูลธุรกรรมไม่ถูกต้อง');
+        const totals = { income: 0, expense: 0 };
+        for (const item of items) {
+          if (typeof item.transaction_date !== 'string' || item.transaction_date.slice(0, 7) !== currentMonth) continue;
+          if (!Object.prototype.hasOwnProperty.call(totals, item.transaction_type)) continue;
+          const amount = Number(item.amount);
+          if (Number.isFinite(amount)) totals[item.transaction_type] += amount;
+        }
+        setMonthly(totals);
+      } catch (error) { if (error.name !== 'AbortError') setMonthlyError(error.message); }
+    }
+    load();
+    return () => controller.abort();
+  }, [currentMonth]);
 
 
   useEffect(() => {
@@ -40,6 +70,8 @@ function Home() {
       {/* ================= MAIN ================= */}
       <main className="home-content">
 
+        <p className="home-period">สรุปประจำเดือน{monthLabel}</p>
+        {monthlyError && <p className="home-data-error" role="status">{monthlyError}</p>}
         {/* Summary Cards */}
         <section className="summary-grid">
 
@@ -47,8 +79,8 @@ function Home() {
             <div className="card-title">รายรับ</div>
 
             <div className="card-bottom">
-              <span>รวมทั้งหมด</span>
-              <strong>6,800 ฿</strong>
+              <span>เดือนนี้</span>
+              <strong>{money(monthly.income)}</strong>
             </div>
           </div>
 
@@ -56,8 +88,8 @@ function Home() {
             <div className="card-title">รายจ่าย</div>
 
             <div className="card-bottom">
-              <span>รวมทั้งหมด</span>
-              <strong>6,800 ฿</strong>
+              <span>เดือนนี้</span>
+              <strong>{money(monthly.expense)}</strong>
             </div>
           </div>
 
@@ -66,7 +98,7 @@ function Home() {
 
             <div className="card-bottom">
               <span>รวมทั้งหมด</span>
-              <strong>2,000 ฿</strong>
+              <strong>—</strong>
             </div>
           </div>
 
@@ -75,7 +107,7 @@ function Home() {
 
             <div className="card-bottom">
               <span>รวมทั้งหมด</span>
-              <strong>2,000 ฿</strong>
+              <strong>—</strong>
             </div>
           </div>
 
@@ -86,7 +118,9 @@ function Home() {
         <section className="news-section">
 
           <h3>ข่าวสารเกี่ยวกับการเงิน</h3>
+          <p className="home-news-note">ติดตามข่าวจากธนาคารแห่งประเทศไทย (ยังไม่ได้เชื่อม API ข่าวอัตโนมัติ)</p>
 
+          <a className="home-news-source" href="https://www.bot.or.th/" target="_blank" rel="noopener noreferrer">อ่านข่าวและประกาศจากธนาคารแห่งประเทศไทย ↗</a>
           <div className="news-card">
             <div className="news-image">
               <div className="news-overlay">
@@ -110,7 +144,7 @@ function Home() {
         {/* ================= DASHBOARD ================= */}
         <section className="dashboard-section">
 
-          <h3>แดชบอร์ด</h3>
+          <h3>แดชบอร์ด <small>(ข้อมูลกราฟตัวอย่าง)</small></h3>
 
           {/* Dashboard tabs */}
           <div className="dashboard-tabs">

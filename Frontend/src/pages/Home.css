@@ -377,3 +377,25 @@
   }
 
 }
+/* Home page scoped styles: prevent clashes with Transactions.css */
+.home-page { background: #f6f8fa; }
+.home-page .home-content { max-width: 900px; padding: 28px 18px 36px; }
+.home-page .summary-grid { gap: 14px; }
+.home-page .summary-card { min-width: 0; height: auto; min-height: 118px; padding: 18px; border: 1px solid #e7eaf0; border-radius: 18px; background: white; box-shadow: 0 4px 16px rgba(30,50,70,.05); }
+.home-page .card-title { font-size: 15px; font-weight: 700; }
+.home-page .card-bottom { flex-wrap: wrap; align-items: baseline; }
+.home-page .card-bottom span { font-size: 12px; color: #7a8796; }
+.home-page .card-bottom strong { font-size: clamp(18px, 3vw, 27px); }
+.home-page .income-card { color: #18a875; }
+.home-page .expense-card { color: #e65c70; }
+.home-page .debt-card { color: #ee675e; }
+.home-page .receivable-card { color: #e6a127; }
+.home-page .home-period { margin: 0 0 15px; color: #667587; font-size: 14px; }
+.home-page .home-data-error { color: #ac4e54; font-size: 13px; }
+.home-page .news-section, .home-page .dashboard-section { margin-top: 32px; }
+.home-page .news-section h3, .home-page .dashboard-section h3 { margin-left: 0; font-size: 18px; }
+.home-page .news-card { padding: 0; }
+.home-page .home-news-note { font-size: 12px; color: #758394; }
+.home-page .home-news-source { display: inline-block; margin-bottom: 12px; font-size: 13px; color: #3769b4; }
+.home-page .dashboard-section h3 small { font-size: 11px; font-weight: 400; color: #8993a1; }
+@media (max-width: 420px) { .home-page .home-content { padding: 20px 14px; } .home-page .summary-card { padding: 13px; } .home-page .card-bottom strong { font-size: 19px; } }

@@ -1,22 +1,32 @@
 .custom-header {
-  height: 104px;
-  background: #cdb0f7;
-
+  min-height: 112px;
+  height: auto;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 24px clamp(20px, 4vw, 70px);
+  background: #80a5f4;
+}
+.custom-header h1 {
+  margin: 0;
+  font-size: clamp(26px, 3vw, 40px);
+  font-weight: 800;
+  line-height: 1.25;
+  color: #fff;
+}
+@media (min-width: 600px) {
+  .custom-header { min-height: 154px; }
+}
+@media (max-width: 380px) {
+  .custom-header { padding: 20px 16px; }
+  .custom-header h1 { font-size: 24px; }
+}
 
-  padding: 0 24px;
-}
-.custom-header h1{
-  font-size: 20px;
-  font-weight: 700;
-  color: Black;
-}
 /*Home Header*/
 /* Home Header */
 .home-header {
-  min-height: 104px;
+  min-height: 112px;
   height: auto;
   background: #cdb0f7;
 
@@ -104,8 +114,8 @@
 
 @media (min-width: 600px) {
   .home-header {
-    min-height: 124px;
-    padding: 24px clamp(24px, 4vw, 64px);
+    min-height: 154px;
+    padding: 24px clamp(24px, 4vw, 70px);
   }
 
   .welcome .home-header-date {
@@ -139,3 +149,11 @@
     border-radius: 12px;
   }
 }
+/* Consistent header spacing with Financial Health */
+.custom-header, .home-header { box-sizing: border-box; width: 100%; min-height: 116px; height: auto; padding: 24px clamp(18px, 4vw, 64px); }
+.custom-header { background: #82a5f1; color: #fff; }
+.custom-header h1 { margin: 0; color: #fff; font-size: clamp(22px, 3vw, 32px); font-weight: 800; line-height: 1.4; }
+.home-header { background: #cdb0f7; }
+.home-header .welcome { font-size: clamp(22px, 3vw, 32px); }
+.home-header .home-header-date { font-size: 13px; }
+@media (max-width: 599px) { .custom-header, .home-header { min-height: 104px; padding: 18px; } }
