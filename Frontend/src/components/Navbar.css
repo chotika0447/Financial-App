@@ -57,5 +57,5 @@
 }
 
 .nav-item:nth-child(5).active {
-  color: var(--color-notifications);
+  color: var(--color-financial-health);
 }

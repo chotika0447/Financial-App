@@ -1,6 +1,6 @@
 import './Home.css';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import HomeHeader from '../components/HomeHeader';
 import Navbar from '../components/Navbar';
 
@@ -161,16 +161,6 @@ function Home() {
             </div>
 
           </div>
-
-
-          {/* Financial health */}
-          <button
-            className="financial-health-button"
-            onClick={() => navigate('/financial-health')}
-          >
-            <span>ประเมินสุขภาพการเงินของคุณ</span>
-            <span className="arrow">→</span>
-          </button>
 
         </section>
 

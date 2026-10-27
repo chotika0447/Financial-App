@@ -350,41 +350,6 @@
   background: #72c99a;
 }
 
-
-/* =========================
-   FINANCIAL HEALTH
-========================= */
-
-.financial-health-button {
-  width: 290px;
-  height: 57px;
-
-  margin: 27px auto 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  padding: 0 14px 0 32px;
-
-  background: white;
-
-  border: 2px solid #58df3d;
-  border-radius: 5px;
-
-  color: #397c32;
-
-  font-size: 15px;
-  font-weight: 700;
-
-  cursor: pointer;
-}
-
-.financial-health-button .arrow {
-  font-size: 30px;
-  font-weight: 300;
-}
-
 /* =========================
    MOBILE
 ========================= */

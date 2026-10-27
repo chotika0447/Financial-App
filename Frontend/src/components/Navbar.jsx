@@ -7,6 +7,7 @@ import savingIcon from '../assets/icons/saving.svg';
 import debtIcon from '../assets/icons/debt.svg';
 import notificationIcon from '../assets/icons/bell.svg';
 
+import { SquareActivity } from 'lucide-react';
 
 function Navbar() {
   return (
@@ -32,9 +33,9 @@ function Navbar() {
         <span>หนี้สิน</span>
       </NavLink>
 
-      <NavLink to="/notifications/" className="nav-item">
-        <img className="nav-icon" src={notificationIcon} alt="แจ้งเตือน" />
-        <span>แจ้งเตือน</span>
+      <NavLink to="/financial-health/" className="nav-item">
+        <SquareActivity className="nav-icon" aria-hidden="true" />
+        <span>สุขภาพการเงิน</span>
       </NavLink>
 
     </nav>
