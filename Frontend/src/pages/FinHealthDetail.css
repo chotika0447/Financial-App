@@ -22,21 +22,20 @@
     background: linear-gradient(145deg, #16b98b 0%, #48cda2 100%);
     color: #fff;
 }
-
 .fhd-back-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     width: 42px;
     height: 42px;
-    margin-bottom: 20px;
+    margin: 0;
     padding: 0;
     border: 1px solid rgb(255 255 255 / 45%);
     border-radius: 12px;
     background: rgb(255 255 255 / 18%);
     color: #fff;
     cursor: pointer;
-    transition: background 0.2s ease;
 }
 
 .fhd-back-button:hover {
@@ -51,10 +50,25 @@
 
 .fhd-heading {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 14px;
     min-width: 0;
 }
+
+.fhd-heading h1 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(21px, 5vw, 32px);
+    font-weight: 800;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.fhd-title-content {
+    flex: 1;
+    min-width: 0;
+}
+
 
 .fhd-icon {
     display: flex;
@@ -66,20 +80,6 @@
     border-radius: 16px;
     background: var(--category-bg);
     color: var(--category-color);
-}
-
-.fhd-title-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.fhd-eyebrow {
-    display: block;
-    margin-bottom: 5px;
-    color: rgb(255 255 255 / 85%);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1.2px;
 }
 
 .fhd-heading h1,
