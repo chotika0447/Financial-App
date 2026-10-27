@@ -8,7 +8,7 @@ import {
 const finHealthCriteria = [
     {
         id: 'spend',
-        title: 'สุขภาพการใช้จ่าย',
+        title: 'การใช้จ่าย',
         name: 'การใช้จ่าย (Spend)',
         weight: 25,
         description:
@@ -26,7 +26,7 @@ const finHealthCriteria = [
     },
     {
         id: 'save',
-        title: 'สุขภาพการออม',
+        title: 'การออม',
         name: 'การออม (Save)',
         weight: 25,
         description:
@@ -44,7 +44,7 @@ const finHealthCriteria = [
     },
     {
         id: 'borrow',
-        title: 'สุขภาพการกู้ยืม',
+        title: 'การกู้ยืม',
         name: 'การกู้ยืม (Borrow)',
         weight: 25,
         description:

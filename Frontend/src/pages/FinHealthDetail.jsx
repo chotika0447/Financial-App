@@ -184,10 +184,6 @@ function FinHealthDetail() {
 
                     <div className="fhd-title-content">
                         <h1>{criterion.title}</h1>
-
-                        <span className="fhd-weight">
-                            น้ำหนักคะแนน {criterion.weight}%
-                        </span>
                     </div>
                 </div>
             </header>
