@@ -2,99 +2,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    ArrowLeft,
     CircleHelp,
-    Wallet,
-    ChartNoAxesCombined,
-    HandCoins,
     ShieldCheck,
     X,
 } from 'lucide-react';
 
-import './FinancialHealth.css';
+import './FinHealth.css';
 import Navbar from '../components/Navbar';
 import CriteriaCard from '../components/CriteriaCard';
+import finHealthCriteria from '../data/finHealthCriteria';
 
-const criteria = [
-    {
-        id: 'spend',
-        title: 'สุขภาพการใช้จ่าย',
-        name: 'การใช้จ่าย (Spend)',
-        weight: 25,
-        description:
-            'ประเมินสัดส่วนค่าใช้จ่ายเทียบกับรายได้ และความสามารถในการชำระบิลตรงเวลา',
-        indicators: [
-            'ตัวชี้วัดที่ 1: สัดส่วนค่าใช้จ่ายต่อรายได้',
-            'ตัวชี้วัดที่ 2: ความสามารถในการชำระบิลตรงเวลา',
-        ],
-        formula:
-            'คะแนนด้านการใช้จ่าย = (S1 + S2) ÷ 2',
-        target:
-            'สัดส่วนค่าใช้จ่ายยิ่งเหมาะสม และชำระบิลตรงเวลาได้สม่ำเสมอ ยิ่งได้คะแนนสูง',
-        Icon: ChartNoAxesCombined,
-        color: '#3978d4',
-        background: '#eaf1ff',
-    },
-    {
-        id: 'save',
-        title: 'สุขภาพการออม',
-        name: 'การออม (Save)',
-        weight: 25,
-        description:
-            'ประเมินเงินสำรองที่พร้อมใช้และความคืบหน้าของการออมตามเป้าหมาย',
-        indicators: [
-            'ตัวชี้วัดที่ 3: เงินสำรองสภาพคล่อง',
-            'ตัวชี้วัดที่ 4: ความคืบหน้าตามเป้าหมายการออม',
-        ],
-        formula:
-            'คะแนนด้านการออม = (S3 + S4) ÷ 2',
-        target:
-            'พิจารณาเงินสำรองที่พร้อมใช้จริง และความคืบหน้าของเงินออมเทียบกับแผน',
-        Icon: Wallet,
-        color: '#159b76',
-        background: '#e7f7f0',
-    },
-    {
-        id: 'borrow',
-        title: 'สุขภาพการกู้ยืม',
-        name: 'การกู้ยืม (Borrow)',
-        weight: 25,
-        description:
-            'ประเมินภาระหนี้เทียบกับรายได้และประวัติการชำระหนี้',
-        indicators: [
-            'ตัวชี้วัดที่ 5: สัดส่วนภาระหนี้ต่อรายได้',
-            'ตัวชี้วัดที่ 6: ประวัติการชำระหนี้',
-        ],
-        formula:
-            'คะแนนด้านการกู้ยืม = (S5 + S6) ÷ 2',
-        target:
-            'ภาระหนี้ที่เหมาะสมและประวัติการชำระหนี้ที่ดีช่วยสะท้อนความสามารถในการจัดการหนี้',
-        Icon: HandCoins,
-        color: '#dc7650',
-        background: '#fff0e9',
-    },
-    {
-        id: 'plan',
-        title: 'การวางแผนและการคุ้มครอง',
-        name: 'การวางแผนและการคุ้มครอง (Plan & Protect)',
-        weight: 25,
-        description:
-            'ประเมินความเพียงพอของประกันและการวางแผนทางการเงินล่วงหน้า',
-        indicators: [
-            'ตัวชี้วัดที่ 7: ความเพียงพอของประกัน',
-            'ตัวชี้วัดที่ 8: การวางแผนการเงินล่วงหน้า',
-        ],
-        formula:
-            'คะแนนด้านการวางแผนและการคุ้มครอง = (S7 + S8) ÷ 2',
-        target:
-            'พิจารณาความพร้อมในการรับมือเหตุฉุกเฉินและการวางแผนการเงินในอนาคต',
-        Icon: ShieldCheck,
-        color: '#8a60c9',
-        background: '#f1eaff',
-    },
-];
-
-function FinancialHealth() {
+function FinHealth() {
     const navigate = useNavigate();
     const [showCriteria, setShowCriteria] = useState(false);
 
@@ -106,7 +24,7 @@ function FinancialHealth() {
             <header className="fh-header">
 
                 <div className="fh-score-heading">
-                    <h1>คะแนนสุขภาพการเงินของคุณ</h1>
+                    <h1>คะแนนสุขภาพการเงินโดยรวมของคุณ</h1>
 
                     <button
                         type="button"
@@ -160,7 +78,7 @@ function FinancialHealth() {
 
 
                 <div className="fh-category-list">
-                    {criteria.map((item) => (
+                    {finHealthCriteria.map((item) => (
                         <CriteriaCard
                             key={item.id}
                             item={item}
@@ -224,7 +142,7 @@ function FinancialHealth() {
                         </p>
 
                         <div className="fh-criteria-list">
-                            {criteria.map((item, index) => (
+                            {finHealthCriteria.map((item, index) => (
                                 <article className="fh-criterion" key={item.id}>
                                     <div className="fh-criterion-heading">
                                         <span className="fh-criterion-number">
@@ -284,4 +202,4 @@ function FinancialHealth() {
     );
 }
 
-export default FinancialHealth;
+export default FinHealth;
