@@ -1,8 +1,52 @@
-
+import { useEffect, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
+
+const PLAN_ANSWERS_KEY = 'financialHealthPlanAnswers';
 
 function CriteriaCard({ item, onClick }) {
     const Icon = item.Icon;
+    const isPlan = item.id === 'plan';
+
+    const [hasAnswers, setHasAnswers] = useState(false);
+
+    useEffect(() => {
+        if (!isPlan) return;
+
+        try {
+            const saved = localStorage.getItem(PLAN_ANSWERS_KEY);
+            const answers = saved ? JSON.parse(saved) : {};
+
+            setHasAnswers(
+                Boolean(answers.q7 && answers.q8)
+            );
+        } catch {
+            setHasAnswers(false);
+        }
+
+        // ตรวจสถานะใหม่เมื่อกลับมาที่หน้าเกณฑ์
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                try {
+                    const saved = localStorage.getItem(PLAN_ANSWERS_KEY);
+                    const answers = saved ? JSON.parse(saved) : {};
+
+                    setHasAnswers(
+                        Boolean(answers.q7 && answers.q8)
+                    );
+                } catch {
+                    setHasAnswers(false);
+                }
+            }
+        };
+
+        window.addEventListener('focus', handleVisibilityChange);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener('focus', handleVisibilityChange);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
+    }, [isPlan]);
 
     return (
         <button
@@ -30,7 +74,11 @@ function CriteriaCard({ item, onClick }) {
                 </span>
 
                 <span className="fh-category-weight">
-                    น้ำหนักคะแนน {item.weight}%
+                    {isPlan
+                        ? hasAnswers
+                            ? 'มีข้อมูลแบบประเมินแล้ว'
+                            : 'ยังไม่ได้ทำแบบประเมิน'
+                        : `น้ำหนักคะแนน ${item.weight}%`}
                 </span>
             </span>
 

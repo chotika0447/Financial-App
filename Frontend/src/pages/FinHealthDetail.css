@@ -272,3 +272,226 @@
         border-radius: 13px;
     }
 }
+
+/* แบบประเมินการวางแผนและการคุ้มครอง */
+
+.fhd-survey-heading {
+    margin-bottom: 22px;
+}
+
+.fhd-survey-heading h2 {
+    margin-bottom: 8px;
+}
+
+.fhd-card .fhd-survey-description {
+    margin: 0;
+    color: #75847c;
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+.fhd-question {
+    min-width: 0;
+    margin: 0;
+    padding: 22px 0;
+    border: 0;
+    border-top: 1px solid #e7eeea;
+}
+
+.fhd-question-title {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    width: 100%;
+    padding: 0;
+    color: #34483c;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.8;
+}
+
+.fhd-question-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #e7f7f0;
+    color: #159b76;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.fhd-question-description {
+    margin: 12px 0 15px;
+    color: #78867e;
+    font-size: 12px;
+    line-height: 1.8;
+}
+
+.fhd-question-statement {
+    margin: 15px 0;
+    padding: 13px 14px;
+    border-left: 3px solid #48cda2;
+    border-radius: 0 10px 10px 0;
+    background: #f2faf6;
+    color: #40564a;
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+.fhd-answer-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.fhd-answer-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #e5ece8;
+    border-radius: 12px;
+    background: #fff;
+    color: #52665a;
+    cursor: pointer;
+    transition:
+        border-color 0.2s ease,
+        background 0.2s ease;
+}
+
+.fhd-answer-option:hover {
+    border-color: #9bdcc2;
+}
+
+.fhd-answer-option.is-selected {
+    border-color: #159b76;
+    background: #effaf4;
+    color: #216849;
+}
+
+.fhd-answer-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.fhd-radio-indicator {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 19px;
+    height: 19px;
+    margin-top: 2px;
+    border: 1.5px solid #bdcbc2;
+    border-radius: 50%;
+    background: #fff;
+}
+
+.fhd-answer-option.is-selected .fhd-radio-indicator {
+    border-color: #159b76;
+}
+
+.fhd-answer-option.is-selected .fhd-radio-indicator::after {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #159b76;
+    content: "";
+}
+
+.fhd-answer-option:focus-within {
+    outline: 3px solid rgb(21 155 118 / 22%);
+    outline-offset: 2px;
+}
+
+.fhd-answer-label {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+.fhd-survey-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 18px;
+    border-top: 1px solid #e7eeea;
+}
+
+.fhd-survey-status {
+    color: #64776b;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.fhd-clear-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 40px;
+    padding: 9px 13px;
+    border: 1px solid #ead4d4;
+    border-radius: 10px;
+    background: #fff;
+    color: #b94a4a;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.fhd-clear-button:hover:not(:disabled) {
+    background: #fff5f5;
+}
+
+.fhd-clear-button:disabled {
+    border-color: #e7ece9;
+    background: #f7f9f8;
+    color: #a5b0a9;
+    cursor: not-allowed;
+}
+
+.fhd-clear-button:focus-visible {
+    outline: 3px solid rgb(185 74 74 / 20%);
+    outline-offset: 3px;
+}
+
+.fhd-survey-error {
+    margin: 12px 0;
+    color: #b42318;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+@media (min-width: 600px) {
+    .fhd-question {
+        padding: 26px 0;
+    }
+
+    .fhd-question-title {
+        font-size: 15px;
+    }
+
+    .fhd-answer-option {
+        padding: 14px 15px;
+    }
+
+    .fhd-answer-label {
+        font-size: 14px;
+    }
+}
