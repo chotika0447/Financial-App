@@ -997,8 +997,8 @@ function Transactions() {
                 type="button"
                 className="see-all-button"
                 onClick={() => {
-                  if (filterDate) setFilterDate('');
-                  setShowAll(!showAll || Boolean(filterDate));
+                // แสดงรายการทั้งหมดโดยไม่เปลี่ยนวันที่หรือตัวกรอง
+                setShowAll((current) => !current);
                 }}
               >
                 {showAll ? 'แสดงน้อยลง' : 'แสดงทั้งหมด ›'}
