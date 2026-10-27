@@ -1,4 +1,3 @@
-
 /* =========================
    FINANCIAL HEALTH
 ========================= */
@@ -17,89 +16,53 @@
 /* =========================
    HEADER
 ========================= */
-
 .fh-header {
-    padding: 0 18px 22px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: calc(16px + env(safe-area-inset-top)) 18px 22px;
     background: linear-gradient(145deg, #16b98b 0%, #48cda2 100%);
-    border-radius: 0 0 26px 26px;
+    border-radius: 0;
 }
 
-.fh-topbar {
-    min-height: 58px;
-    display: grid;
-    grid-template-columns: 40px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 8px;
-    padding-top: env(safe-area-inset-top);
+.fh-score-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
 }
 
-.fh-back-button,
+.fh-score-heading h1 {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    color: #fff;
+    font-size: clamp(20px, 5vw, 30px);
+    font-weight: 800;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
 .fh-criteria-button {
     display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    min-height: 36px;
-    border: none;
-    cursor: pointer;
-    font-family: inherit;
-}
-
-.fh-back-button {
-    width: 36px;
-    padding: 0;
-    border-radius: 12px;
-    background: rgb(255 255 255 / 22%);
-    color: #fff;
-}
-
-.fh-topbar-title {
-    min-width: 0;
-    color: #fff;
-    font-size: 15px;
-    font-weight: 700;
-}
-
-.fh-criteria-button {
+    gap: 5px;
+    width: fit-content;
+    min-height: 34px;
     padding: 7px 10px;
     border: 1px solid rgb(255 255 255 / 55%);
-    border-radius: 12px;
+    border-radius: 8px;
     background: #f1fff9;
     color: #176c53;
+    font-family: inherit;
     font-size: 12px;
     font-weight: 600;
     white-space: nowrap;
+    cursor: pointer;
 }
 
-.fh-intro {
-    padding: 14px 2px 18px;
-}
-
-.fh-eyebrow {
-    display: inline-block;
-    margin-bottom: 8px;
-    color: #eafff6;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 1.5px;
-}
-
-.fh-intro h1 {
-    margin: 0;
-    color: #fff;
-    font-size: clamp(24px, 6vw, 31px);
-    font-weight: 800;
-    line-height: 1.35;
-    letter-spacing: -0.4px;
-}
-
-.fh-intro > p {
-    max-width: 330px;
-    margin: 8px 0 0;
-    color: #effff8;
-    font-size: 12px;
-    line-height: 1.7;
-}
 
 /* =========================
    SCORE CARD
@@ -144,7 +107,7 @@
     line-height: 1.1;
 }
 
-.fh-score-value > span {
+.fh-score-value>span {
     color: #8a9992;
     font-size: 13px;
 }
@@ -345,7 +308,7 @@
     color: #23805c;
 }
 
-.fh-tip > p {
+.fh-tip>p {
     display: flex;
     flex-direction: column;
     gap: 5px;
@@ -355,12 +318,12 @@
     line-height: 1.7;
 }
 
-.fh-tip > p strong {
+.fh-tip>p strong {
     color: #286349;
     font-size: 12px;
 }
 
-.fh-tip > p span {
+.fh-tip>p span {
     color: #718278;
 }
 
@@ -477,7 +440,7 @@
     font-weight: 800;
 }
 
-.fh-criterion-heading > div {
+.fh-criterion-heading>div {
     flex: 1;
     min-width: 0;
 }
@@ -490,7 +453,7 @@
     overflow-wrap: anywhere;
 }
 
-.fh-criterion-heading > div > span {
+.fh-criterion-heading>div>span {
     display: inline-block;
     margin-top: 3px;
     color: #18815f;
@@ -498,7 +461,7 @@
     font-weight: 600;
 }
 
-.fh-criterion > p {
+.fh-criterion>p {
     margin: 9px 0;
     color: #728078;
     font-size: 11px;
@@ -511,12 +474,12 @@
     background: #f0f5f2;
 }
 
-.fh-formula > span {
+.fh-formula>span {
     color: #7c8981;
     font-size: 10px;
 }
 
-.fh-formula > p {
+.fh-formula>p {
     margin: 4px 0 0;
     color: #354b3e;
     font-size: 11px;
@@ -568,6 +531,7 @@
         font-size: 12px;
     }
 }
+
 /* =========================
    SMALL SCREENS
 ========================= */
@@ -578,23 +542,18 @@
         padding-left: 13px;
     }
 
-    .fh-topbar {
-        grid-template-columns: 34px minmax(0, 1fr) auto;
-        gap: 5px;
+    .fh-score-heading {
+        gap: 8px;
     }
 
-    .fh-topbar-title {
-        font-size: 13px;
+    .fh-score-heading h1 {
+        font-size: 20px;
     }
 
     .fh-criteria-button {
         gap: 4px;
-        padding: 7px;
-        font-size: 10px;
-    }
-
-    .fh-intro h1 {
-        font-size: 24px;
+        padding: 7px 8px;
+        font-size: 11px;
     }
 
     .fh-main {
@@ -636,26 +595,23 @@
     }
 
     .fh-header {
-        padding: 0 clamp(24px, 4vw, 64px) 30px;
-        border-radius: 0 0 30px 30px;
+        padding: calc(24px + env(safe-area-inset-top)) clamp(24px, 4vw, 64px) 30px;
+        border-radius: 0;
     }
 
-    .fh-topbar {
-        min-height: 64px;
+    .fh-score-heading {
+        align-items: center;
+        margin-bottom: 22px;
     }
 
-    .fh-intro {
-        padding-top: 24px;
-        padding-bottom: 26px;
+    .fh-score-heading h1 {
+        font-size: clamp(28px, 3vw, 40px);
     }
 
-    .fh-intro h1 {
-        font-size: clamp(32px, 3vw, 42px);
-    }
-
-    .fh-intro > p {
-        max-width: 560px;
-        font-size: 14px;
+    .fh-criteria-button {
+        min-height: 38px;
+        padding: 8px 12px;
+        font-size: 13px;
     }
 
     .fh-score-card {
@@ -710,6 +666,7 @@
         padding-left: max(64px, calc((100vw - 1440px) / 2));
     }
 }
+
 /* Respect reduced-motion preference */
 
 @media (prefers-reduced-motion: reduce) {

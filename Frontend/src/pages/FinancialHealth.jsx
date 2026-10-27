@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ArrowLeft,
-    ChevronRight,
     CircleHelp,
     Wallet,
     ChartNoAxesCombined,
@@ -14,6 +13,7 @@ import {
 
 import './FinancialHealth.css';
 import Navbar from '../components/Navbar';
+import CriteriaCard from '../components/CriteriaCard';
 
 const criteria = [
     {
@@ -104,24 +104,18 @@ function FinancialHealth() {
     return (
         <div className="financial-health-page">
             <header className="fh-header">
-                <div className="fh-topbar">
 
-                    <span className="fh-topbar-title">
-                        สุขภาพการเงิน
-                    </span>
+                <div className="fh-score-heading">
+                    <h1>คะแนนสุขภาพการเงินของคุณ</h1>
 
                     <button
                         type="button"
                         className="fh-criteria-button"
                         onClick={() => setShowCriteria(true)}
                     >
-                        <CircleHelp size={17} />
+                        <CircleHelp size={16} />
                         <span>เกณฑ์คะแนน</span>
                     </button>
-                </div>
-
-                <div className="fh-intro">
-                    <h1>คะแนนสุขภาพการเงินของคุณ</h1>
                 </div>
 
                 <section className="fh-score-card">
@@ -159,55 +153,22 @@ function FinancialHealth() {
             <main className="fh-main">
                 <div className="fh-section-heading">
                     <div>
-                        <h2>สุขภาพการเงิน 4 ด้าน โดยคำนวณจาก 8 ตัวชี้วัด</h2>
+                        <h2>สุขภาพการเงิน 4 ด้าน</h2>
                         <p>โปรดเลือกหัวข้อเพื่อดูรายละเอียด</p>
                     </div>
                 </div>
 
+
                 <div className="fh-category-list">
-                    {criteria.map((item) => {
-                        const Icon = item.Icon;
-
-                        return (
-                            <button
-                                type="button"
-                                key={item.id}
-                                className="fh-category-card"
-                                onClick={() =>
-                                    navigate(`/financial-health/${item.id}`)
-                                }
-                            >
-                                <span
-                                    className="fh-category-icon"
-                                    style={{
-                                        '--category-color': item.color,
-                                        '--category-bg': item.background,
-                                    }}
-                                >
-                                    <Icon size={23} strokeWidth={1.8} />
-                                </span>
-
-                                <span className="fh-category-content">
-                                    <span className="fh-category-title">
-                                        {item.title}
-                                    </span>
-
-                                    <span className="fh-category-description">
-                                        {item.description}
-                                    </span>
-
-                                    <span className="fh-category-weight">
-                                        น้ำหนักคะแนน {item.weight}%
-                                    </span>
-                                </span>
-
-                                <ChevronRight
-                                    className="fh-category-arrow"
-                                    size={21}
-                                />
-                            </button>
-                        );
-                    })}
+                    {criteria.map((item) => (
+                        <CriteriaCard
+                            key={item.id}
+                            item={item}
+                            onClick={() =>
+                                navigate(`/financial-health/${item.id}`)
+                            }
+                        />
+                    ))}
                 </div>
 
                 <div className="fh-tip">
