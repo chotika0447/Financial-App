@@ -54,6 +54,11 @@ function calculatePlanAverage(answers) {
 
 function FinHealthDetail() {
     const navigate = useNavigate();
+
+    const [spendMetrics, setSpendMetrics] = useState(null);
+    const [spendLoading, setSpendLoading] = useState(false);
+    const [spendError, setSpendError] = useState('');
+
     const { id } = useParams();
     const [planAnswers, setPlanAnswers] = useState({ q7: '', q8: '' });
     const planAverage = calculatePlanAverage(planAnswers);
@@ -80,6 +85,63 @@ function FinHealthDetail() {
             setPlanAnswers({ q7: '', q8: '' });
             setSaveError('ไม่สามารถอ่านข้อมูลแบบประเมินที่บันทึกไว้ได้');
         }
+    }, [id]);
+
+    useEffect(() => {
+        if (id !== 'spend') return;
+
+        const accessToken = sessionStorage.getItem('accessToken');
+
+        if (!accessToken) {
+            setSpendError('ไม่พบข้อมูลการเข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่');
+            return;
+        }
+
+        const controller = new AbortController();
+
+        async function fetchSpendMetrics() {
+            setSpendLoading(true);
+            setSpendError('');
+
+            try {
+                const response = await fetch(
+                    '/transactions/financial-health/spend/',
+                    {
+                        method: 'GET',
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                        },
+                        signal: controller.signal,
+                    }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.detail ||
+                        data.error ||
+                        'ไม่สามารถโหลดข้อมูลการใช้จ่ายได้'
+                    );
+                }
+
+                setSpendMetrics(data);
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    setSpendError(
+                        error.message || 'เกิดข้อผิดพลาดในการโหลดข้อมูล'
+                    );
+                }
+            } finally {
+                if (!controller.signal.aborted) {
+                    setSpendLoading(false);
+                }
+            }
+        }
+
+        fetchSpendMetrics();
+
+        return () => controller.abort();
     }, [id]);
 
     function handlePlanAnswerChange(questionId, value) {
@@ -118,6 +180,13 @@ function FinHealthDetail() {
             setSaveError('ล้างคำตอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
         }
     }
+
+    const formatSpendMoney = (value) => {
+        return Number(value || 0).toLocaleString('th-TH', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
+    };
 
     const criterion = finHealthCriteria.find(
         (item) => item.id === id
@@ -193,6 +262,99 @@ function FinHealthDetail() {
                     <h2>เกี่ยวกับเกณฑ์นี้</h2>
                     <p>{criterion.description}</p>
                 </section>
+                
+                {/* เลือกมาแท็บหน้าการใช้จ่าย */}
+                {criterion.id === 'spend' && (
+                    <section className="fhd-card fhd-spend-card">
+                        <h2>อัตราค่าใช้จ่ายต่อรายได้</h2>
+
+                        <p className="fhd-spend-description">
+                            คำนวณจากรายการรายรับและรายจ่ายของเดือนปัจจุบัน
+                            รวมกับรายได้ประจำเดือนที่ระบุไว้ในข้อมูลส่วนตัว
+                        </p>
+
+                        <div className="fhd-spend-formula">
+                            <span className="fhd-spend-label">สูตร</span>
+                            <p>
+                                อัตราค่าใช้จ่ายต่อรายได้ =
+                                (ค่าใช้จ่ายทั้งหมดต่อเดือน ÷ รายได้สุทธิต่อเดือน) × 100
+                            </p>
+                        </div>
+
+                        {spendLoading ? (
+                            <p className="fhd-spend-message">
+                                กำลังคำนวณข้อมูลการใช้จ่าย...
+                            </p>
+                        ) : spendError ? (
+                            <p className="fhd-spend-error" role="alert">
+                                {spendError}
+                            </p>
+                        ) : spendMetrics ? (
+                            <>
+                                <div className="fhd-spend-period">
+                                    ข้อมูลเดือน {spendMetrics.month}/{spendMetrics.year + 543}
+                                </div>
+
+                                <div className="fhd-spend-breakdown">
+                                    <div className="fhd-spend-row">
+                                        <span>ค่าใช้จ่ายทั้งหมดต่อเดือน</span>
+                                        <strong>
+                                            {formatSpendMoney(spendMetrics.expense_total)} บาท
+                                        </strong>
+                                    </div>
+
+                                    <div className="fhd-spend-row">
+                                        <span>รายได้ประจำเดือนจากข้อมูลส่วนตัว</span>
+                                        <strong>
+                                            {formatSpendMoney(spendMetrics.monthly_income)} บาท
+                                        </strong>
+                                    </div>
+
+                                    <div className="fhd-spend-row">
+                                        <span>รายรับจากธุรกรรมเดือนนี้</span>
+                                        <strong>
+                                            {formatSpendMoney(
+                                                spendMetrics.transaction_income_total
+                                            )} บาท
+                                        </strong>
+                                    </div>
+
+                                    <div className="fhd-spend-row fhd-spend-row-total">
+                                        <span>รายได้สุทธิต่อเดือน</span>
+                                        <strong>
+                                            {formatSpendMoney(
+                                                spendMetrics.net_monthly_income
+                                            )} บาท
+                                        </strong>
+                                    </div>
+                                </div>
+
+                                <div className="fhd-spend-result">
+                                    <span>ผลการคำนวณ</span>
+
+                                    {spendMetrics.expense_ratio === null ? (
+                                        <strong className="fhd-spend-no-result">
+                                            ยังไม่สามารถคำนวณได้ เนื่องจากรายได้รวมเป็นศูนย์
+                                        </strong>
+                                    ) : (
+                                        <div className="fhd-spend-result-value">
+                                            <strong>
+                                                {formatSpendMoney(
+                                                    spendMetrics.expense_ratio
+                                                )}
+                                            </strong>
+                                            <span>%</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <p className="fhd-spend-message">
+                                ยังไม่มีข้อมูลสำหรับคำนวณ
+                            </p>
+                        )}
+                    </section>
+                )}
 
                 {criterion.id === 'plan' && (
                     <section className="fhd-card fhd-survey-card">

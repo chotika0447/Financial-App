@@ -519,6 +519,174 @@
     font-size: 12px;
 }
 
+/* การ์ดอัตราค่าใช้จ่ายต่อรายได้ */
+
+.fhd-spend-card h2 {
+    margin-bottom: 8px;
+}
+
+.fhd-card .fhd-spend-description {
+    margin: 0 0 18px;
+    color: #75847c;
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+.fhd-spend-formula {
+    padding: 14px;
+    border-radius: 12px;
+    background: #edf7f1;
+}
+
+.fhd-spend-label {
+    color: #24815e;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.fhd-spend-formula p {
+    margin: 7px 0 0;
+    color: #285b43;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+}
+
+.fhd-spend-period {
+    margin-top: 20px;
+    color: #728078;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.fhd-spend-breakdown {
+    margin-top: 10px;
+    border: 1px solid #e8eeeb;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.fhd-spend-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px;
+    border-bottom: 1px solid #edf0ee;
+}
+
+.fhd-spend-row:last-child {
+    border-bottom: 0;
+}
+
+.fhd-spend-row span {
+    flex: 1;
+    min-width: 0;
+    color: #65776c;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.fhd-spend-row strong {
+    flex-shrink: 0;
+    color: #34483c;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.fhd-spend-row-total {
+    background: #f5faf7;
+}
+
+.fhd-spend-row-total strong {
+    color: #16845f;
+}
+
+.fhd-spend-result {
+    margin-top: 18px;
+    padding: 18px;
+    border-radius: 14px;
+    background: #f0faf4;
+}
+
+.fhd-spend-result > span {
+    display: block;
+    color: #526b5b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.fhd-spend-result-value {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    margin-top: 8px;
+}
+
+.fhd-spend-result-value strong {
+    color: #159b76;
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.fhd-spend-result-value span {
+    color: #728078;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.fhd-spend-no-result {
+    display: block;
+    margin-top: 8px;
+    color: #9b6733;
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+.fhd-spend-message,
+.fhd-spend-error {
+    margin-top: 16px !important;
+    font-size: 12px !important;
+    line-height: 1.8 !important;
+}
+
+.fhd-spend-error {
+    color: #b42318 !important;
+}
+
+@media (min-width: 600px) {
+    .fhd-spend-row {
+        padding: 15px 17px;
+    }
+
+    .fhd-spend-row span,
+    .fhd-spend-row strong {
+        font-size: 14px;
+    }
+
+    .fhd-spend-result {
+        padding: 22px;
+    }
+
+    .fhd-spend-result-value strong {
+        font-size: 42px;
+    }
+}
+
+@media (max-width: 380px) {
+    .fhd-spend-row {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .fhd-spend-row strong {
+        text-align: left;
+    }
+}
 
 @media (max-width: 400px) {
     .fhd-survey-heading {
