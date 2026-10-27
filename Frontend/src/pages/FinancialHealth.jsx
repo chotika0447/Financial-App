@@ -17,49 +17,77 @@ import Navbar from '../components/Navbar';
 
 const criteria = [
     {
-        id: 'saving',
-        title: 'สุขภาพการออม',
-        name: 'อัตราการออม (Saving rate)',
-        weight: 30,
-        description: 'วัดว่าคุณเก็บออมเงินได้มากน้อยเพียงใดเมื่อเทียบกับรายได้',
-        formula: 'เงินออม ÷ รายได้ × 100',
-        target: 'ควรออมอย่างน้อย 10–20% ของรายได้',
-        Icon: Wallet,
-        color: '#159b76',
-        background: '#e7f7f0',
-    },
-    {
-        id: 'expense',
+        id: 'spend',
         title: 'สุขภาพการใช้จ่าย',
-        name: 'สัดส่วนค่าใช้จ่าย (Expense Ratio)',
-        weight: 30,
-        description: 'วัดสัดส่วนค่าใช้จ่ายทั้งหมดเมื่อเทียบกับรายได้',
-        formula: 'ค่าใช้จ่าย ÷ รายได้ × 100',
-        target: 'ควรจัดสรรเงินตามหลัก 50/30/20',
+        name: 'การใช้จ่าย (Spend)',
+        weight: 25,
+        description:
+            'ประเมินสัดส่วนค่าใช้จ่ายเทียบกับรายได้ และความสามารถในการชำระบิลตรงเวลา',
+        indicators: [
+            'ตัวชี้วัดที่ 1: สัดส่วนค่าใช้จ่ายต่อรายได้',
+            'ตัวชี้วัดที่ 2: ความสามารถในการชำระบิลตรงเวลา',
+        ],
+        formula:
+            'คะแนนด้านการใช้จ่าย = (S1 + S2) ÷ 2',
+        target:
+            'สัดส่วนค่าใช้จ่ายยิ่งเหมาะสม และชำระบิลตรงเวลาได้สม่ำเสมอ ยิ่งได้คะแนนสูง',
         Icon: ChartNoAxesCombined,
         color: '#3978d4',
         background: '#eaf1ff',
     },
     {
-        id: 'debt',
-        title: 'สุขภาพหนี้สิน',
-        name: 'ภาระหนี้ต่อรายได้ (Debt-to-Income Ratio)',
+        id: 'save',
+        title: 'สุขภาพการออม',
+        name: 'การออม (Save)',
         weight: 25,
-        description: 'วัดภาระผ่อนชำระหนี้เทียบกับรายได้ต่อเดือน',
-        formula: 'ภาระผ่อนหนี้ต่อเดือน ÷ รายได้ต่อเดือน × 100',
-        target: 'ภาระหนี้ยิ่งต่ำ ยิ่งมีความคล่องตัวทางการเงิน',
+        description:
+            'ประเมินเงินสำรองที่พร้อมใช้และความคืบหน้าของการออมตามเป้าหมาย',
+        indicators: [
+            'ตัวชี้วัดที่ 3: เงินสำรองสภาพคล่อง',
+            'ตัวชี้วัดที่ 4: ความคืบหน้าตามเป้าหมายการออม',
+        ],
+        formula:
+            'คะแนนด้านการออม = (S3 + S4) ÷ 2',
+        target:
+            'พิจารณาเงินสำรองที่พร้อมใช้จริง และความคืบหน้าของเงินออมเทียบกับแผน',
+        Icon: Wallet,
+        color: '#159b76',
+        background: '#e7f7f0',
+    },
+    {
+        id: 'borrow',
+        title: 'สุขภาพการกู้ยืม',
+        name: 'การกู้ยืม (Borrow)',
+        weight: 25,
+        description:
+            'ประเมินภาระหนี้เทียบกับรายได้และประวัติการชำระหนี้',
+        indicators: [
+            'ตัวชี้วัดที่ 5: สัดส่วนภาระหนี้ต่อรายได้',
+            'ตัวชี้วัดที่ 6: ประวัติการชำระหนี้',
+        ],
+        formula:
+            'คะแนนด้านการกู้ยืม = (S5 + S6) ÷ 2',
+        target:
+            'ภาระหนี้ที่เหมาะสมและประวัติการชำระหนี้ที่ดีช่วยสะท้อนความสามารถในการจัดการหนี้',
         Icon: HandCoins,
         color: '#dc7650',
         background: '#fff0e9',
     },
     {
-        id: 'liquidity',
-        title: 'สุขภาพเงินสภาพคล่อง',
-        name: 'อัตราส่วนสภาพคล่องพื้นฐาน (Liquidity Ratio)',
-        weight: 15,
-        description: 'วัดความสามารถในการใช้สินทรัพย์สภาพคล่องรองรับค่าใช้จ่าย',
-        formula: 'สินทรัพย์สภาพคล่อง ÷ ค่าใช้จ่ายรายเดือน',
-        target: 'ควรมีเงินสำรองฉุกเฉินประมาณ 3–6 เดือนของค่าใช้จ่าย',
+        id: 'plan',
+        title: 'การวางแผนและการคุ้มครอง',
+        name: 'การวางแผนและการคุ้มครอง (Plan & Protect)',
+        weight: 25,
+        description:
+            'ประเมินความเพียงพอของประกันและการวางแผนทางการเงินล่วงหน้า',
+        indicators: [
+            'ตัวชี้วัดที่ 7: ความเพียงพอของประกัน',
+            'ตัวชี้วัดที่ 8: การวางแผนการเงินล่วงหน้า',
+        ],
+        formula:
+            'คะแนนด้านการวางแผนและการคุ้มครอง = (S7 + S8) ÷ 2',
+        target:
+            'พิจารณาความพร้อมในการรับมือเหตุฉุกเฉินและการวางแผนการเงินในอนาคต',
         Icon: ShieldCheck,
         color: '#8a60c9',
         background: '#f1eaff',
@@ -77,14 +105,6 @@ function FinancialHealth() {
         <div className="financial-health-page">
             <header className="fh-header">
                 <div className="fh-topbar">
-                    <button
-                        type="button"
-                        className="fh-back-button"
-                        onClick={() => navigate(-1)}
-                        aria-label="ย้อนกลับ"
-                    >
-                        <ArrowLeft size={21} />
-                    </button>
 
                     <span className="fh-topbar-title">
                         สุขภาพการเงิน
@@ -101,16 +121,7 @@ function FinancialHealth() {
                 </div>
 
                 <div className="fh-intro">
-                    <span className="fh-eyebrow">
-                        FINANCIAL WELLNESS
-                    </span>
-
-                    <h1>ดูแลสุขภาพการเงิน<br />ของคุณ</h1>
-
-                    <p>
-                        สำรวจสถานะทางการเงินของคุณ
-                        เพื่อวางแผนอนาคตได้อย่างมั่นใจ
-                    </p>
+                    <h1>คะแนนสุขภาพการเงินของคุณ</h1>
                 </div>
 
                 <section className="fh-score-card">
@@ -148,11 +159,9 @@ function FinancialHealth() {
             <main className="fh-main">
                 <div className="fh-section-heading">
                     <div>
-                        <h2>สุขภาพการเงิน 4 ด้าน</h2>
-                        <p>เลือกหัวข้อเพื่อดูรายละเอียด</p>
+                        <h2>สุขภาพการเงิน 4 ด้าน โดยคำนวณจาก 8 ตัวชี้วัด</h2>
+                        <p>โปรดเลือกหัวข้อเพื่อดูรายละเอียด</p>
                     </div>
-
-                    <span className="fh-total-count">4 ด้าน</span>
                 </div>
 
                 <div className="fh-category-list">
@@ -250,15 +259,12 @@ function FinancialHealth() {
 
                         <p className="fh-modal-intro">
                             คะแนนเต็ม 100 คะแนน แบ่งน้ำหนักตามตัวชี้วัด
-                            ทั้ง 4 ด้าน ดังนี้
+                            ทั้ง 4 ด้าน 8 ตัวชี้วัด ดังนี้
                         </p>
 
                         <div className="fh-criteria-list">
                             {criteria.map((item, index) => (
-                                <article
-                                    className="fh-criterion"
-                                    key={item.id}
-                                >
+                                <article className="fh-criterion" key={item.id}>
                                     <div className="fh-criterion-heading">
                                         <span className="fh-criterion-number">
                                             {index + 1}
@@ -273,6 +279,21 @@ function FinancialHealth() {
                                     </div>
 
                                     <p>{item.description}</p>
+
+                                    <ul className="fh-indicator-list">
+                                        {item.indicators.map((indicator) => (
+                                            <li key={indicator}>{indicator}</li>
+                                        ))}
+                                    </ul>
+
+                                    <div className="fh-formula">
+                                        <span>สูตรคะแนนของด้านนี้</span>
+                                        <p>{item.formula}</p>
+                                    </div>
+
+                                    <div className="fh-target">
+                                        {item.target}
+                                    </div>
 
                                     <div className="fh-formula">
                                         <span>สูตรคำนวณ</span>

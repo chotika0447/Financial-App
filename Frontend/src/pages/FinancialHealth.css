@@ -547,6 +547,27 @@
     cursor: pointer;
 }
 
+.fh-indicator-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 10px 0;
+    padding-left: 20px;
+    color: #53665b;
+    font-size: 11px;
+    line-height: 1.7;
+}
+
+.fh-indicator-list li {
+    padding-left: 2px;
+    overflow-wrap: anywhere;
+}
+
+@media (min-width: 600px) {
+    .fh-indicator-list {
+        font-size: 12px;
+    }
+}
 /* =========================
    SMALL SCREENS
 ========================= */
@@ -604,20 +625,18 @@
 /* =========================
    TABLET AND DESKTOP
 ========================= */
-
 @media (min-width: 600px) {
     .financial-health-page {
-        max-width: 680px;
+        width: 100%;
+        max-width: none;
         min-height: 100vh;
         min-height: 100dvh;
-        margin: 0 auto;
-        padding-bottom: 80px;
-        background: #f6f8fa;
-        box-shadow: 0 0 24px rgb(27 54 40 / 6%);
+        margin: 0;
+        padding-bottom: calc(62px + env(safe-area-inset-bottom));
     }
 
     .fh-header {
-        padding: 0 28px 26px;
+        padding: 0 clamp(24px, 4vw, 64px) 30px;
         border-radius: 0 0 30px 30px;
     }
 
@@ -626,41 +645,71 @@
     }
 
     .fh-intro {
-        padding-top: 20px;
-        padding-bottom: 22px;
+        padding-top: 24px;
+        padding-bottom: 26px;
     }
 
     .fh-intro h1 {
-        font-size: 32px;
+        font-size: clamp(32px, 3vw, 42px);
     }
 
-    .fh-score-card {
-        min-height: 140px;
-        padding: 22px 26px;
-    }
-
-    .fh-main {
-        padding: 28px;
-    }
-
-    .fh-category-list {
-        gap: 13px;
-    }
-
-    .fh-category-card {
-        min-height: 100px;
-        padding: 17px;
-    }
-
-    .fh-category-title {
+    .fh-intro > p {
+        max-width: 560px;
         font-size: 14px;
     }
 
+    .fh-score-card {
+        min-height: 150px;
+        padding: 24px clamp(24px, 3vw, 40px);
+    }
+
+    .fh-main {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 32px clamp(24px, 4vw, 64px);
+        box-sizing: border-box;
+    }
+
+    .fh-category-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .fh-category-card {
+        min-height: 116px;
+        padding: 20px;
+    }
+
+    .fh-category-title {
+        font-size: 15px;
+    }
+
     .fh-category-description {
+        font-size: 12px;
+    }
+
+    .fh-category-weight {
         font-size: 11px;
+    }
+
+    .fh-tip {
+        max-width: none;
     }
 }
 
+@media (min-width: 1200px) {
+    .fh-header {
+        padding-right: max(64px, calc((100vw - 1440px) / 2));
+        padding-left: max(64px, calc((100vw - 1440px) / 2));
+    }
+
+    .fh-main {
+        padding-right: max(64px, calc((100vw - 1440px) / 2));
+        padding-left: max(64px, calc((100vw - 1440px) / 2));
+    }
+}
 /* Respect reduced-motion preference */
 
 @media (prefers-reduced-motion: reduce) {
