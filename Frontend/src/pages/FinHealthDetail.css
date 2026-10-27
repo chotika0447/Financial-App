@@ -139,43 +139,6 @@
     overflow-wrap: anywhere;
 }
 
-.fhd-indicators {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.fhd-indicator {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    color: #52665a;
-    font-size: 13px;
-    line-height: 1.7;
-}
-
-.fhd-indicator svg {
-    flex-shrink: 0;
-    margin-top: 1px;
-}
-
-.fhd-formula {
-    padding: 13px;
-    border-radius: 11px;
-    background: #edf7f1;
-    color: #256447;
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 1.8;
-    overflow-wrap: anywhere;
-}
-
-.fhd-card .fhd-note {
-    margin-top: 10px;
-    color: #87948d;
-    font-size: 11px;
-}
-
 .fhd-primary-button {
     display: block;
     width: 100%;
@@ -228,10 +191,6 @@
     }
 
     .fhd-card > p,
-    .fhd-indicator,
-    .fhd-formula {
-        font-size: 14px;
-    }
 
     .fhd-primary-button {
         width: auto;
@@ -572,12 +531,6 @@
     font-size: 12px;
 }
 
-.fhd-card .fhd-average-score-note {
-    margin-top: 8px;
-    color: #7b8c81;
-    font-size: 11px;
-    line-height: 1.7;
-}
 
 @media (max-width: 400px) {
     .fhd-survey-heading {

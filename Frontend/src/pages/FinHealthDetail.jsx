@@ -307,49 +307,10 @@ function FinHealthDetail() {
                                     </strong>
                                     <span>/ 100 คะแนน</span>
                                 </div>
-
-                                {planAverage !== null && (
-                                    <p className="fhd-average-score-note">
-                                        คำนวณจากค่าเฉลี่ยของคำตอบทั้ง 2 ข้อ
-                                    </p>
-                                )}
                             </div>
                         </div>
                     </section>
                 )}
-
-                <section className="fhd-card">
-                    <h2>ตัวชี้วัด</h2>
-
-                    <div className="fhd-indicators">
-                        {criterion.indicators.map((indicator) => (
-                            <div
-                                className="fhd-indicator"
-                                key={indicator}
-                            >
-                                <CheckCircle2
-                                    size={20}
-                                    color={criterion.color}
-                                    aria-hidden="true"
-                                />
-
-                                <span>{indicator}</span>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-
-                <section className="fhd-card">
-                    <h2>สูตรการคำนวณคะแนนของด้านนี้</h2>
-
-                    <div className="fhd-formula">
-                        {criterion.formula}
-                    </div>
-
-                    <p className="fhd-note">
-                        สูตรนี้แสดงตามข้อมูลเกณฑ์ที่กำหนดไว้ในระบบ
-                    </p>
-                </section>
 
                 <section className="fhd-card">
                     <h2>เป้าหมายการประเมิน</h2>

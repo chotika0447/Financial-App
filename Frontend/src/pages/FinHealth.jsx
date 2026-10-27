@@ -89,19 +89,6 @@ function FinHealth() {
                     ))}
                 </div>
 
-                <div className="fh-tip">
-                    <span className="fh-tip-icon">
-                        <CircleHelp size={19} />
-                    </span>
-
-                    <p>
-                        <strong>รู้จักการเงินของตัวเอง</strong>
-                        <span>
-                            การติดตามรายรับ รายจ่าย เงินออม และภาระหนี้
-                            จะช่วยให้คุณวางแผนการเงินได้ดียิ่งขึ้น
-                        </span>
-                    </p>
-                </div>
             </main>
 
             {showCriteria && (

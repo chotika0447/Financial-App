@@ -282,52 +282,6 @@
 }
 
 /* =========================
-   FINANCIAL TIP
-========================= */
-
-.fh-tip {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    margin-top: 20px;
-    padding: 15px;
-    border: 1px solid #e0eee6;
-    border-radius: 15px;
-    background: #edf7f1;
-}
-
-.fh-tip-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
-    background: #d9f0e3;
-    color: #23805c;
-}
-
-.fh-tip>p {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    min-width: 0;
-    margin: 0;
-    font-size: 11px;
-    line-height: 1.7;
-}
-
-.fh-tip>p strong {
-    color: #286349;
-    font-size: 12px;
-}
-
-.fh-tip>p span {
-    color: #718278;
-}
-
-/* =========================
    CRITERIA MODAL
 ========================= */
 
@@ -731,9 +685,6 @@
         font-size: 11px;
     }
 
-    .fh-tip {
-        max-width: none;
-    }
 }
 
 @media (min-width: 1200px) {
