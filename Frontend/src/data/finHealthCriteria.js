@@ -81,4 +81,4 @@ const finHealthCriteria = [
     },
 ];
 
-export default financialHealthCriteria;
+export default finHealthCriteria;
