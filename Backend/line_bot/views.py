@@ -19,17 +19,15 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.utils import timezone
 
 
 from .parser import parse_financial_message
-from urllib.parse import parse_qs
 
 from .models import LineRecordMode
 from .supabase_storage import upload_receipt
 
 from categories.models import Category
-from transactions.models import TransactionDraft
+from transactions.models import Transaction, TransactionDraft
 from transactions.services import confirm_transaction_draft
 from transactions.ocr import (
     read_receipt,
@@ -151,176 +149,78 @@ def parse_date_time(date_time_text):
 
 # ==================== KaneCho Flex Card ====================
 
-def build_transaction_flex(draft):
-    """สร้าง Flex Card สำหรับตรวจสอบรายการก่อนบันทึก"""
+def build_transaction_flex(item):
+    """การ์ดแจ้งว่าบันทึกรายการแล้ว พร้อมลิงก์แก้ไข"""
+    type_label = "รายรับ" if item.transaction_type == "income" else "รายจ่าย"
+    category_text = item.category.name if item.category else "ไม่ระบุ"
+    if item.sub_category:
+        category_text += f" / {item.sub_category}"
 
-    type_label = (
-        "รายรับ"
-        if draft.transaction_type == "income"
-        else "รายจ่าย"
-    )
-
-    amount_text = (
-        f"฿{draft.amount:,.2f}"
-        if draft.amount is not None
-        else "ยังไม่ระบุยอด"
-    )
-
-    category_text = (
-        draft.category.name
-        if draft.category
-        else "ไม่ระบุ"
-    )
-
-    if draft.sub_category:
-        category_text += f" / {draft.sub_category}"
-
-    # URL ของ React Frontend (ต้องตั้งค่า FRONTEND_URL ใน Django settings)
     frontend_url = settings.FRONTEND_URL.rstrip("/")
-    # edit_url = f"{frontend_url}/transactions/?{urlencode({'draft': draft.id})}"
-    edit_url = ( f"{frontend_url}/?"f"{urlencode({ 'returnTo': '/edit-transaction/', 'draft': draft.id})}"
-)
+    query = urlencode({"returnTo": "/edit-transaction/", "transaction": item.id})
+    edit_url = f"{frontend_url}/?{query}"
 
-    def detail(text):
-        return {
-            "type": "text",
-            "text": text,
-            "size": "sm",
-            "color": "#594A3D",
-            "wrap": True
-        }
+    def detail(value):
+        return {"type": "text", "text": value, "size": "sm", "wrap": True,
+                "color": "#594A3D"}
 
     return {
         "type": "flex",
-        "altText": (
-            f"KaneCho ตรวจสอบรายการ{type_label} {amount_text}"
-        ),
+        "altText": f"KaneCho บันทึก{type_label} {item.amount:,.2f} บาทสำเร็จ",
         "contents": {
-            "type": "bubble",
-            "size": "mega",
+            "type": "bubble", "size": "mega",
             "hero": {
                 "type": "image",
-                "url": (
-                    "https://i.postimg.cc/fyCv4PPZ/"
-                    "Kanecho-Header.jpg"
-                ),
-                "size": "full",
-                "aspectRatio": "5:2",
-                "aspectMode": "cover"
+                "url": "https://i.postimg.cc/fyCv4PPZ/Kanecho-Header.jpg",
+                "size": "full", "aspectRatio": "5:2", "aspectMode": "cover"
             },
             "body": {
-                "type": "box",
-                "layout": "vertical",
-                "backgroundColor": "#FFF9EE",
-                "spacing": "md",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": "KaneCho | ตรวจสอบรายการ",
-                        "weight": "bold",
-                        "size": "md",
-                        "color": "#805035"
-                    },
-                    {
-                        "type": "text",
-                        "text": amount_text,
-                        "weight": "bold",
-                        "size": "xxl",
-                        "color": "#805035"
-                    },
-                    {
-                        "type": "separator",
-                        "margin": "md",
-                        "color": "#E8DCC8"
-                    },
-                    {
-                        "type": "box",
-                        "layout": "vertical",
-                        "spacing": "md",
-                        "margin": "md",
-                        "contents": [
-                            detail(f"ประเภท: {type_label}"),
-                            detail(
-                                f"รายการ: "
-                                f"{draft.description or 'ไม่ระบุ'}"
-                            ),
-                            detail(
-                                f"หมวดหมู่: {category_text}"
-                            ),
-                            detail(
-                                f"ช่องทาง: "
-                                f"{draft.account or 'ไม่ระบุ'}"
-                            )
-                        ]
-                    },
-                    {
-                        "type": "separator",
-                        "margin": "md",
-                        "color": "#E8DCC8"
-                    },
-                    {
-                        "type": "text",
-                        "text": "กรุณาตรวจสอบข้อมูลก่อนยืนยัน",
-                        "size": "xs",
-                        "color": "#8B7A68",
-                        "align": "center",
-                        "margin": "md"
-                    }
+                "type": "box", "layout": "vertical", "backgroundColor": "#FFF9EE",
+                "spacing": "md", "contents": [
+                    {"type": "text", "text": "KaneCho | บันทึกรายการสำเร็จ ✓",
+                     "weight": "bold", "size": "md", "color": "#805035"},
+                    {"type": "text", "text": f"฿{item.amount:,.2f}",
+                     "weight": "bold", "size": "xxl", "color": "#805035"},
+                    {"type": "separator", "margin": "md", "color": "#E8DCC8"},
+                    detail(f"ประเภท: {type_label}"),
+                    detail(f"รายการ: {item.description or 'ไม่ระบุ'}"),
+                    detail(f"หมวดหมู่: {category_text}"),
+                    detail(f"ช่องทาง: {item.account or 'ไม่ระบุ'}"),
+                    {"type": "text", "text": "บันทึกแล้ว หากข้อมูลไม่ถูกต้องสามารถแก้ไขได้",
+                     "size": "xs", "color": "#8B7A68", "wrap": True}
                 ]
             },
             "footer": {
-                "type": "box",
-                "layout": "vertical",
-                "backgroundColor": "#FFF9EE",
-                "spacing": "sm",
-                "contents": [
-                    {
-                        "type": "button",
-                        "style": "primary",
-                        "color": "#b8d95a",
-                        "action": {
-                            "type": "postback",
-                            "label": "ยืนยันรายการ",
-                            "data": (
-                                f"action=confirm&draft_id={draft.id}"
-                            )
-                        }
-                    },
-                    {
-                        "type": "box",
-                        "layout": "horizontal",
-                        "spacing": "sm",
-                        "contents": [
-                            {
-                                "type": "button",
-                                "style": "secondary",
-                                "action": {
-                                    "type": "uri",
-                                    "label": "แก้ไข",
-                                    "uri": edit_url
-                                }
-                            },
-                            {
-                                "type": "button",
-                                "style": "secondary",
-                                "action": {
-                                    "type": "postback",
-                                    "label": "ยกเลิก",
-                                    "data": (
-                                        f"action=cancel&draft_id={draft.id}"
-                                    )
-                                }
-                            }
-                        ]
-                    }
-                ]
+                "type": "box", "layout": "vertical", "backgroundColor": "#FFF9EE",
+                "contents": [{"type": "button", "style": "primary", "color": "#b8d95a",
+                              "action": {"type": "uri", "label": "แก้ไขรายการ", "uri": edit_url}}]
             }
         }
     }
 
 
 def show_pending(draft):
-    return build_transaction_flex(draft)
+    """ยังอ่านยอดไม่ได้ จึงขอข้อความเพิ่มก่อนบันทึก"""
+    return "ได้รับรูปแล้วค่ะ แต่ยังอ่านยอดเงินไม่ได้ กรุณาพิมพ์รายการและจำนวนเงิน เช่น กาแฟ 80 บาท"
+
+
+def save_draft_now(draft, user, line_user_id):
+    """แปลงรายการร่างเป็นรายการจริง แล้วส่งการ์ดแก้ไข"""
+    item, error = confirm_transaction_draft(draft.id, user)
+    if error:
+        return error
+    clear_pending(line_user_id)
+    remember_recent_transaction(line_user_id, item)
+    return build_transaction_flex(item)
+
+
+def recent_transaction_key(line_user_id):
+    return f"line_recent_transaction:{line_user_id}"
+
+
+def remember_recent_transaction(line_user_id, item):
+    # รองรับการส่งข้อความก่อน แล้วแนบรูปตามมาใน 5 นาที
+    cache.set(recent_transaction_key(line_user_id), item.id, timeout=300)
 
 
 # ==================== Rich Menu / Flex Postback ====================
@@ -371,85 +271,9 @@ def handle_postback(data, line_user_id):
 
         return "ปฏิเสธคำขอเป็นเพื่อนเรียบร้อยแล้วค่ะ"
     
-    # ปุ่มจาก Flex Card
+    # การ์ดแบบใหม่ไม่มีปุ่มยืนยันหรือยกเลิกแล้ว
     if action in ("confirm", "cancel", "edit"):
-
-        try:
-            draft_id = int(
-                params.get("draft_id", [""])[0]
-            )
-        except (TypeError, ValueError):
-            return "รหัสรายการไม่ถูกต้องค่ะ"
-
-        # ตรวจว่า Draft เป็นของผู้ใช้คนนี้
-        draft = TransactionDraft.objects.filter(
-            id=draft_id,
-            user=user,
-            status="pending"
-        ).first()
-
-        if draft is None:
-            return (
-                "ไม่พบรายการที่รอยืนยัน "
-                "หรือรายการนี้ดำเนินการไปแล้วค่ะ"
-            )
-
-        # แก้ไขรายการ
-        if action == "edit":
-            set_pending(line_user_id, draft)
-            return (
-                "ส่งข้อความรายการใหม่เพื่อแก้ไขได้เลยค่ะ\n"
-                "เช่น กาแฟ 120 บาท กสิกร"
-            )
-
-        # ยกเลิกรายการ
-        if action == "cancel":
-            with transaction.atomic():
-                locked = (
-                    TransactionDraft.objects
-                    .select_for_update()
-                    .filter(
-                        id=draft_id,
-                        user=user,
-                        status="pending"
-                    )
-                    .first()
-                )
-
-                if locked is None:
-                    return "รายการนี้ดำเนินการไปแล้วค่ะ"
-
-                locked.status = "cancelled"
-                locked.save(update_fields=["status"])
-
-            if cache.get(pending_key(line_user_id)) == draft_id:
-                clear_pending(line_user_id)
-
-            return "ยกเลิกรายการแล้วค่ะ"
-
-        # ยืนยันรายการ
-        new_transaction, error = confirm_transaction_draft(
-            draft_id=draft_id,
-            user=user
-        )
-
-        if error:
-            return error
-
-        if cache.get(pending_key(line_user_id)) == draft_id:
-            clear_pending(line_user_id)
-
-        label = (
-            "รายรับ"
-            if new_transaction.transaction_type == "income"
-            else "รายจ่าย"
-        )
-
-        return (
-            f"บันทึก{label}สำเร็จค่ะ "
-            f"(#{new_transaction.id})\n"
-            f"{new_transaction.amount:,.2f} บาท"
-        )
+        return "รายการรูปแบบเดิม กรุณาเปิดหน้าเว็บไซต์เพื่อจัดการรายการค่ะ"
 
     # ปุ่มเลือกโหมดจาก Rich Menu
     if action != "select_record":
@@ -462,14 +286,14 @@ def handle_postback(data, line_user_id):
         user=user
     ).first()
 
-    # เปลี่ยนโหมดแล้ว ยกเลิก Draft ที่ยังค้าง
+    # เปลี่ยนโหมดแล้วล้างรายการร่างที่รอข้อมูลเพิ่ม
     if previous and previous.transaction_type != record_type:
         draft = get_pending(line_user_id, user)
-
         if draft is not None:
             draft.status = "cancelled"
             draft.save(update_fields=["status"])
             clear_pending(line_user_id)
+        cache.delete(recent_transaction_key(line_user_id))
 
     LineRecordMode.objects.update_or_create(
         user=user,
@@ -516,60 +340,9 @@ def handle_text_message(text, line_user_id):
     command = text.strip()
     draft = get_pending(line_user_id, user)
 
-    # ยกเลิกด้วยข้อความ
-    if command == "ยกเลิก":
-
-        if draft is None:
-            return "ไม่มีรายการรอยกเลิกค่ะ"
-
-        with transaction.atomic():
-            locked = (
-                TransactionDraft.objects
-                .select_for_update()
-                .filter(
-                    id=draft.id,
-                    user=user,
-                    status="pending"
-                )
-                .first()
-            )
-
-            if locked is None:
-                clear_pending(line_user_id)
-                return "รายการนี้ดำเนินการไปแล้วค่ะ"
-
-            locked.status = "cancelled"
-            locked.save(update_fields=["status"])
-
-        clear_pending(line_user_id)
-        return "ยกเลิกรายการแล้วค่ะ"
-
-    # ยืนยันด้วยข้อความ
-    if command == "ยืนยัน":
-
-        if draft is None:
-            return "ไม่มีรายการรอยืนยัน กรุณาส่งรายการใหม่"
-
-        new_transaction, error = confirm_transaction_draft(
-            draft_id=draft.id,
-            user=user
-        )
-
-        if error:
-            return error
-
-        clear_pending(line_user_id)
-
-        label = (
-            "รายรับ"
-            if new_transaction.transaction_type == "income"
-            else "รายจ่าย"
-        )
-
-        return (
-            f"บันทึกสำเร็จค่ะ (#{new_transaction.id})\n"
-            f"{label} {new_transaction.amount:,.2f} บาท"
-        )
+    # ไม่ใช้คำสั่งยืนยัน/ยกเลิกสำหรับรายการที่บันทึกแล้ว
+    if command in ("ยืนยัน", "ยกเลิก"):
+        return "ระบบบันทึกรายการอัตโนมัติแล้วค่ะ กดแก้ไขจากการ์ดรายการได้เลย"
 
     # อ่านโหมดจากฐานข้อมูล
     transaction_type = get_record_mode(user)
@@ -607,46 +380,32 @@ def handle_text_message(text, line_user_id):
             "กรุณาเพิ่มหมวดหมู่ 'อื่นๆ' ก่อน"
         )
 
-    # ถ้ามี Draft เดิม ให้แก้ไข Draft เดิม
+    # ถ้ารูปก่อนหน้าอ่านยอดไม่ได้ ให้นำข้อมูลข้อความมาเติม
     if draft is not None:
-
-        draft.amount = result.get("amount")
+        draft.amount = result["amount"]
         draft.transaction_type = transaction_type
-        draft.description = (
-            result.get("description") or ""
-        )
+        draft.description = result.get("description") or ""
         draft.category = category
-        draft.sub_category = (
-            result.get("sub_category") or ""
-        )
-        draft.account = (
-            result.get("account") or ""
-        )
-
+        draft.sub_category = result.get("sub_category") or ""
+        draft.account = result.get("account") or ""
+        if not draft.transaction_date:
+            draft.transaction_date = timezone.localdate()
         draft.save()
-
     else:
-        # สร้าง Draft ใหม่ ยังไม่บันทึก Transaction
         now = timezone.localtime()
-
         draft = TransactionDraft.objects.create(
             user=user,
-            amount=result.get("amount"),
+            amount=result["amount"],
             transaction_type=transaction_type,
             description=result.get("description") or "",
             category=category,
             sub_category=result.get("sub_category") or "",
             account=result.get("account") or "",
             transaction_date=now.date(),
-            transaction_time=now.time().replace(
-                microsecond=0
-            ),
-            status="pending"
+            transaction_time=now.time().replace(microsecond=0),
         )
 
-    set_pending(line_user_id, draft)
-
-    return show_pending(draft)
+    return save_draft_now(draft, user, line_user_id)
 
 
 # ==================== Image Message / OCR ====================
@@ -704,17 +463,16 @@ def handle_image_message(message_id, line_user_id):
 
     draft = get_pending(line_user_id, user)
 
-    # มีข้อความก่อน แล้วส่งรูปตามมา
-    if draft is not None:
-        if draft.transaction_type in ("income", "expense"):
-
-            attach_receipt_to_draft(
-                draft,
-                image_bytes,
-                message_id
-            )
-
-            return show_pending(draft)
+    # ผู้ใช้ส่งข้อความแล้วตามด้วยรูป: แนบกับรายการล่าสุด ไม่สร้างรายการซ้ำ
+    if draft is None:
+        recent_id = cache.get(recent_transaction_key(line_user_id))
+        recent_item = Transaction.objects.filter(id=recent_id, user=user).first() if recent_id else None
+        if recent_item is not None:
+            path = upload_receipt(image_bytes, f"line_{message_id}.jpg")
+            recent_item.receipt.name = path
+            recent_item.save(update_fields=["receipt"])
+            cache.delete(recent_transaction_key(line_user_id))
+            return build_transaction_flex(recent_item)
 
     # ส่งรูปก่อน ใช้ OCR อ่านข้อมูล
     try:
@@ -738,57 +496,33 @@ def handle_image_message(message_id, line_user_id):
     )
 
     if draft is None:
-
+        now = timezone.localtime()
         draft = TransactionDraft.objects.create(
             user=user,
             amount=amount,
             transaction_type=transaction_type,
-            category=find_category(
-                "อื่นๆ",
-                transaction_type
-            ),
+            category=find_category("อื่นๆ", transaction_type),
             description="",
-            transaction_date=date_value,
-            transaction_time=time_value,
-            status="pending"
+            transaction_date=date_value or now.date(),
+            transaction_time=time_value or now.time().replace(microsecond=0),
         )
-
     else:
         draft.amount = amount
         draft.transaction_type = transaction_type
-        draft.category = find_category(
-            "อื่นๆ",
-            transaction_type
-        )
-
+        draft.category = find_category("อื่นๆ", transaction_type)
         if date_value:
             draft.transaction_date = date_value
-
         if time_value:
             draft.transaction_time = time_value
-
         draft.save()
 
-    # แนบรูปกับ Draft
-    attach_receipt_to_draft(
-        draft,
-        image_bytes,
-        message_id
-    )
+    attach_receipt_to_draft(draft, image_bytes, message_id)
+
+    if amount is not None and amount > 0:
+        return save_draft_now(draft, user, line_user_id)
 
     set_pending(line_user_id, draft)
-
-    # ถ้าอ่านยอดได้ แสดง Flex Card
-    if amount is not None:
-        return show_pending(draft)
-
-    # ถ้าอ่านยอดไม่ได้ ให้ผู้ใช้พิมพ์ข้อมูลเพิ่ม
-    return (
-        "ได้รับรูปแล้วค่ะ แต่ OCR อ่านยอดไม่พบ\n"
-        f"วันที่: {date_time_text or 'อ่านไม่พบ'}\n"
-        "กรุณาส่งข้อความระบุรายการและจำนวนเงิน "
-        "เช่น 'ค่าอาหาร 40 บาท'"
-    )
+    return show_pending(draft)
 
 
 # ==================== LINE Webhook ====================
@@ -866,6 +600,12 @@ def line_webhook(request):
         if not line_user_id:
             continue
 
+        # กัน LINE ส่ง Event เดิมซ้ำ (ต้องใช้ cache ที่แชร์กันทุก worker)
+        event_id = event.get("webhookEventId") or message.get("id")
+        event_key = f"line_event:{event_id}" if event_id else None
+        if event_key and not cache.add(event_key, True, timeout=86400):
+            continue
+
         try:
 
             # Rich Menu หรือปุ่มบน Flex Card
@@ -903,6 +643,8 @@ def line_webhook(request):
             )
 
         except Exception:
+            if event_key:
+                cache.delete(event_key)
             logger.exception(
                 "LINE event processing failed"
             )

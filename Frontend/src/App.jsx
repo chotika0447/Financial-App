@@ -44,14 +44,14 @@ function EntryRoute() {
       const queryParams = new URLSearchParams(window.location.search);
       const debtId = queryParams.get('debtId');
       const returnTo = queryParams.get('returnTo');
-      const draftId = queryParams.get('draft');//transaction draft
+      const transactionId = queryParams.get('transaction');
       let destination = '/home/';
 
       if (returnTo === '/debts/') {
         destination = '/debts/';
       }
-      if (returnTo === '/edit-transaction/' && draftId) {
-        destination = `/edit-transaction/?draft=${encodeURIComponent(draftId)}`;
+      if (returnTo === '/edit-transaction/' && transactionId) {
+        destination = `/edit-transaction/?transaction=${encodeURIComponent(transactionId)}`;
       }
       if (debtId) {
         destination = `/debts/?debtId=${encodeURIComponent(debtId)}`;
@@ -60,7 +60,6 @@ function EntryRoute() {
         `${window.location.origin}${window.location.pathname}${window.location.search}`;
 
       const accessToken = sessionStorage.getItem('accessToken');
-      console.log('Access Token:', accessToken);
 
       if (accessToken) {
         try {
@@ -269,7 +268,7 @@ function App() {
           element={<Transactions />}
         />
 
-        {/* หน้าแก้ไข Draft จาก LINE Flex Card */}
+        {/* หน้าแก้ไขรายการจาก LINE Flex Card */}
         <Route
           path="/edit-transaction/"
           element={<Transactions />}

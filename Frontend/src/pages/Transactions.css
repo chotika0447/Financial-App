@@ -996,3 +996,17 @@
 .date-picker-trigger { width: auto; min-width: 194px; max-width: min(260px, 64vw); }
 .date-picker-trigger strong { overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
 @media (max-width: 400px) { .transaction-period-tabs { gap: 4px; } .transaction-period-tabs button { font-size: 11px; } .date-navigation { gap: 6px; } .date-picker-trigger { min-width: 0; width: 225px; max-width: 60vw; } }
+
+/* Scope shared summary selectors to Transactions to avoid Home layout bleed */
+.transactions-page .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.transactions-page .summary-card { min-width: 0; }
+@media (max-width: 520px) { .transactions-page .transactions-content { width: calc(100% - 28px); } .transactions-page .summary-card { padding: 13px; gap: 8px; } .transactions-page .summary-card strong { font-size: 18px; } }
+
+/* Fix Transactions summary cards being vertically broken by Home.css global selectors */
+.transactions-page .summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
+.transactions-page .summary-grid > .summary-card { box-sizing:border-box; width:100%; height:auto; min-height:132px; display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:16px; padding:22px; background:#fff; border:1px solid #e8ebf2; border-radius:18px; min-width:0; }
+.transactions-page .summary-grid > .summary-card > div:last-child { min-width:0; flex:1; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:6px; }
+.transactions-page .summary-grid > .summary-card .summary-icon { flex:0 0 46px; width:46px; height:46px; }
+.transactions-page .summary-grid > .summary-card span { display:block; margin:0; line-height:1.4; font-size:14px; }
+.transactions-page .summary-grid > .summary-card strong { display:block; margin:0; font-size:clamp(20px,2.1vw,29px); line-height:1.25; overflow-wrap:anywhere; white-space:normal; }
+@media(max-width:600px) { .transactions-page .summary-grid { gap:10px; } .transactions-page .summary-grid > .summary-card { min-height:115px; flex-direction:column; align-items:flex-start; gap:10px; padding:14px; } .transactions-page .summary-grid > .summary-card .summary-icon { flex:0 0 36px; width:36px; height:36px; } .transactions-page .summary-grid > .summary-card strong { font-size:clamp(17px,4vw,23px); } }
