@@ -61,7 +61,6 @@ function Transactions() {
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [draftId, setDraftId] = useState(null); // Draft ที่เปิดมาจาก LINE OA
 
   const [form, setForm] = useState(emptyForm);
 
@@ -196,35 +195,33 @@ function Transactions() {
 
 
 
-  // เปิดฟอร์มเดิมโดยอ่าน Draft ID จากลิงก์ LINE OA: /transactions/?draft=123
+  // เปิดรายการที่บันทึกแล้วจากลิงก์ใน LINE OA
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get('draft');
+    const id = new URLSearchParams(window.location.search).get('transaction');
     if (!id) return;
     if (!/^\d+$/.test(id)) {
-      setError('ลิงก์รายการร่างไม่ถูกต้อง');
+      setError('ลิงก์รายการไม่ถูกต้อง');
       return;
     }
     if (!accessToken) {
-      setError('กรุณาเข้าสู่ระบบด้วยบัญชีที่เชื่อมกับ LINE ก่อนเปิดรายการนี้');
+      setError('กรุณาเข้าสู่ระบบด้วยบัญชีที่เชื่อมกับ LINE ก่อน');
       return;
     }
+
     let cancelled = false;
-    async function loadDraft() {
+    async function loadTransaction() {
       try {
-        const response = await fetch(`/transactions/drafts/${id}/`, {
+        const response = await fetch(`/transactions/${id}/`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || 'ไม่สามารถโหลดรายการร่างได้');
-        if (cancelled) return;
-        openEdit(data);
-        setEditingId(null); // Draft ไม่ใช่ Transaction ที่บันทึกแล้ว
-        setDraftId(id);
+        if (!response.ok) throw new Error(data.error || 'ไม่สามารถโหลดรายการได้');
+        if (!cancelled) openEdit(data);
       } catch (err) {
         if (!cancelled) setError(err.message);
       }
     }
-    loadDraft();
+    loadTransaction();
     return () => { cancelled = true; };
   }, [accessToken]);
 
@@ -350,7 +347,6 @@ function Transactions() {
 
   function openAdd() {
     setEditingId(null);
-    setDraftId(null);
     setError('');
     setSuccess('');
 
@@ -428,12 +424,9 @@ function Transactions() {
 
     setShowModal(false);
     setEditingId(null);
-    if (draftId) {
-      setDraftId(null);
-      const url = new URL(window.location.href);
-      url.searchParams.delete('draft');
-      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
-    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete('transaction');
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
   }
 
 
@@ -647,21 +640,12 @@ function Transactions() {
       setError('');
       setSuccess('');
 
-      // Draft จาก LINE ต้องแก้ Draft ก่อน แล้วใช้ service ยืนยันรายการเดิม
+      const wasEditing = Boolean(editingId);
       const response = await fetch(
-        draftId
-          ? `/transactions/drafts/${draftId}/`
-          : editingId
-            ? `/transactions/${editingId}/`
-            : '/transactions/',
+        editingId ? `/transactions/${editingId}/` : '/transactions/',
         {
-          method: draftId || editingId ? 'PATCH' : 'POST',
-          // ห้ามกำหนด Content-Type เองสำหรับ FormData
-          headers: {
-            Authorization:
-              `Bearer ${accessToken}`,
-          },
-
+          method: editingId ? 'PATCH' : 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` },
           body: payload,
         }
       );
@@ -696,23 +680,10 @@ function Transactions() {
         throw new Error(message);
       }
 
-      if (draftId) {
-        const confirmResponse = await fetch(`/transactions/drafts/${draftId}/confirm/`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        const confirmData = await confirmResponse.json().catch(() => ({}));
-        if (!confirmResponse.ok) {
-          throw new Error(confirmData.error || 'แก้ไข Draft แล้ว แต่ยังยืนยันไม่สำเร็จ กรุณาลองอีกครั้ง');
-        }
-        const url = new URL(window.location.href);
-        url.searchParams.delete('draft');
-        window.history.replaceState({}, '', url.pathname + url.search + url.hash);
-      }
-
+      const url = new URL(window.location.href);
+      url.searchParams.delete('transaction');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
       setShowModal(false);
-      const wasDraft = Boolean(draftId);
-      setDraftId(null);
       setEditingId(null);
 
       if (
@@ -725,13 +696,7 @@ function Transactions() {
       setReceiptFile(null);
       setReceiptPreview('');
 
-      setSuccess(
-        wasDraft
-          ? 'แก้ไขและยืนยันรายการจาก LINE เรียบร้อยแล้ว'
-          : editingId
-            ? 'แก้ไขรายการเรียบร้อยแล้ว'
-            : 'เพิ่มรายการเรียบร้อยแล้ว'
-      );
+      setSuccess(wasEditing ? 'แก้ไขรายการเรียบร้อยแล้ว' : 'เพิ่มรายการเรียบร้อยแล้ว');
 
       await fetchTransactions();
     } catch (err) {
@@ -1551,13 +1516,7 @@ function Transactions() {
                     />
                   )}
 
-                  {saving
-                    ? 'กำลังบันทึก...'
-                    : draftId
-                      ? 'บันทึกและยืนยันรายการ'
-                      : editingId
-                        ? 'บันทึกการแก้ไข'
-                        : 'เพิ่มรายการ'}
+                  {saving ? 'กำลังบันทึก...' : editingId ? 'บันทึกการแก้ไข' : 'เพิ่มรายการ'}
 
                 </button>
 
