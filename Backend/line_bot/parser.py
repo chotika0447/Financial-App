@@ -1,33 +1,4 @@
-import csv
 import re
-from pathlib import Path
-from django.conf import settings
-
-
-CSV_FILE = Path(settings.BASE_DIR) / "financial_data.csv"
-
-
-# ==================================================
-# อ่าน Brand Database จาก Excel
-# ==================================================
-
-def load_brand_database():
-    """Read UTF-8 CSV using Python standard library (no openpyxl)."""
-    brands = {}
-    try:
-        with CSV_FILE.open("r", encoding="utf-8-sig", newline="") as file:
-            for row in csv.DictReader(file):
-                keyword = (row.get("Keyword") or "").strip().lower()
-                if not keyword:
-                    continue
-                brands[keyword] = {
-                    "type": (row.get("Type") or "").strip().lower(),
-                    "category": (row.get("Category") or "").strip(),
-                    "sub_category": (row.get("Sub_Category") or "").strip(),
-                }
-    except (OSError, csv.Error) as error:
-        print("Cannot read Brand_Database CSV:", error)
-    return brands
 
 
 # ==================================================
@@ -56,12 +27,9 @@ def parse_financial_message(text, transaction_type):
 
     text_lower = text.lower()
 
-    description = (
-        text
-        .replace("บาท", "")
-        .replace("บ.", "")
-        .strip()
-    )
+    # หมายเหตุเป็นข้อมูลเสริม
+    # ผู้ใช้สามารถเพิ่มหรือแก้ไขภายหลังบนเว็บไซต์
+    description = ""
 
 
     # -------------------------
@@ -163,7 +131,7 @@ def parse_financial_message(text, transaction_type):
         "อาหาร": ["ข้าว", "อาหาร", "ก๋วยเตี๋ยว", "ขนม", "มื้อ", "หมูกระทะ"],
         "เครื่องดื่ม": ["ชา", "กาแฟ", "น้ำดื่ม", "น้ำอัดลม", "เครื่องดื่ม", "ชานม", "ลาเต้"],
         "ของใช้": ["สบู่", "ยาสีฟัน", "ทิชชู่", "ผงซักฟอก", "ของใช้"],
-        "ชอปปิ้ง": ["ช้อปปิ้ง", "ชอปปิ้ง", "เสื้อ", "รองเท้า", "กระเป๋า", "shopee", "lazada"],
+        "ช้อปปิ้ง": ["ช้อปปิ้ง", "ชอปปิ้ง", "เสื้อ", "รองเท้า", "กระเป๋า", "shopee", "lazada"],
         "ค่าเดินทาง": ["แท็กซี่", "รถเมล์", "รถไฟ", "bts", "mrt", "น้ำมันรถ", "ค่าเดินทาง", "ค่ารถ", "grab"],
         "ซูเปอร์มาร์เก็ต": ["เซเว่น", "7-eleven", "โลตัส", "บิ๊กซี", "แม็คโคร", "supermarket"],
         "ความบันเทิง": ["ดูหนัง", "โรงหนัง", "เกม", "netflix", "spotify", "disney"],
@@ -184,30 +152,13 @@ def parse_financial_message(text, transaction_type):
     category = "อื่นๆ"
     sub_category = ""
     is_known_brand = False
-    brands = load_brand_database()
     mapping = income_categories if transaction_type == "income" else expense_categories
-
-    # จับแบรนด์ที่ตรงกับโหมดปัจจุบันก่อน
-    for keyword in sorted(brands, key=len, reverse=True):
-        if keyword and keyword in text_lower:
-            brand = brands[keyword]
-            if brand.get("type") != transaction_type:
-                continue
-            candidate = brand.get("category", "").strip()
-            aliases = {"ช้อปปิ้ง": "ชอปปิ้ง", "การเดินทาง": "ค่าเดินทาง"}
-            candidate = aliases.get(candidate, candidate)
-            if candidate in mapping:
-                category = candidate
-            sub_category = brand.get("sub_category", "")
-            is_known_brand = True
+    # Brand and personal-category matching happen in category_matching.py
+    # with the authenticated LINE user. Keep this parser focused on parsing.
+    for name, keywords in mapping.items():
+        if any(word in text_lower for word in keywords):
+            category = name
             break
-
-    # ถ้า CSV ไม่รู้จักหมวด ให้ใช้คำสำคัญแบบ Rule-Based
-    if category == "อื่นๆ":
-        for name, keywords in mapping.items():
-            if any(word in text_lower for word in keywords):
-                category = name
-                break
 
     return {
         "success": True,

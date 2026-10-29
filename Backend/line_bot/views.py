@@ -22,6 +22,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 
 from .parser import parse_financial_message
+from .category_matching import accessible_category, fallback_category, match_category
 
 from .models import LineRecordMode
 from .supabase_storage import upload_receipt
@@ -114,20 +115,10 @@ def reply_to_line(reply_token, message):
 
 # ==================== Category ====================
 
-def find_category(name, transaction_type):
-    for candidate in [name, "อื่นๆ", "อื่น"]:
-        if not candidate:
-            continue
-
-        category = Category.objects.filter(
-            name=candidate,
-            transaction_type=transaction_type
-        ).first()
-
-        if category:
-            return category
-
-    return None
+def find_category(name, transaction_type, user):
+    """Only resolve global categories or categories owned by this user."""
+    return (accessible_category(name, transaction_type, user)
+            or fallback_category(transaction_type, user))
 
 
 # ==================== Date / Time ====================
@@ -369,9 +360,8 @@ def handle_text_message(text, line_user_id):
         result.get("category") or "อื่นๆ"
     )
 
-    category = find_category(
-        parsed_category,
-        transaction_type
+    category = match_category(
+        command, transaction_type, user, rule_category=parsed_category
     )
 
     if category is None:
@@ -501,7 +491,7 @@ def handle_image_message(message_id, line_user_id):
             user=user,
             amount=amount,
             transaction_type=transaction_type,
-            category=find_category("อื่นๆ", transaction_type),
+            category=find_category("อื่นๆ", transaction_type, user),
             description="",
             transaction_date=date_value or now.date(),
             transaction_time=time_value or now.time().replace(microsecond=0),
@@ -509,7 +499,7 @@ def handle_image_message(message_id, line_user_id):
     else:
         draft.amount = amount
         draft.transaction_type = transaction_type
-        draft.category = find_category("อื่นๆ", transaction_type)
+        draft.category = find_category("อื่นๆ", transaction_type, user)
         if date_value:
             draft.transaction_date = date_value
         if time_value:
