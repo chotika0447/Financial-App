@@ -69,19 +69,40 @@ function Home() {
     const controller = new AbortController();
     async function loadNews() {
       try {
-        // Official Thai PBS public API: no key, CORS enabled.
-        const response = await fetch('https://api.thaipbs.net/v1/news/posts?page=1&limit=60', { signal: controller.signal });
-        if (!response.ok) throw new Error(`News API HTTP ${response.status}`);
-        const payload = await response.json();
-        if (!Array.isArray(payload.data)) throw new Error('Unexpected news response');
+        // ค้นหาข่าวการเงินจากหลายหน้า เพื่อให้มีโอกาสครบ 5 ข่าว
         const keywords = /เศรษฐกิจ|การเงิน|ธนาคาร|ดอกเบี้ย|เงินเฟ้อ|การลงทุน|ตลาดหุ้น|เงินบาท|หนี้|ภาษี|ออมเงิน|ค่าครองชีพ|ธุรกิจ|กองทุน|สินเชื่อ|ราคาทอง/;
-        const filtered = payload.data.filter(item => {
-          const category = Array.isArray(item.categories) ? item.categories.map(c => c.title || '').join(' ') : '';
-          const tags = Array.isArray(item.tags) ? item.tags.map(t => t.title || '').join(' ') : '';
-          return keywords.test(`${item.title || ''} ${category} ${tags}`);
-        }).filter(item => item.title && /^https:\/\//.test(item.canonical || ''))
+        const collected = [];
+        const seen = new Set();
+
+        for (let page = 1; page <= 5 && collected.length < 5; page++) {
+          const response = await fetch(
+            `https://api.thaipbs.net/v1/news/posts?page=${page}&limit=60`,
+            { signal: controller.signal }
+          );
+          if (!response.ok) throw new Error(`News API HTTP ${response.status}`);
+
+          const payload = await response.json();
+          if (!Array.isArray(payload.data)) throw new Error('Unexpected news response');
+          if (payload.data.length === 0) break;
+
+          for (const item of payload.data) {
+            const category = Array.isArray(item.categories)
+              ? item.categories.map(c => c.title || '').join(' ') : '';
+            const tags = Array.isArray(item.tags)
+              ? item.tags.map(t => t.title || '').join(' ') : '';
+            const text = `${item.title || ''} ${category} ${tags}`;
+            const url = item.canonical;
+
+            if (keywords.test(text) && item.title && /^https:\/\//.test(url || '') && !seen.has(url)) {
+              seen.add(url);
+              collected.push(item);
+            }
+          }
+        }
+
+        const filtered = collected
           .sort((a, b) => new Date(b.publishTime || 0) - new Date(a.publishTime || 0))
-          .slice(0, 6);
+          .slice(0, 5);
         if (!controller.signal.aborted) {
           setNews(filtered);
           setActiveNews(0);
