@@ -651,3 +651,325 @@ def push_debt_payment_reminder(debt, due_date, pay_url):
             f"ส่งแจ้งเตือนชำระหนี้ {debt.pk} ไม่สำเร็จ: {error}"
         )
         return False
+
+
+def _push_debt_flex(receiver, title, details, button_label, button_url, alt_text):
+    """ส่ง Flex Message แจ้งเตือนเกี่ยวกับการชำระหนี้"""
+    if not receiver or not getattr(receiver, "line_uid", None):
+        print("ข้ามการแจ้งเตือน: ไม่พบ LINE User ID ของผู้รับ")
+        return False
+
+    frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+    if not frontend_url:
+        print("ไม่สามารถแจ้งเตือนได้: ไม่พบ FRONTEND_URL")
+        return False
+
+    contents = [
+        {
+            "type": "text",
+            "text": title[:500],
+            "weight": "bold",
+            "size": "lg",
+            "color": "#30294A",
+            "wrap": True,
+        },
+        {
+            "type": "separator",
+            "margin": "md",
+            "color": "#E8E5F0",
+        },
+    ]
+
+    for detail in details:
+        contents.append({
+            "type": "text",
+            "text": str(detail)[:1000],
+            "size": "md",
+            "color": "#30294A",
+            "wrap": True,
+            "margin": "md",
+        })
+
+    contents.append({
+        "type": "button",
+        "style": "primary",
+        "color": "#6C4BC1",
+        "height": "md",
+        "margin": "xl",
+        "action": {
+            "type": "uri",
+            "label": button_label[:20],
+            "uri": button_url,
+        },
+    })
+
+    message = {
+        "type": "flex",
+        "altText": alt_text[:400],
+        "contents": {
+            "type": "bubble",
+            "size": "kilo",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "md",
+                "paddingAll": "20px",
+                "contents": contents,
+            },
+        },
+    }
+
+    access_token = getattr(
+        settings, "LINE_BOT_CHANNEL_ACCESS_TOKEN", None
+    )
+    if not access_token:
+        print("ไม่พบ LINE_BOT_CHANNEL_ACCESS_TOKEN")
+        return False
+
+    try:
+        response = httpx.post(
+            "https://api.line.me/v2/bot/message/push",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {access_token}",
+            },
+            json={
+                "to": receiver.line_uid,
+                "messages": [message],
+            },
+            timeout=10,
+        )
+        print("LINE PAYMENT NOTIFICATION STATUS:", response.status_code)
+        response.raise_for_status()
+        return True
+
+    except httpx.HTTPError as error:
+        print(f"ส่ง LINE Payment Notification ไม่สำเร็จ: {error}")
+        return False
+
+
+def _payment_history_url(debt):
+    """สร้าง URL สำหรับเปิดประวัติการชำระของรายการหนี้"""
+    frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+    query = urlencode({
+        "debtId": debt.pk,
+        "openPaymentHistory": "1",
+    })
+    return f"{frontend_url}/debts/?{query}"
+
+
+def _paid_debts_url(debt):
+    """สร้าง URL สำหรับเปิดแท็บชำระครบแล้ว"""
+    frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+    query = urlencode({
+        "tab": "paid",
+        "debtId": debt.pk,
+    })
+    return f"{frontend_url}/debts/?{query}"
+
+
+def push_payment_submitted_notification(payment):
+    """
+    แจ้งเจ้าหนี้เมื่อบัญชีลูกหนี้ที่ผูกกันส่งรายการชำระ
+    """
+    debt = payment.debt
+
+    # แจ้งเฉพาะการส่งรายการจากฝั่งลูกหนี้
+    if debt.type != "borrowed" or not debt.paired_debt_id:
+        return False
+
+    creditor_debt = debt.paired_debt
+    if not creditor_debt or creditor_debt.type != "lent":
+        return False
+
+    debtor = debt.user
+    creditor = creditor_debt.user
+
+    paid_date = (
+        payment.paid_date.strftime("%d/%m/%Y")
+        if payment.paid_date else "-"
+    )
+
+    return _push_debt_flex(
+        receiver=creditor,
+        title="คุณได้รับการชำระหนี้",
+        details=[
+            f"ชื่อหนี้สิน: {debt.name}",
+            f"จากบัญชีลูกหนี้: {debtor.username or str(debtor)}",
+            f"จำนวน: {payment.paid_amount:,.2f} บาท",
+            f"วันที่: {paid_date}",
+        ],
+        button_label="ประวัติการชำระ",
+        button_url=_payment_history_url(creditor_debt),
+        alt_text=f"ได้รับการชำระหนี้ {debt.name}",
+    )
+
+
+def push_payment_confirmation_notification(payment, confirm_status):
+    """
+    แจ้งลูกหนี้เมื่อเจ้าหนี้ยืนยันหรือปฏิเสธรายการชำระ
+    """
+    debt = payment.debt
+
+    # หา debt ฝั่งลูกหนี้ เพื่อระบุผู้รับและลิงก์ให้ถูกบัญชี
+    if debt.type == "borrowed":
+        debtor_debt = debt
+    elif debt.paired_debt_id:
+        debtor_debt = debt.paired_debt
+    else:
+        return False
+
+    if debtor_debt.type != "borrowed":
+        return False
+
+    if confirm_status == "confirmed":
+        status_text = "ได้รับการยืนยันแล้ว"
+        title = "เจ้าหนี้ยืนยันการชำระเงินแล้ว"
+    elif confirm_status == "rejected":
+        status_text = "ไม่ได้รับการอนุมัติ"
+        title = "รายการชำระเงินไม่ได้รับการอนุมัติ"
+    else:
+        return False
+
+    # เลขงวดเรียงให้ตรงกับหน้าประวัติการชำระ:
+    # รายการล่าสุดอยู่ด้านบน และเลขงวดคำนวณจากจำนวนรายการทั้งหมด
+    from debts.models import Payments
+
+    related_ids = [debtor_debt.pk]
+    if debtor_debt.paired_debt_id:
+        related_ids.append(debtor_debt.paired_debt_id)
+
+    ordered_payments = list(
+        Payments.objects.filter(
+            debt_id__in=related_ids
+        ).order_by("-paid_date", "-created_at")
+    )
+
+    installment_number = next(
+        (
+            len(ordered_payments) - index
+            for index, item in enumerate(ordered_payments)
+            if item.pk == payment.pk
+        ),
+        None,
+    )
+
+    paid_date = (
+        payment.paid_date.strftime("%d/%m/%Y")
+        if payment.paid_date else "-"
+    )
+
+    installment_text = (
+        f"งวดที่: {installment_number}"
+        if installment_number is not None
+        else "งวดที่: -"
+    )
+
+    return _push_debt_flex(
+        receiver=debtor_debt.user,
+        title=title,
+        details=[
+            f"ชื่อหนี้สิน: {debtor_debt.name}",
+            installment_text,
+            f"วันที่ชำระ: {paid_date}",
+            f"สถานะ: {status_text}",
+            f"จำนวน: {payment.paid_amount:,.2f} บาท",
+        ],
+        button_label="ตรวจสอบ",
+        button_url=_payment_history_url(debtor_debt),
+        alt_text=f"{debtor_debt.name}: {status_text}",
+    )
+
+
+def push_debt_fully_paid_notification(debt):
+    """
+    แจ้งเมื่อหนี้ที่ผูกบัญชีเพื่อนชำระครบแล้ว
+    ส่งข้อความแยกให้เจ้าหนี้และลูกหนี้
+    """
+    if not debt.paired_debt_id:
+        return False
+
+    paired_debt = debt.paired_debt
+    if not paired_debt or paired_debt.paired_debt_id != debt.pk:
+        return False
+
+    if debt.remaining_amount > 0 or paired_debt.remaining_amount > 0:
+        return False
+
+    if debt.type == "borrowed":
+        debtor_debt = debt
+        creditor_debt = paired_debt
+    elif debt.type == "lent":
+        creditor_debt = debt
+        debtor_debt = paired_debt
+    else:
+        return False
+
+    if debtor_debt.type != "borrowed" or creditor_debt.type != "lent":
+        return False
+
+    debtor_name = debtor_debt.user.username or str(debtor_debt.user)
+    creditor_name = (
+        creditor_debt.user.username or str(creditor_debt.user)
+    )
+
+    creditor_sent = _push_debt_flex(
+        receiver=creditor_debt.user,
+        title="ยินดีด้วย! คุณได้รับชำระหนี้ครบแล้ว",
+        details=[
+            f"คุณได้รับชำระหนี้สิน {creditor_debt.name} "
+            f"จาก {debtor_name} ครบตามจำนวนยอดทั้งหมดแล้ว"
+        ],
+        button_label="ตรวจสอบ",
+        button_url=_paid_debts_url(creditor_debt),
+        alt_text=f"ได้รับชำระหนี้ {creditor_debt.name} ครบแล้ว",
+    )
+
+    debtor_sent = _push_debt_flex(
+        receiver=debtor_debt.user,
+        title="ยินดีด้วย! คุณชำระหนี้ครบแล้ว",
+        details=[
+            f"คุณชำระหนี้สิน {debtor_debt.name} "
+            f"ให้ {creditor_name} ครบตามจำนวนยอดทั้งหมดแล้ว"
+        ],
+        button_label="ตรวจสอบ",
+        button_url=_paid_debts_url(debtor_debt),
+        alt_text=f"ชำระหนี้ {debtor_debt.name} ครบแล้ว",
+    )
+
+    return creditor_sent and debtor_sent
+
+
+def push_manual_debt_fully_paid_notification(debt):
+    """
+    แจ้งเจ้าของบัญชีเมื่อรายการที่บันทึกเองชำระครบ
+    """
+    if debt.paired_debt_id or debt.counterparty_id:
+        return False
+
+    if debt.remaining_amount > 0:
+        return False
+
+    if debt.type == "borrowed":
+        title = "ยินดีด้วย! คุณชำระหนี้ครบแล้ว"
+        detail = (
+            f"คุณชำระหนี้สิน {debt.name} "
+            "ครบตามจำนวนยอดทั้งหมดแล้ว"
+        )
+    elif debt.type == "lent":
+        title = "ยินดีด้วย! คุณได้รับเงินคืนครบแล้ว"
+        detail = (
+            f"คุณได้รับเงินคืนจากรายการ {debt.name} "
+            "ครบตามจำนวนยอดทั้งหมดแล้ว"
+        )
+    else:
+        return False
+
+    return _push_debt_flex(
+        receiver=debt.user,
+        title=title,
+        details=[detail],
+        button_label="ตรวจสอบ",
+        button_url=_paid_debts_url(debt),
+        alt_text=f"{debt.name} ชำระครบแล้ว",
+    )
