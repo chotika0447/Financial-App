@@ -11,6 +11,7 @@ import {
   Trash2,
   Upload,
   X,
+  Coffee, ShoppingBag, Car, Heart, BookOpen, Wallet, Gift, MoreHorizontal, Sparkles,
 } from 'lucide-react';
 
 import CustomHeader from '../components/CustomHeader';
@@ -44,6 +45,11 @@ const getTodayString = () => {
 function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [showMoreCategories, setShowMoreCategories] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [categorySaving, setCategorySaving] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,10 +62,13 @@ function Transactions() {
   const [filterDate, setFilterDate] = useState(getTodayString);
   const [period, setPeriod] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterCategorySearch, setFilterCategorySearch] = useState('');
   const [listCategories, setListCategories] = useState([]);
   const [showAll, setShowAll] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const initialFormRef = useRef(null);
   const [editingId, setEditingId] = useState(null);
 
   const [form, setForm] = useState(emptyForm);
@@ -353,7 +362,13 @@ function Transactions() {
     clearReceiptPreview();
     setOcrMessage('');
 
-    setForm(emptyForm());
+    const initialForm = emptyForm();
+    initialFormRef.current = initialForm;
+    setForm(initialForm);
+    setShowExitConfirm(false);
+    setCategorySearch('');
+    setShowMoreCategories(false);
+    setAddingCategory(false);
     setShowModal(true);
   }
 
@@ -379,7 +394,7 @@ function Transactions() {
       transaction.receipt_url || ''
     );
 
-    setForm({
+    const initialForm = {
       transaction_type:
         transaction.transaction_type || 'expense',
 
@@ -403,14 +418,37 @@ function Transactions() {
 
       description:
         transaction.description || '',
-    });
+    };
+    initialFormRef.current = initialForm;
+    setForm(initialForm);
+    setShowExitConfirm(false);
 
+    setCategorySearch('');
+    setShowMoreCategories(false);
+    setAddingCategory(false);
     setShowModal(true);
   }
 
 
   function closeModal() {
     if (saving || ocrLoading) return;
+
+    // เตือนเฉพาะเมื่อมีการแก้ไขข้อมูลหรือเลือกรูปใหม่
+    const hasChanges =
+      JSON.stringify(form) !== JSON.stringify(initialFormRef.current) ||
+      receiptFile !== null ||
+      newCategoryName.trim() !== '';
+
+    if (hasChanges) {
+      setShowExitConfirm(true);
+      return;
+    }
+
+    discardAndClose();
+  }
+
+  function discardAndClose() {
+    setShowExitConfirm(false);
 
     if (
       receiptPreview &&
@@ -446,6 +484,45 @@ function Transactions() {
     }));
   }
 
+
+  const categoryIcons = [Coffee, ShoppingBag, Car, Heart, BookOpen, Wallet, Gift, Sparkles];
+  const shownCategories = categories.filter((item) =>
+    item.name.toLowerCase().includes(categorySearch.trim().toLowerCase())
+  );
+  const visibleCategories = showMoreCategories || categorySearch.trim()
+    ? shownCategories : shownCategories.slice(0, 8);
+
+  async function addCategory() {
+    const name = newCategoryName.trim();
+    if (!name) { setError('กรุณาระบุชื่อหมวดหมู่'); return; }
+    if (name.length > 100) { setError('ชื่อหมวดหมู่ต้องไม่เกิน 100 ตัวอักษร'); return; }
+    try {
+      setCategorySaving(true);
+      setError('');
+      const response = await fetch('/categories/', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, transaction_type: form.transaction_type }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || data.detail || 'เพิ่มหมวดหมู่ไม่สำเร็จ');
+      await fetchCategories(form.transaction_type);
+      setForm((current) => ({ ...current, category: data.id }));
+      setNewCategoryName('');
+      setAddingCategory(false);
+      setShowMoreCategories(true);
+      // โหลดตัวกรองใหม่ด้วย เพื่อให้หมวดหมู่ที่สร้างปรากฏทันที
+      const results = await Promise.all(['income', 'expense'].map(async (type) => {
+        const res = await fetch(`/categories/?transaction_type=${type}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const items = await res.json();
+        return (Array.isArray(items) ? items : []).map((item) => ({ ...item, transaction_type: type }));
+      }));
+      setListCategories(results.flat());
+    } catch (err) { setError(err.message); }
+    finally { setCategorySaving(false); }
+  }
 
   // OCR reads a receipt but never saves a transaction automatically.
   async function scanReceipt(file) {
@@ -684,6 +761,7 @@ function Transactions() {
       url.searchParams.delete('transaction');
       window.history.replaceState({}, '', url.pathname + url.search + url.hash);
       setShowModal(false);
+      setShowExitConfirm(false);
       setEditingId(null);
 
       if (
@@ -926,15 +1004,19 @@ function Transactions() {
 
           <div className="transaction-category-filter">
             <label htmlFor="transaction-category-select">หมวดหมู่</label>
-            <select id="transaction-category-select" value={filterCategory}
-              onChange={(event) => { setFilterCategory(event.target.value); setShowAll(false); }}>
-              <option value="all">ทุกหมวดหมู่</option>
-              {availableCategories.map((item) => (
-                <option key={`${item.transaction_type}:${item.id}`} value={`${item.transaction_type}:${item.id}`}>
-                  {filterType === 'all' ? `${item.transaction_type === 'income' ? 'รายรับ' : 'รายจ่าย'} · ` : ''}{item.name}
-                </option>
-              ))}
-            </select>
+            <div className="category-filter-control">
+              <select id="transaction-category-select" value={filterCategory}
+                onChange={(event) => { setFilterCategory(event.target.value); setShowAll(false); }}>
+                <option value="all">ทุกหมวดหมู่</option>
+                {availableCategories.filter((item) => item.name.toLowerCase().includes(filterCategorySearch.trim().toLowerCase())).map((item) => (
+                  <option key={`${item.transaction_type}:${item.id}`} value={`${item.transaction_type}:${item.id}`}>
+                    {filterType === 'all' ? `${item.transaction_type === 'income' ? 'รายรับ' : 'รายจ่าย'} · ` : ''}{item.name}
+                  </option>
+                ))}
+              </select>
+              <input type="search" aria-label="ค้นหาหมวดหมู่" placeholder="ค้นหาหมวดหมู่..."
+                value={filterCategorySearch} onChange={(event) => setFilterCategorySearch(event.target.value)} />
+            </div>
           </div>
 
         </section>
@@ -1314,22 +1396,48 @@ function Transactions() {
               </div>
 
 
-              {/* หมวดหมู่แบบปุ่ม เลือกได้จากข้อมูล Backend เดิม */}
+              {/* เลือกหมวดหมู่แบบการ์ด โดยคงข้อมูลจาก Backend */}
               <div className="form-group full">
-                <label>หมวดหมู่</label>
-                <div className="category-choice-list">
-                  {categories.map((category) => (
-                    <button
-                      key={category.id}
-                      type="button"
-                      className={String(form.category) === String(category.id) ? 'active' : ''}
-                      onClick={() => setForm({ ...form, category: category.id })}
-                    >
-                      {category.name}
-                    </button>
-                  ))}
-                  {categories.length === 0 && <span>ยังไม่มีหมวดหมู่ให้เลือก</span>}
+                <div className="category-section-heading">
+                  <label>หมวดหมู่</label>
+                  <button type="button" className="category-add-link"
+                    onClick={() => { setAddingCategory((value) => !value); setError(''); }}>
+                    <Plus size={15} /> เพิ่มหมวดหมู่
+                  </button>
                 </div>
+                {categories.length > 8 && (
+                  <input type="search" className="category-search-input" placeholder="ค้นหาหมวดหมู่..."
+                    value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} />
+                )}
+                <div className="category-choice-list">
+                  {visibleCategories.map((category, index) => {
+                    const Icon = categoryIcons[index % categoryIcons.length];
+                    return (
+                      <button key={category.id} type="button"
+                        className={String(form.category) === String(category.id) ? 'active' : ''}
+                        onClick={() => setForm((current) => ({ ...current, category: category.id }))}>
+                        <Icon size={19} strokeWidth={1.8} />
+                        <span title={category.name}>{category.name}</span>
+                      </button>
+                    );
+                  })}
+                  {shownCategories.length === 0 && <span>ไม่พบหมวดหมู่</span>}
+                </div>
+                {!categorySearch.trim() && categories.length > 8 && (
+                  <button type="button" className="category-more-button"
+                    onClick={() => setShowMoreCategories((value) => !value)}>
+                    {showMoreCategories ? 'แสดงน้อยลง' : `ดูหมวดหมู่ทั้งหมด (${categories.length})`}
+                  </button>
+                )}
+                {addingCategory && (
+                  <div className="category-create-row">
+                    <input value={newCategoryName} maxLength={100} placeholder="ชื่อหมวดหมู่ใหม่"
+                      onChange={(event) => setNewCategoryName(event.target.value)} />
+                    <button type="button" onClick={addCategory} disabled={categorySaving}>
+                      {categorySaving ? 'กำลังเพิ่ม...' : 'บันทึก'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* บัญชี */}
@@ -1387,29 +1495,21 @@ function Transactions() {
               </div>
 
 
-              {/* รายละเอียด */}
+              {/* รายละเอียด พร้อมตัวนับอักษร */}
               <div className="form-group full">
-
-                <label htmlFor="description">
-                  รายละเอียด
-                </label>
-
-                <input
-                  id="description"
-                  name="description"
-                  placeholder="เช่น ข้าวกลางวัน"
-                  value={form.description}
-                  onChange={change}
-                />
-
+                <div className="description-label-row">
+                  <label htmlFor="description">รายละเอียด</label>
+                  <span>{form.description.length}/100</span>
+                </div>
+                <input id="description" name="description" maxLength={100}
+                  placeholder="เช่น ข้าวกลางวัน" value={form.description} onChange={change} />
               </div>
-
 
               {/* รูปใบเสร็จ */}
               <div className="form-group full receipt-form-group">
 
                 <label htmlFor="receipt">
-                  รูปใบเสร็จ / หลักฐาน
+                  รูปใบเสร็จ
                 </label>
 
 
@@ -1427,8 +1527,7 @@ function Transactions() {
                     </strong>
 
                     <span>
-                      JPG หรือ PNG
-                      ขนาดไม่เกิน 5 MB
+                      JPG หรือ PNG ขนาดไม่เกิน 5 MB
                     </span>
 
                   </label>
@@ -1530,6 +1629,32 @@ function Transactions() {
 
       )}
 
+
+      {/* ยืนยันก่อนปิดฟอร์มที่มีข้อมูลยังไม่ได้บันทึก */}
+      {showExitConfirm && (
+        <div className="transaction-exit-overlay" role="presentation">
+          <div
+            className="transaction-exit-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="transaction-exit-title"
+            aria-describedby="transaction-exit-description"
+          >
+            <h3 id="transaction-exit-title">ต้องการออกจากหน้าต่างหรือไม่?</h3>
+            <p id="transaction-exit-description">
+              หากปิดหน้าต่างนี้ ข้อมูลที่กรอกไว้จะไม่ถูกบันทึก
+            </p>
+            <div className="transaction-exit-actions">
+              <button type="button" onClick={() => setShowExitConfirm(false)}>
+                ยกเลิก
+              </button>
+              <button type="button" className="exit-confirm-button" onClick={discardAndClose}>
+                ออกจากหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Navbar />
 
