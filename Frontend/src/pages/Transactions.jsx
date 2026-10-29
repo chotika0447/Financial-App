@@ -45,7 +45,6 @@ const getTodayString = () => {
 function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [categorySearch, setCategorySearch] = useState('');
   const [showMoreCategories, setShowMoreCategories] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [addingCategory, setAddingCategory] = useState(false);
@@ -62,7 +61,6 @@ function Transactions() {
   const [filterDate, setFilterDate] = useState(getTodayString);
   const [period, setPeriod] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
-  const [filterCategorySearch, setFilterCategorySearch] = useState('');
   const [listCategories, setListCategories] = useState([]);
   const [showAll, setShowAll] = useState(false);
 
@@ -366,7 +364,6 @@ function Transactions() {
     initialFormRef.current = initialForm;
     setForm(initialForm);
     setShowExitConfirm(false);
-    setCategorySearch('');
     setShowMoreCategories(false);
     setAddingCategory(false);
     setShowModal(true);
@@ -423,7 +420,6 @@ function Transactions() {
     setForm(initialForm);
     setShowExitConfirm(false);
 
-    setCategorySearch('');
     setShowMoreCategories(false);
     setAddingCategory(false);
     setShowModal(true);
@@ -486,11 +482,7 @@ function Transactions() {
 
 
   const categoryIcons = [Coffee, ShoppingBag, Car, Heart, BookOpen, Wallet, Gift, Sparkles];
-  const shownCategories = categories.filter((item) =>
-    item.name.toLowerCase().includes(categorySearch.trim().toLowerCase())
-  );
-  const visibleCategories = showMoreCategories || categorySearch.trim()
-    ? shownCategories : shownCategories.slice(0, 8);
+  const visibleCategories = showMoreCategories ? categories : categories.slice(0, 8);
 
   async function addCategory() {
     const name = newCategoryName.trim();
@@ -1003,19 +995,22 @@ function Transactions() {
           </div>
 
           <div className="transaction-category-filter">
-            <label htmlFor="transaction-category-select">หมวดหมู่</label>
-            <div className="category-filter-control">
-              <select id="transaction-category-select" value={filterCategory}
-                onChange={(event) => { setFilterCategory(event.target.value); setShowAll(false); }}>
-                <option value="all">ทุกหมวดหมู่</option>
-                {availableCategories.filter((item) => item.name.toLowerCase().includes(filterCategorySearch.trim().toLowerCase())).map((item) => (
-                  <option key={`${item.transaction_type}:${item.id}`} value={`${item.transaction_type}:${item.id}`}>
+            <label>หมวดหมู่</label>
+            <div className="category-filter-pills" aria-label="กรองตามหมวดหมู่">
+              <button type="button" className={filterCategory === 'all' ? 'active' : ''}
+                onClick={() => { setFilterCategory('all'); setShowAll(false); }}>
+                ทุกหมวดหมู่
+              </button>
+              {availableCategories.map((item) => {
+                const value = `${item.transaction_type}:${item.id}`;
+                return (
+                  <button type="button" key={value}
+                    className={filterCategory === value ? 'active' : ''}
+                    onClick={() => { setFilterCategory(value); setShowAll(false); }}>
                     {filterType === 'all' ? `${item.transaction_type === 'income' ? 'รายรับ' : 'รายจ่าย'} · ` : ''}{item.name}
-                  </option>
-                ))}
-              </select>
-              <input type="search" aria-label="ค้นหาหมวดหมู่" placeholder="ค้นหาหมวดหมู่..."
-                value={filterCategorySearch} onChange={(event) => setFilterCategorySearch(event.target.value)} />
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -1404,10 +1399,7 @@ function Transactions() {
                     onClick={() => { setAddingCategory((value) => !value); setError(''); }}>
                     <Plus size={15} /> เพิ่มหมวดหมู่
                   </button>
-                </div>
-                {categories.length > 8 && (
-                  <input type="search" className="category-search-input" placeholder="ค้นหาหมวดหมู่..."
-                    value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} />
+                </div> />
                 )}
                 <div className="category-choice-list">
                   {visibleCategories.map((category, index) => {
@@ -1421,9 +1413,9 @@ function Transactions() {
                       </button>
                     );
                   })}
-                  {shownCategories.length === 0 && <span>ไม่พบหมวดหมู่</span>}
+                  {categories.length === 0 && <span>ยังไม่มีหมวดหมู่</span>}
                 </div>
-                {!categorySearch.trim() && categories.length > 8 && (
+                {categories.length > 8 && (
                   <button type="button" className="category-more-button"
                     onClick={() => setShowMoreCategories((value) => !value)}>
                     {showMoreCategories ? 'แสดงน้อยลง' : `ดูหมวดหมู่ทั้งหมด (${categories.length})`}
@@ -1520,7 +1512,7 @@ function Transactions() {
                     className="receipt-upload-box"
                   >
 
-                    <Upload size={24} />
+                    <Upload size={28} strokeWidth={2} className="receipt-upload-icon" />
 
                     <strong>
                       เลือกรูปใบเสร็จ
