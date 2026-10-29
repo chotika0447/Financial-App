@@ -805,7 +805,7 @@ def push_payment_submitted_notification(payment):
     )
 
 
-def push_payment_confirmation_notification(payment, confirm_status):
+def push_payment_confirmation_notification(payment, approvement_status):
     """
     แจ้งลูกหนี้เมื่อเจ้าหนี้ยืนยันหรือปฏิเสธรายการชำระ
     """
@@ -822,12 +822,9 @@ def push_payment_confirmation_notification(payment, confirm_status):
     if debtor_debt.type != "borrowed":
         return False
 
-    if confirm_status == "confirmed":
+    if approvement_status == "approved":
         status_text = "ได้รับการยืนยันแล้ว"
         title = "เจ้าหนี้ยืนยันการชำระเงินแล้ว"
-    elif confirm_status == "rejected":
-        status_text = "ไม่ได้รับการอนุมัติ"
-        title = "รายการชำระเงินไม่ได้รับการอนุมัติ"
     else:
         return False
 

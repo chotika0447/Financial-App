@@ -165,10 +165,9 @@ class Payments(models.Model):
         ('overdue', 'เกินกำหนด'),
     ]
     #สถานะการยืนยันการชำระเงินของเจ้าหนี้
-    CONFIRM_STATUS = [
+    APPROVEMENT_STATUS = [
         ('pending', 'รอตรวจสอบ'),
-        ('confirmed', 'ยืนยันแล้ว'),
-        ('rejected', 'ไม่ผ่านการตรวจสอบ'),
+        ('approved', 'ยืนยันแล้ว'),
     ]
     #รหัสหนี้สิน
     debt = models.ForeignKey(
@@ -214,15 +213,12 @@ class Payments(models.Model):
         choices=PAYMENT_STATUS,
         default='pending'
     )
-    confirm_status = models.CharField(
+    approvement_status = models.CharField(
         max_length=20,
-        choices=CONFIRM_STATUS,
+        choices=APPROVEMENT_STATUS,
         default='pending'
     )
-    rejection_reason = models.TextField(
-        blank=True,
-        default="",
-    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     
     updated_at = models.DateTimeField(auto_now=True)
