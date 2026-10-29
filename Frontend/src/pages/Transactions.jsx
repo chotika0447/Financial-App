@@ -1399,8 +1399,7 @@ function Transactions() {
                     onClick={() => { setAddingCategory((value) => !value); setError(''); }}>
                     <Plus size={15} /> เพิ่มหมวดหมู่
                   </button>
-                </div> />
-                )}
+                </div>
                 <div className="category-choice-list">
                   {visibleCategories.map((category, index) => {
                     const Icon = categoryIcons[index % categoryIcons.length];
