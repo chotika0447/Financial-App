@@ -71,6 +71,184 @@ def upload_debt_image(image_file):
     return public_url
 
 
+def get_related_debts(debt):
+    """
+    คืนรายการหนี้ของทั้งสองฝ่ายที่เชื่อมกัน
+    """
+    debts = [debt]
+
+    if debt.paired_debt_id:
+        paired_debt = Debts.objects.get(
+            pk=debt.paired_debt_id
+        )
+        debts.append(paired_debt)
+
+    return debts
+
+
+def recalculate_debt_remaining(debt):
+    """
+    คำนวณยอดคงเหลือจากรายการที่ยืนยันแล้วเท่านั้น
+    และยังไม่ปิดหนี้หากมีรายการรออนุมัติ
+    """
+
+    related_debts = get_related_debts(debt)
+    related_debt_ids = [item.pk for item in related_debts]
+
+    approved_total = (
+        Payments.objects.filter(
+            debt_id__in=related_debt_ids,
+            confirm_status="confirmed",
+        ).aggregate(
+            total=Sum("paid_amount")
+        )["total"]
+        or Decimal("0.00")
+    )
+
+    has_pending_payment = Payments.objects.filter(
+        debt_id__in=related_debt_ids,
+        confirm_status="pending",
+    ).exists()
+
+    for related_debt in related_debts:
+        remaining = max(
+            Decimal("0.00"),
+            Decimal(related_debt.total_amount) - approved_total,
+        )
+
+        related_debt.remaining_amount = remaining
+        related_debt.status = (
+            "paid"
+            if remaining == Decimal("0.00")
+            and not has_pending_payment
+            else "ongoing"
+        )
+
+        related_debt.save(
+            update_fields=[
+                "remaining_amount",
+                "status",
+                "updated_at",
+            ]
+        )
+
+    return related_debts[0].remaining_amount
+
+
+def send_payment_created_notification(payment_id, remaining_before):
+    """
+    ส่งแจ้งเตือนหลังสร้างรายการชำระสำเร็จ
+
+    - หนี้ที่ผูกบัญชีเพื่อนและยังไม่ครบ: แจ้งเจ้าหนี้ตามปกติ
+    - หนี้ที่ผูกบัญชีเพื่อนและครบแล้ว: รอเจ้าหนี้ยืนยัน
+    - หนี้ที่บันทึกเองและครบแล้ว: แจ้งเจ้าของรายการ
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        payment = Payments.objects.select_related(
+            "debt",
+            "debt__user",
+            "debt__paired_debt",
+        ).get(pk=payment_id)
+
+        debt = payment.debt
+        debt.refresh_from_db()
+
+        # ต้องเป็นการชำระที่ทำให้ยอดเปลี่ยนจากมากกว่า 0 เป็น 0
+        completed_now = (
+            remaining_before > Decimal("0.00")
+            and debt.remaining_amount == Decimal("0.00")
+        )
+
+        if debt.paired_debt_id:
+            # ถ้าชำระครบแล้ว ไม่ส่งข้อความชำระปกติซ้ำ
+            # จะส่งข้อความหนี้ครบหลังเจ้าหนี้ยืนยันรายการ
+            if completed_now:
+                return
+
+            push_payment_submitted_notification(payment)
+            return
+
+        # หนี้ที่บันทึกเอง: แจ้งเฉพาะตอนที่ชำระครบ
+        if completed_now:
+            push_manual_debt_fully_paid_notification(debt)
+
+    except Exception:
+        logger.exception(
+            "ไม่สามารถส่งแจ้งเตือนหลังสร้างรายการชำระได้ "
+            "payment_id=%s",
+            payment_id,
+        )
+
+def send_payment_updated_notification(payment_id, old_confirm_status):
+    """
+    ส่งแจ้งเตือนเมื่อเจ้าหนี้ยืนยันหรือปฏิเสธรายการชำระ
+
+    ถ้าหนี้ที่ผูกบัญชีเพื่อนครบแล้ว และรายการชำระทั้งหมด
+    ได้รับการยืนยัน จะส่งแจ้งเตือนหนี้ครบให้ทั้งสองฝ่าย
+    แทนข้อความยืนยันรายการชำระปกติ
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        payment = Payments.objects.select_related(
+            "debt",
+            "debt__user",
+            "debt__paired_debt",
+        ).get(pk=payment_id)
+
+        new_confirm_status = payment.confirm_status
+
+        # ไม่ส่งข้อความซ้ำหากสถานะไม่ได้เปลี่ยน
+        if old_confirm_status == new_confirm_status:
+            return
+
+        if new_confirm_status not in ("confirmed", "rejected"):
+            return
+
+        debt = payment.debt
+        debt.refresh_from_db()
+
+        if (
+            new_confirm_status == "confirmed"
+            and debt.paired_debt_id
+            and debt.remaining_amount == Decimal("0.00")
+        ):
+            related_debt_ids = [debt.pk, debt.paired_debt_id]
+
+            # ตรวจว่าทุกรายการชำระของหนี้ที่เชื่อมกัน
+            # ได้รับการยืนยันแล้ว
+            has_unconfirmed_payment = Payments.objects.filter(
+                debt_id__in=related_debt_ids
+            ).exclude(
+                confirm_status="confirmed"
+            ).exists()
+
+            if not has_unconfirmed_payment:
+                # ส่งข้อความหนี้ครบให้ลูกหนี้และเจ้าหนี้
+                # แทนการส่งข้อความยืนยันรายการปกติ
+                push_debt_fully_paid_notification(debt)
+                return
+
+        # กรณียังไม่ครบ หรือรายการถูกปฏิเสธ
+        # ส่งข้อความแจ้งสถานะตามปกติ
+        push_payment_confirmation_notification(
+            payment,
+            new_confirm_status,
+        )
+
+    except Exception:
+        logger.exception(
+            "ไม่สามารถส่งแจ้งเตือนหลังแก้ไขรายการชำระได้ "
+            "payment_id=%s",
+            payment_id,
+        )
+
 # ======================================ส่วนรายการหนี้สิน======================================
 class DebtListCreateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -490,174 +668,6 @@ class SendDebtReminderView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
-def get_related_debts(debt):
-    """
-    คืนรายการหนี้ของทั้งสองฝ่ายที่เชื่อมกัน
-    """
-    debts = [debt]
-
-    if debt.paired_debt_id:
-        paired_debt = Debts.objects.get(
-            pk=debt.paired_debt_id
-        )
-        debts.append(paired_debt)
-
-    return debts
-
-
-def recalculate_debt_remaining(debt):
-    """
-    คำนวณยอดคงเหลือของหนี้ทั้งสองฝั่ง
-    โดยใช้ประวัติการชำระร่วมกัน
-    """
-    related_debts = get_related_debts(debt)
-    related_debt_ids = [d.pk for d in related_debts]
-
-    paid_total = (
-        Payments.objects.filter(
-            debt_id__in=related_debt_ids
-        ).aggregate(
-            total=Sum("paid_amount")
-        )["total"]
-        or Decimal("0.00")
-    )
-
-    for related_debt in related_debts:
-        remaining = (
-            Decimal(related_debt.total_amount)
-            - Decimal(paid_total)
-        )
-
-        if remaining < Decimal("0.00"):
-            remaining = Decimal("0.00")
-
-        related_debt.remaining_amount = remaining
-        related_debt.status = (
-            "paid"
-            if remaining == Decimal("0.00")
-            else "ongoing"
-        )
-
-        related_debt.save(
-            update_fields=[
-                "remaining_amount",
-                "status",
-                "updated_at",
-            ]
-        )
-
-    return related_debts[0].remaining_amount
-
-
-def send_payment_created_notifications(
-    payment_id,
-    was_final_payment=False,
-):
-    """
-    ส่งแจ้งเตือนหลังสร้างรายการชำระสำเร็จ
-    """
-    import logging
-
-    logger = logging.getLogger(__name__)
-
-    try:
-        payment = Payments.objects.select_related(
-            "debt",
-            "debt__user",
-            "debt__paired_debt",
-            "debt__paired_debt__user",
-        ).get(pk=payment_id)
-
-        debt = payment.debt
-
-        if debt.paired_debt_id:
-            # แจ้งเจ้าหนี้เมื่อมีการส่งรายการชำระจากลูกหนี้
-            push_payment_submitted_notification(payment)
-
-        elif was_final_payment:
-            # รายการบันทึกเอง: แจ้งเมื่อยอดคงเหลือถึงศูนย์
-            debt.refresh_from_db()
-            if debt.remaining_amount <= Decimal("0.00"):
-                push_manual_debt_fully_paid_notification(debt)
-
-    except Exception:
-        logger.exception(
-            "Failed to send payment-created LINE notifications"
-        )
-
-
-def send_payment_updated_notifications(
-    payment_id,
-    old_confirm_status,
-    new_confirm_status,
-    old_remaining,
-    old_confirmed_status=None,
-):
-    """
-    ส่งแจ้งเตือนเมื่อเจ้าหนี้ยืนยัน/ปฏิเสธ
-    หรือเมื่อรายการที่บันทึกเองชำระครบจากการแก้ไขยอด
-    """
-    import logging
-
-    logger = logging.getLogger(__name__)
-
-    try:
-        payment = Payments.objects.select_related(
-            "debt",
-            "debt__user",
-            "debt__paired_debt",
-            "debt__paired_debt__user",
-        ).get(pk=payment_id)
-
-        debt = payment.debt
-        debt.refresh_from_db()
-
-        confirm_changed = (
-            new_confirm_status != old_confirm_status
-            and new_confirm_status in ("confirmed", "rejected")
-        )
-
-        if debt.paired_debt_id and confirm_changed:
-            # แจ้งลูกหนี้เฉพาะเมื่อสถานะเปลี่ยนจริง
-            push_payment_confirmation_notification(
-                payment,
-                new_confirm_status,
-            )
-
-            # แจ้งปิดหนี้เมื่อยอดเป็นศูนย์และรายการทั้งหมด
-            # ได้รับการยืนยันแล้ว
-            if (
-                new_confirm_status == "confirmed"
-                and debt.remaining_amount <= Decimal("0.00")
-            ):
-                related_debts = get_related_debts(debt)
-                related_ids = [item.pk for item in related_debts]
-
-                has_unconfirmed_payments = (
-                    Payments.objects.filter(
-                        debt_id__in=related_ids
-                    )
-                    .exclude(confirm_status="confirmed")
-                    .exists()
-                )
-
-                if not has_unconfirmed_payments:
-                    push_debt_fully_paid_notification(debt)
-
-        elif (
-            not debt.paired_debt_id
-            and not debt.counterparty_id
-            and old_remaining > Decimal("0.00")
-            and debt.remaining_amount <= Decimal("0.00")
-        ):
-            push_manual_debt_fully_paid_notification(debt)
-
-    except Exception:
-        logger.exception(
-            "Failed to send payment-updated LINE notifications"
-        )
-
 #รายการชำระหนี้
 class PaymentListCreateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -748,18 +758,16 @@ class PaymentListCreateView(APIView):
 
         paid_total = (
             Payments.objects.filter(
-                debt_id__in=related_debt_ids
-            ).aggregate(total=Sum("paid_amount"))["total"]
+                debt_id__in=related_debt_ids,
+                confirm_status__in=["confirmed", "pending"],
+            ).aggregate(
+                total=Sum("paid_amount")
+            )["total"]
             or Decimal("0.00")
         )
 
         shared_remaining = (
             Decimal(debt.total_amount) - Decimal(paid_total)
-        )
-
-        was_final_payment = (
-            shared_remaining > Decimal("0.00")
-            and paid_amount >= shared_remaining
         )
 
         if paid_amount < Decimal("0.00"):
@@ -774,8 +782,17 @@ class PaymentListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # สร้าง Payment เพียงรายการเดียว
-        payment = serializer.save(debt=debt)
+        # หนี้ที่ผูกบัญชีเพื่อนต้องรอเจ้าหนี้อนุมัติ แต่ถ้าไม่ได้ผูกบัญชีเพื่อน ให้ยืนยันโดยอัตโนมัติ
+        initial_confirm_status = (
+            "pending"
+            if debt.paired_debt_id
+            else "confirmed"
+        )
+
+        payment = serializer.save(
+            debt=debt,
+            confirm_status=initial_confirm_status,
+        )
 
         # คำนวณยอดหนี้ทั้งสองฝั่ง
         recalculate_debt_remaining(debt)
@@ -798,6 +815,7 @@ class PaymentListCreateView(APIView):
                 Payments.objects.filter(
                     debt_id__in=related_debt_ids,
                     due_date=current_installment_due_date,
+                    confirm_status="confirmed",
                 ).aggregate(
                     total=Sum("paid_amount")
                 )["total"]
@@ -831,13 +849,13 @@ class PaymentListCreateView(APIView):
                         ]
                     )
 
-        # ส่งแจ้งเตือนหลัง transaction สำเร็จแล้วเท่านั้น
+        # ส่งแจ้งเตือนหลัง transaction บันทึกสำเร็จ
         transaction.on_commit(
             lambda payment_id=payment.pk,
-                final_payment=was_final_payment:
-                send_payment_created_notifications(
+                   previous_remaining=shared_remaining:
+                send_payment_created_notification(
                     payment_id,
-                    was_final_payment=final_payment,
+                    previous_remaining,
                 )
         )
 
@@ -875,14 +893,143 @@ class PaymentDetailView(APIView):
     #อัพเดตยอดคงเหลือถ้ามีการแก้ไขยอดชำระหนี้
     
     @transaction.atomic
+    def patch(self, request, payment_id):
+        payment = self.get_payment(request, payment_id)
+        debt = payment.debt
+
+        # อนุญาตเฉพาะเจ้าหนี้ของรายการหนี้ที่ผูกบัญชีเพื่อน
+        is_creditor = (
+            debt.paired_debt_id is not None
+            and debt.type == "borrowed"
+            and debt.counterparty_id == request.user.id
+        )
+
+        if not is_creditor:
+            return Response(
+                {"detail": "คุณไม่มีสิทธิ์อนุมัติรายการชำระนี้"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if payment.confirm_status != "pending":
+            return Response(
+                {"detail": "รายการนี้ได้รับการตรวจสอบแล้ว"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        action = request.data.get("action")
+        old_confirm_status = payment.confirm_status
+        old_remaining = debt.remaining_amount
+
+        if action == "confirm":
+            payment.confirm_status = "confirmed"
+            payment.rejection_reason = ""
+
+        elif action == "reject":
+            reason = str(
+                request.data.get("rejection_reason", "")
+            ).strip()
+
+            if not reason:
+                return Response(
+                    {"detail": "กรุณาระบุเหตุผลที่ไม่อนุมัติ"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            payment.confirm_status = "rejected"
+            payment.rejection_reason = reason
+
+        else:
+            return Response(
+                {
+                    "detail": (
+                        "action ต้องเป็น confirm หรือ reject"
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payment.save(
+            update_fields=[
+                "confirm_status",
+                "rejection_reason",
+                "updated_at",
+            ]
+        )
+
+        # คำนวณยอดหนี้ทั้งสองฝั่งใหม่
+        recalculate_debt_remaining(debt)
+
+        # เลื่อนงวดรายเดือนเมื่อยอดที่ยืนยันแล้วครบงวดเท่านั้น
+        if (
+            action == "confirm"
+            and debt.payment_type == "monthly"
+            and debt.payment_amount is not None
+        ):
+            related_debts = get_related_debts(debt)
+            related_debt_ids = [
+                item.pk for item in related_debts
+            ]
+
+            installment_paid_total = (
+                Payments.objects.filter(
+                    debt_id__in=related_debt_ids,
+                    due_date=payment.due_date,
+                    confirm_status="confirmed",
+                ).aggregate(
+                    total=Sum("paid_amount")
+                )["total"]
+                or Decimal("0.00")
+            )
+
+            installment_target = min(
+                Decimal(debt.payment_amount),
+                Decimal(old_remaining),
+            )
+
+            debt.refresh_from_db()
+
+            if (
+                installment_target > Decimal("0.00")
+                and installment_paid_total >= installment_target
+                and debt.remaining_amount > Decimal("0.00")
+            ):
+                next_due_date = get_next_monthly_due_date(
+                    payment.due_date,
+                    debt.payment_date,
+                )
+
+                for related_debt in related_debts:
+                    related_debt.current_due_date = next_due_date
+                    related_debt.save(
+                        update_fields=[
+                            "current_due_date",
+                            "updated_at",
+                        ]
+                    )
+
+        # ส่งการแจ้งเตือนหลัง transaction สำเร็จ
+        transaction.on_commit(
+            lambda payment_id=payment.pk,
+                   previous_status=old_confirm_status:
+                send_payment_updated_notification(
+                    payment_id,
+                    previous_status,
+                )
+        )
+
+        return Response(
+            PaymentSerializer(payment).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @transaction.atomic
     def put(self, request, payment_id):
         payment = self.get_payment(request, payment_id)
         debt = payment.debt
 
-        old_remaining = debt.remaining_amount
+        old_paid_amount = payment.paid_amount
         old_confirm_status = payment.confirm_status
 
-        old_paid_amount = payment.paid_amount
         data = request.data.copy()
 
         # อัปโหลดรูปใหม่ไป Supabase Storage
@@ -960,14 +1107,10 @@ class PaymentDetailView(APIView):
         # ส่งแจ้งเตือนเมื่อสถานะยืนยันเปลี่ยน หรือยอดหนี้บันทึกเองครบ
         transaction.on_commit(
             lambda payment_id=updated_payment.pk,
-                previous_confirm_status=old_confirm_status,
-                current_confirm_status=updated_payment.confirm_status,
-                previous_remaining=old_remaining:
-                send_payment_updated_notifications(
-                    payment_id=payment_id,
-                    old_confirm_status=previous_confirm_status,
-                    new_confirm_status=current_confirm_status,
-                    old_remaining=previous_remaining,
+                   previous_status=old_confirm_status:
+                send_payment_updated_notification(
+                    payment_id,
+                    previous_status,
                 )
         )
 

@@ -219,6 +219,10 @@ class Payments(models.Model):
         choices=CONFIRM_STATUS,
         default='pending'
     )
+    rejection_reason = models.TextField(
+        blank=True,
+        default="",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     
     updated_at = models.DateTimeField(auto_now=True)

@@ -46,7 +46,10 @@ function Debts() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [openingLinkedDebt, setOpeningLinkedDebt] = useState(false);
 
-  const [activeStatus, setActiveStatus] = useState("ongoing");
+  const [activeStatus, setActiveStatus] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("tab") === "paid" ? "paid" : "ongoing";
+  });
 
   const [sendingReminderId, setSendingReminderId] = useState(null);
   //useEffect สำหรับดึงข้อมูลหนี้สิน
@@ -89,12 +92,13 @@ function Debts() {
   }, []);
 
   //useEffect สำหรับเปิดรายการหนี้สินจาก LINE
+  // เปิดรายการหนี้สินจาก LINE
   useEffect(() => {
     const debtId = searchParams.get("debtId");
+    const requestedTab = searchParams.get("tab");
 
     if (!debtId || loading) return;
 
-    // ตรวจสอบว่า ID เป็นจำนวนเต็มบวก
     if (!/^[1-9]\d*$/.test(debtId)) {
       setError("ลิงก์รายการหนี้ไม่ถูกต้อง");
       setSearchParams({}, { replace: true });
@@ -111,19 +115,27 @@ function Debts() {
       return;
     }
 
-    // เลือกหนี้ที่ตรงกับ ID จาก LINE
-    setSelectedDebt(targetDebt);
-
-    // เลือกแท็บให้ตรงกับประเภทหนี้
+    // เลือกประเภทรายการให้ตรงกับหนี้
     setActiveTab(
       targetDebt.type === "borrowed" ? "borrow" : "lend"
     );
 
-    // เปิด Modal สำหรับบันทึกการชำระหนี้
-    setShowDebtHistory(false);
-    setShowDebtPay(true);
+    if (requestedTab === "paid") {
+      // ลิงก์แจ้งเตือนชำระหนี้ครบ:
+      // เปิดแท็บชำระครบ โดยไม่เปิดหน้าต่างบันทึกการชำระซ้ำ
+      setActiveStatus("paid");
+      setShowDebtPay(false);
+      setShowDebtHistory(false);
+      setSelectedDebt(null);
+    } else {
+      // ลิงก์จากการแจ้งเตือนทั่วไป:
+      // คงพฤติกรรมเดิมที่เปิดหน้าต่างบันทึกการชำระ
+      setSelectedDebt(targetDebt);
+      setShowDebtHistory(false);
+      setShowDebtPay(true);
+    }
 
-    // ลบ query string ออกจาก URL หลังเลือกหนี้แล้ว
+    // ล้าง query string หลังจัดการลิงก์แล้ว
     setSearchParams({}, { replace: true });
   }, [debts, loading, searchParams, setSearchParams]);
 
