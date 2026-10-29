@@ -726,13 +726,14 @@ class PaymentListCreateView(APIView):
             data["scheduled_amount"] = debt.payment_amount
 
         try:
-            current_installment_due_date = (
-                calculate_payment_due_date(debt)
-            )
-            data["due_date"] = (
-                current_installment_due_date.isoformat()
-            )
-        except ValueError as error:
+            current_installment_due_date = calculate_payment_due_date(debt)
+
+            if current_installment_due_date is not None:
+                data["due_date"] = current_installment_due_date.isoformat()
+            else:
+                data["due_date"] = None
+
+        except (ValueError, TypeError) as error:
             return Response(
                 {"detail": str(error)},
                 status=status.HTTP_400_BAD_REQUEST,

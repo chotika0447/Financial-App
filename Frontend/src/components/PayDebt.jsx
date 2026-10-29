@@ -100,16 +100,44 @@ function PayDebt({ open, debt, onClose, onSaved }) {
         }
       );
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data = null;
+
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          if (response.ok) {
+            throw new Error("เซิร์ฟเวอร์ตอบกลับข้อมูลไม่ถูกต้อง");
+          }
+        }
+      }
 
       console.log("Payment response:", data);
 
       if (!response.ok) {
-        console.error("Payment error:", data);
+        console.error("Payment error:", {
+          status: response.status,
+          statusText: response.statusText,
+          data,
+        });
+
+        const validationMessages =
+          data && typeof data === "object"
+            ? Object.values(data)
+                .flat()
+                .filter((message) => typeof message === "string")
+            : [];
 
         throw new Error(
-          data.detail || "ไม่สามารถบันทึกการชำระหนี้ได้"
+          data?.detail
+          || validationMessages.join("\n")
+          || `เซิร์ฟเวอร์บันทึกไม่สำเร็จ (HTTP ${response.status})`
         );
+      }
+
+      if (!data || typeof data !== "object") {
+        throw new Error("เซิร์ฟเวอร์ตอบกลับข้อมูลไม่ถูกต้อง");
       }
 
       // แจ้ง Debts.jsx ว่าบันทึกสำเร็จ
