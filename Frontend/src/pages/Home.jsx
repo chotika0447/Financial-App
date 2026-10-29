@@ -155,14 +155,13 @@ function Home() {
           <div className="home-news-heading">
             <div>
               <h3>ข่าวสารเกี่ยวกับการเงิน</h3>
-              <p className="home-news-note">ข่าวเศรษฐกิจและการเงินจาก Thai PBS • อัปเดตจากแหล่งข่าวจริง</p>
+              <p className="home-news-note">ข่าวเศรษฐกิจและการเงินจาก Thai PBS</p>
             </div>
-            <a href="https://www.thaipbs.or.th/news" target="_blank" rel="noopener noreferrer">ดูข่าวทั้งหมด ↗</a>
           </div>
 
           {newsState === 'loading' && <div className="home-news-status" role="status">กำลังโหลดข่าวล่าสุด...</div>}
           {newsState === 'error' && <div className="home-news-status" role="status">ไม่สามารถโหลดข่าวได้ในขณะนี้ <a href="https://www.thaipbs.or.th/news" target="_blank" rel="noopener noreferrer">อ่านข่าวที่ Thai PBS ↗</a></div>}
-          {newsState === 'empty' && <div className="home-news-status" role="status">ยังไม่พบข่าวการเงินในรายการล่าสุด <a href="https://www.thaipbs.or.th/news" target="_blank" rel="noopener noreferrer">ดูข่าวทั้งหมด ↗</a></div>}
+          {newsState === 'empty' && <div className="home-news-status" role="status">ยังไม่พบข่าวการเงินในรายการล่าสุด</div>}
           {newsState === 'ready' && news[activeNews] && (
             <>
               <a className="home-news-feature" href={news[activeNews].canonical} target="_blank" rel="noopener noreferrer">
