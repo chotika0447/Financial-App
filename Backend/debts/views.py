@@ -72,19 +72,18 @@ def upload_debt_image(image_file):
 
 
 def get_related_debts(debt):
-    """
-    คืนรายการหนี้ของทั้งสองฝ่ายที่เชื่อมกัน
-    """
+
     debts = [debt]
 
     if debt.paired_debt_id:
-        paired_debt = Debts.objects.get(
+        paired_debt = Debts.objects.filter(
             pk=debt.paired_debt_id
-        )
-        debts.append(paired_debt)
+        ).first()
+
+        if paired_debt:
+            debts.append(paired_debt)
 
     return debts
-
 
 def recalculate_debt_remaining(debt):
     """
@@ -204,7 +203,7 @@ def send_payment_updated_notification(payment_id, old_approvement_status):
         if old_approvement_status == new_approvement_status:
             return
 
-        if new_approvement_status not in ("approved"):
+        if new_approvement_status != "approved":
             return
 
         debt = payment.debt
