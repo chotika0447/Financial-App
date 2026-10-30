@@ -109,7 +109,27 @@ function Home() {
 
 
         {/* ================= DASHBOARD ================= */}
-        <DashboardSummary compact />
+        <div
+          className='dashboard-summary-click'
+          onClick={(e) => {
+            if (e.target.closest('button'))
+              return;
+            navigate('/dashboard');}
+          }
+            
+          role='button'
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.target.closest('button'))
+              return;
+            if (e.key === 'Enter' || e.key === ' '){
+              e.preventDefault();
+              navigate('/dashboard');
+            }
+          }}
+          >
+            <DashboardSummary compact/>
+          </div>
 
 
           {/* Financial health */}

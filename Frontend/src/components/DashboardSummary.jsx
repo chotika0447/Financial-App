@@ -49,7 +49,7 @@ async function fetchAPI(url, token) {
     return response.json();
 }
 
-export default function DashboardSummary({compact=false}) {
+export default function DashboardSummary({compact=false, onClick}) {
     const [activeTab, setActiveTab] = useState("รายรับ");
     const [selectedMonth] = useState(getCurrentMonth);
 
@@ -194,7 +194,7 @@ const summaryData = useMemo(() => {
             },
             การออม: {
                 total: totalSavings,
-                color: "#ff9292",
+                color: "#b3e0f0",
                 labels: activeSavings.map(
                     (item, index) =>
                         item.saving_name || item.name || `กระเป๋า ${index + 1}`
@@ -229,7 +229,8 @@ const summaryData = useMemo(() => {
         <section
             className={`home-dashboard-summary ${
                 compact ? "home-dashboard-compact" : ""
-            }`}
+            } ${onClick ? 'clickable-dashboard' : ''}`}
+            onClick={onClick}
         >
             <h3>แดชบอร์ด</h3>
 
@@ -239,7 +240,10 @@ const summaryData = useMemo(() => {
                         key={tab}
                         type="button"
                         className={activeTab === tab ? "active" : ""}
-                        onClick={() => setActiveTab(tab)}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveTab(tab);
+                        }}
                     >
                         {tab}
                     </button>
