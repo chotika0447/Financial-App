@@ -479,8 +479,8 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                                     updateApprovementStatus(
                                                         payment,
                                                         payment.approvement_status === "approved"
-                                                            ? "cancel"
-                                                            : "confirm"
+                                                                ? "revoke"
+                                                                : "approve"
                                                     )
                                                 }
                                                 className={`w-full rounded-md text-[10px] py-2 text-white disabled:opacity-50 ${payment.approvement_status === "approved"

@@ -920,24 +920,24 @@ class PaymentDetailView(APIView):
             old_approvement_status = payment.approvement_status
 
             # อนุมัติได้เฉพาะรายการที่กำลังรออนุมัติ
-            if action == "confirm":
+            if action == "approve":
                 if old_approvement_status != "pending":
                     return Response(
                         {"detail": "รายการนี้ไม่ได้อยู่ในสถานะรออนุมัติ"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-            # ยกเลิกได้เฉพาะรายการที่อนุมัติแล้ว
-            elif action == "cancel":
+            # ยกเลิกการอนุมัติได้เฉพาะรายการที่อนุมัติแล้ว
+            elif action == "revoke":
                 if old_approvement_status != "approved":
                     return Response(
-                        {"detail": "ยกเลิกได้เฉพาะรายการที่อนุมัติแล้ว"},
+                        {"detail": "รายการนี้ยังไม่ได้รับการอนุมัติ"},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
             else:
                 return Response(
-                    {"detail": "action ต้องเป็น confirm หรือ cancel"},
+                    {"detail": "action ต้องเป็น approve หรือ revoke"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -948,7 +948,7 @@ class PaymentDetailView(APIView):
             related_debts = get_related_debts(debt)
             related_debt_ids = [item.pk for item in related_debts]
 
-            if action == "confirm":
+            if action == "approve":
                 payment.approvement_status = "approved"
                 if payment.paid_amount <= 0:
                     payment.payment_status = "pending"
@@ -1011,7 +1011,7 @@ class PaymentDetailView(APIView):
 
                 debt.refresh_from_db()
 
-                if action == "confirm":
+                if action == "approve":
                     installment_target = min(
                         Decimal(debt.payment_amount),
                         Decimal(debt.remaining_amount) + Decimal(payment.paid_amount),
@@ -1037,7 +1037,7 @@ class PaymentDetailView(APIView):
                                 ]
                             )
 
-                elif action == "cancel":
+                elif action == "revoke":
                     # หากยกเลิกการอนุมัติงวดนี้ ให้ย้อนวันครบกำหนดกลับมาที่งวดเดิม
                     installment_target = min(
                         Decimal(debt.payment_amount),
@@ -1084,7 +1084,7 @@ class PaymentDetailView(APIView):
         debt = payment.debt
 
         # แก้ไขรายละเอียดได้เฉพาะเจ้าของรายการชำระ
-        if debt.user_id != request.user.id:
+        if debt.user_id != request.user.pk:
             return Response(
                 {"detail": "คุณไม่มีสิทธิ์แก้ไขรายการชำระนี้"},
                 status=status.HTTP_403_FORBIDDEN,
