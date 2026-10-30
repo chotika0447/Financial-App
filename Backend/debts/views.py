@@ -907,7 +907,7 @@ class PaymentDetailView(APIView):
             is_creditor = (
                 debt.paired_debt_id is not None
                 and debt.type == "borrowed"
-                and debt.counterparty_id == request.user.id
+                and debt.counterparty_id == request.user.pk
             )
 
             if not is_creditor:
