@@ -95,8 +95,7 @@ function Debts() {
   useEffect(() => {
     const debtId = searchParams.get("debtId");
     const requestedTab = searchParams.get("tab");
-    const openPaymentHistory =
-      searchParams.get("openPaymentHistory") === "1";
+    const view = searchParams.get("view");
 
     if (!debtId || loading) return;
 
@@ -122,20 +121,17 @@ function Debts() {
     );
 
     if (requestedTab === "paid") {
-      // เปิดแท็บชำระครบแล้ว
       setActiveStatus("paid");
       setShowDebtPay(false);
       setShowDebtHistory(false);
       setSelectedDebt(null);
 
-    } else if (openPaymentHistory) {
-      // เปิดประวัติการชำระหนี้
+    } else if (view === "payment_history") {
       setSelectedDebt(targetDebt);
       setShowDebtPay(false);
       setShowDebtHistory(true);
 
     } else {
-      // ลิงก์แจ้งเตือนทั่วไป เปิดหน้าชำระหนี้เหมือนเดิม
       setSelectedDebt(targetDebt);
       setShowDebtHistory(false);
       setShowDebtPay(true);

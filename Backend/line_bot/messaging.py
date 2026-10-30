@@ -756,7 +756,6 @@ def _push_debt_flex(
         },
     }
 
-
     # แสดงรูปหลักฐานไว้ด้านบนของการ์ด
     if image_url:
         bubble["body"]["contents"].insert(0, {
@@ -824,7 +823,7 @@ def _payment_history_url(debt):
     frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
     query = urlencode({
         "debtId": debt.pk,
-        "openPaymentHistory": "1",
+        "view": "payment_history",
     })
     return f"{frontend_url}/debts/?{query}"
 
@@ -1108,8 +1107,8 @@ def approve_payment_from_line(payment_id, creditor):
     transaction.on_commit(send_approval_notification)
 
     return (
-        f"อนุมัติรายการชำระเงิน {debt.name} "
-        f"จำนวน {payment.paid_amount:,.2f} บาทเรียบร้อยแล้วค่ะ"
+        f"บันทึกสถานะการอนุมัติรายการชำระเงิน {debt.name} "
+        f"จำนวน {payment.paid_amount:,.2f} บาท เรียบร้อยแล้วค่ะ"
     )
 
 
