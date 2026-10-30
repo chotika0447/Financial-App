@@ -12,6 +12,8 @@ import {
 import Register from './pages/Register';
 import './App.css';
 
+import LoadingScreen from './components/LoadingScreen';
+
 import Home from './pages/Home';
 import Transactions from './pages/Transactions';
 import Debts from './pages/Debts';
@@ -162,18 +164,22 @@ function EntryRoute() {
   }, [navigate]);
 
   return (
-    <main className="entry-route">
-      <p>{error || 'กำลังตรวจสอบบัญชีของคุณ...'}</p>
+    <>
+      {!error && <LoadingScreen />}
 
       {error && (
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-        >
-          ลองอีกครั้ง
-        </button>
+        <main className="entry-route">
+          <p>{error}</p>
+
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+          >
+            ลองอีกครั้ง
+          </button>
+        </main>
       )}
-    </main>
+    </>
   );
 }
 
@@ -238,7 +244,7 @@ function DebtEntryRoute() {
   }
 
   if (authorizationState !== 'authorized') {
-    return <main className="entry-route"><p>กำลังตรวจสอบบัญชีของคุณ...</p></main>;
+    return <LoadingScreen />;
   }
 
   return <Debts />;
