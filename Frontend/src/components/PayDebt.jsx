@@ -142,7 +142,7 @@ function PayDebt({ open, debt, onClose, onSaved }) {
 
       // แจ้ง Debts.jsx ว่าบันทึกสำเร็จ
       if (onSaved) {
-        onSaved(data);
+        await onSaved(data);
       }
 
       // ล้างฟอร์ม
