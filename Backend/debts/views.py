@@ -950,6 +950,15 @@ class PaymentDetailView(APIView):
 
             if action == "confirm":
                 payment.approvement_status = "approved"
+                if payment.paid_amount <= 0:
+                    payment.payment_status = "pending"
+                elif (
+                    payment.scheduled_amount is not None
+                    and payment.paid_amount < payment.scheduled_amount
+                ):
+                    payment.payment_status = "partial"
+                else:
+                    payment.payment_status = "paid"
 
             else:
                 # ไม่ให้ย้อนงวด หากมีการอนุมัติงวดหลังจากรายการนี้ไปแล้ว

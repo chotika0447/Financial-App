@@ -1031,9 +1031,20 @@ def approve_payment_from_line(payment_id, creditor):
     old_approvement_status = payment.approvement_status
 
     payment.approvement_status = "approved"
+    if payment.paid_amount <= 0:
+        payment.payment_status = "pending"
+    elif (
+        payment.scheduled_amount is not None
+        and payment.paid_amount < payment.scheduled_amount
+    ):
+        payment.payment_status = "partial"
+    else:
+        payment.payment_status = "paid"
+
     payment.save(
         update_fields=[
             "approvement_status",
+            "payment_status",
             "updated_at",
         ]
     )
@@ -1107,7 +1118,7 @@ def approve_payment_from_line(payment_id, creditor):
     transaction.on_commit(send_approval_notification)
 
     return (
-        f"บันทึกสถานะการอนุมัติรายการชำระเงิน {debt.name} "
+        f"อนุมัติและบันทึกสถานะการชำระเงิน {debt.name} "
         f"จำนวน {payment.paid_amount:,.2f} บาท เรียบร้อยแล้วค่ะ"
     )
 
