@@ -39,6 +39,7 @@ def parse_financial_message(text, transaction_type):
     # ถ้าไม่ได้ระบุช่องทางชำระ
     # ให้เป็นค่าว่าง ไม่เดาว่าเป็นเงินสด
     account = ""
+    matched_account = ""
 
 
     account_keywords = {
@@ -122,9 +123,43 @@ def parse_financial_message(text, transaction_type):
         if keyword in text_lower:
 
             account = account_name
+            matched_account = keyword
 
             break
 
+
+    # ชื่อรายการ: ตัดจำนวนเงินและช่องทางออกก่อน
+    item_name = text.strip()
+    if match:
+        item_name = item_name[:match.start()] + item_name[match.end():]
+    if matched_account:
+        item_name = re.sub(re.escape(matched_account), "", item_name, flags=re.IGNORECASE)
+
+    # ลบหน่วยเงินที่เหลืออยู่ และเว้นวรรคส่วนเกิน
+    item_name = re.sub(r"^(?:บาท|บ\.|฿)", "", item_name.strip())
+    item_name = re.sub(r"(?:บาท|บ\.|฿)$", "", item_name.strip())
+    item_name = item_name.strip(" -,:\t")
+
+    # ตัดเฉพาะคำขึ้นต้นที่ไม่ใช่ส่วนหนึ่งของชื่อรายการ
+    # เช่น 'จ่ายค่าไฟ' ต้องเหลือ 'ค่าไฟ' ไม่ใช่ 'ไฟ'
+    if item_name.startswith("ได้เงินเดือน"):
+        item_name = item_name[len("ได้"):]
+    elif item_name.startswith("ได้รับ"):
+        item_name = item_name[len("ได้รับ"):]
+    elif item_name.startswith("รับเงินจาก"):
+        item_name = item_name[len("รับเงินจาก"):]
+    elif item_name.startswith("ซื้อของ"):
+        pass  # คง 'ซื้อของ' ไว้ เพราะยังไม่ทราบชื่อสิ่งของ
+    elif item_name.startswith("ซื้อ"):
+        item_name = item_name[len("ซื้อ"):]
+    elif item_name.startswith("จ่ายค่า"):
+        item_name = item_name[len("จ่าย"):]
+    elif item_name.startswith("จ่าย"):
+        item_name = item_name[len("จ่าย"):]
+
+    item_name = item_name.strip(" -,:\t")
+    if not item_name:
+        item_name = "ไม่ระบุ"
 
     # หมวดหมู่หลักตรงกับ Supabase; คำจาก Excel ใช้ช่วยจับแบรนด์เท่านั้น
     expense_categories = {
@@ -167,6 +202,7 @@ def parse_financial_message(text, transaction_type):
         "category": category,
         "sub_category": sub_category,
         "account": account,
+        "item_name": item_name,
         "description": description,
         "is_known_brand": is_known_brand,
     }

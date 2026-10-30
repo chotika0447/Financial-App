@@ -11,7 +11,6 @@ import {
   Trash2,
   Upload,
   X,
-  Coffee, ShoppingBag, Car, Heart, BookOpen, Wallet, Gift, MoreHorizontal, Sparkles,
 } from 'lucide-react';
 
 import CustomHeader from '../components/CustomHeader';
@@ -366,6 +365,7 @@ function Transactions() {
     setShowExitConfirm(false);
     setShowMoreCategories(false);
     setAddingCategory(false);
+    setNewCategoryName('');
     setShowModal(true);
   }
 
@@ -422,6 +422,7 @@ function Transactions() {
 
     setShowMoreCategories(false);
     setAddingCategory(false);
+    setNewCategoryName('');
     setShowModal(true);
   }
 
@@ -481,8 +482,7 @@ function Transactions() {
   }
 
 
-  const categoryIcons = [Coffee, ShoppingBag, Car, Heart, BookOpen, Wallet, Gift, Sparkles];
-  const visibleCategories = showMoreCategories ? categories : categories.slice(0, 8);
+  const visibleCategories = categories;
 
   async function addCategory() {
     const name = newCategoryName.trim();
@@ -497,21 +497,25 @@ function Transactions() {
         body: JSON.stringify({ name, transaction_type: form.transaction_type }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || data.detail || 'เพิ่มหมวดหมู่ไม่สำเร็จ');
-      await fetchCategories(form.transaction_type);
-      setForm((current) => ({ ...current, category: data.id }));
+      if (!response.ok) {
+        const detail = data.error || data.detail || data.name?.[0] ||
+          `เพิ่มหมวดหมู่ไม่สำเร็จ (HTTP ${response.status})`;
+        throw new Error(response.status === 405
+          ? 'API /categories/ ไม่รองรับ POST (405) กรุณาตรวจสอบ Vercel rewrite และ Backend ที่เชื่อมต่อ'
+          : typeof detail === 'string' ? detail : JSON.stringify(detail));
+      }
+      if (data.id == null) throw new Error('Backend ไม่ส่ง ID ของหมวดหมู่ที่สร้างกลับมา');
+      // เพิ่มในหน้าจอทันที โดยไม่ต้องรอ GET รอบใหม่
+      const created = { ...data, name: data.name || name, transaction_type: form.transaction_type };
+      setCategories((current) => current.some((item) => String(item.id) === String(created.id))
+        ? current : [...current, created]);
+      setListCategories((current) => current.some((item) =>
+        String(item.id) === String(created.id) && item.transaction_type === created.transaction_type)
+        ? current : [...current, created]);
+      setForm((current) => ({ ...current, category: created.id }));
       setNewCategoryName('');
       setAddingCategory(false);
-      setShowMoreCategories(true);
-      // โหลดตัวกรองใหม่ด้วย เพื่อให้หมวดหมู่ที่สร้างปรากฏทันที
-      const results = await Promise.all(['income', 'expense'].map(async (type) => {
-        const res = await fetch(`/categories/?transaction_type=${type}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        const items = await res.json();
-        return (Array.isArray(items) ? items : []).map((item) => ({ ...item, transaction_type: type }));
-      }));
-      setListCategories(results.flat());
+      setSuccess('เพิ่มหมวดหมู่เรียบร้อยแล้ว');
     } catch (err) { setError(err.message); }
     finally { setCategorySaving(false); }
   }
@@ -994,25 +998,6 @@ function Transactions() {
             ))}
           </div>
 
-          <div className="transaction-category-filter">
-            <label>หมวดหมู่</label>
-            <div className="category-filter-pills" aria-label="กรองตามหมวดหมู่">
-              <button type="button" className={filterCategory === 'all' ? 'active' : ''}
-                onClick={() => { setFilterCategory('all'); setShowAll(false); }}>
-                ทุกหมวดหมู่
-              </button>
-              {availableCategories.map((item) => {
-                const value = `${item.transaction_type}:${item.id}`;
-                return (
-                  <button type="button" key={value}
-                    className={filterCategory === value ? 'active' : ''}
-                    onClick={() => { setFilterCategory(value); setShowAll(false); }}>
-                    {filterType === 'all' ? `${item.transaction_type === 'income' ? 'รายรับ' : 'รายจ่าย'} · ` : ''}{item.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
         </section>
 
@@ -1391,7 +1376,7 @@ function Transactions() {
               </div>
 
 
-              {/* เลือกหมวดหมู่แบบการ์ด โดยคงข้อมูลจาก Backend */}
+              {/* เลือกหมวดหมู่แบบปุ่มข้อความ */}
               <div className="form-group full">
                 <div className="category-section-heading">
                   <label>หมวดหมู่</label>
@@ -1401,30 +1386,21 @@ function Transactions() {
                   </button>
                 </div>
                 <div className="category-choice-list">
-                  {visibleCategories.map((category, index) => {
-                    const Icon = categoryIcons[index % categoryIcons.length];
-                    return (
-                      <button key={category.id} type="button"
-                        className={String(form.category) === String(category.id) ? 'active' : ''}
-                        onClick={() => setForm((current) => ({ ...current, category: category.id }))}>
-                        <Icon size={19} strokeWidth={1.8} />
-                        <span title={category.name}>{category.name}</span>
-                      </button>
-                    );
-                  })}
+                  {visibleCategories.map((category) => (
+                    <button key={category.id} type="button"
+                      aria-pressed={String(form.category) === String(category.id)}
+                      className={String(form.category) === String(category.id) ? 'active' : ''}
+                      onClick={() => setForm((current) => ({ ...current, category: category.id }))}>
+                      {category.name}
+                    </button>
+                  ))}
                   {categories.length === 0 && <span>ยังไม่มีหมวดหมู่</span>}
                 </div>
-                {categories.length > 8 && (
-                  <button type="button" className="category-more-button"
-                    onClick={() => setShowMoreCategories((value) => !value)}>
-                    {showMoreCategories ? 'แสดงน้อยลง' : `ดูหมวดหมู่ทั้งหมด (${categories.length})`}
-                  </button>
-                )}
                 {addingCategory && (
                   <div className="category-create-row">
                     <input value={newCategoryName} maxLength={100} placeholder="ชื่อหมวดหมู่ใหม่"
                       onChange={(event) => setNewCategoryName(event.target.value)} />
-                    <button type="button" onClick={addCategory} disabled={categorySaving}>
+                    <button type="button" onClick={addCategory} disabled={categorySaving || !newCategoryName.trim()}>
                       {categorySaving ? 'กำลังเพิ่ม...' : 'บันทึก'}
                     </button>
                   </div>

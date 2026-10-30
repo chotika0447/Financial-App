@@ -147,6 +147,16 @@ def build_transaction_flex(item):
     if item.sub_category:
         category_text += f" / {item.sub_category}"
 
+    # วันที่และเวลาที่บันทึกไว้ในรายการ
+    date_text = "ไม่ระบุ"
+    if item.transaction_date:
+        date = item.transaction_date
+        date_text = f"{date.day:02d}/{date.month:02d}/{date.year + 543}"
+
+    time_text = "ไม่ระบุ"
+    if item.transaction_time:
+        time_text = item.transaction_time.strftime("%H:%M น.")
+
     frontend_url = settings.FRONTEND_URL.rstrip("/")
     query = urlencode({"returnTo": "/edit-transaction/", "transaction": item.id})
     edit_url = f"{frontend_url}/?{query}"
@@ -174,9 +184,11 @@ def build_transaction_flex(item):
                      "weight": "bold", "size": "xxl", "color": "#805035"},
                     {"type": "separator", "margin": "md", "color": "#E8DCC8"},
                     detail(f"ประเภท: {type_label}"),
-                    detail(f"รายการ: {item.description or 'ไม่ระบุ'}"),
+                    detail(f"รายการ: {item.item_name or 'ไม่ระบุ'}"),
                     detail(f"หมวดหมู่: {category_text}"),
                     detail(f"ช่องทาง: {item.account or 'ไม่ระบุ'}"),
+                    detail(f"วันที่: {date_text}"),
+                    detail(f"เวลา: {time_text}"),
                     {"type": "text", "text": "บันทึกแล้ว หากข้อมูลไม่ถูกต้องสามารถแก้ไขได้",
                      "size": "xs", "color": "#8B7A68", "wrap": True}
                 ]
@@ -333,7 +345,7 @@ def handle_text_message(text, line_user_id):
 
     # ไม่ใช้คำสั่งยืนยัน/ยกเลิกสำหรับรายการที่บันทึกแล้ว
     if command in ("ยืนยัน", "ยกเลิก"):
-        return "ระบบบันทึกรายการอัตโนมัติแล้วค่ะ กดแก้ไขจากการ์ดรายการได้เลย"
+        return "ระบบบันทึกรายการแล้วค่ะ กดแก้ไขจากการ์ดรายการได้เลย"
 
     # อ่านโหมดจากฐานข้อมูล
     transaction_type = get_record_mode(user)
@@ -366,14 +378,15 @@ def handle_text_message(text, line_user_id):
 
     if category is None:
         return (
-            "ไม่พบหมวดหมู่ในฐานข้อมูล "
-            "กรุณาเพิ่มหมวดหมู่ 'อื่นๆ' ก่อน"
+            "ไม่พบหมวดหมู่ที่ตรงกับข้อความค่ะ "
+            "ลองพิมพ์ใหม่ หรือเลือกหมวดหมู่จากเว็บไซต์"
         )
 
     # ถ้ารูปก่อนหน้าอ่านยอดไม่ได้ ให้นำข้อมูลข้อความมาเติม
     if draft is not None:
         draft.amount = result["amount"]
         draft.transaction_type = transaction_type
+        draft.item_name = result.get("item_name") or ""
         draft.description = result.get("description") or ""
         draft.category = category
         draft.sub_category = result.get("sub_category") or ""
@@ -387,6 +400,7 @@ def handle_text_message(text, line_user_id):
             user=user,
             amount=result["amount"],
             transaction_type=transaction_type,
+            item_name=result.get("item_name") or "",
             description=result.get("description") or "",
             category=category,
             sub_category=result.get("sub_category") or "",
@@ -492,6 +506,7 @@ def handle_image_message(message_id, line_user_id):
             amount=amount,
             transaction_type=transaction_type,
             category=find_category("อื่นๆ", transaction_type, user),
+            item_name="",
             description="",
             transaction_date=date_value or now.date(),
             transaction_time=time_value or now.time().replace(microsecond=0),

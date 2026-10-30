@@ -1111,3 +1111,43 @@
 @media (max-width: 600px) {
   .transactions-page .category-choice-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* KaneCho: compact text-only category chips inside add/edit modal */
+.transactions-page .transaction-modal .category-choice-list {
+  display: flex !important;
+  flex-wrap: wrap;
+  grid-template-columns: none !important;
+  align-items: flex-start;
+  gap: 9px !important;
+  max-height: none;
+  overflow: visible;
+  padding: 2px 0;
+}
+.transactions-page .transaction-modal .category-choice-list button {
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-height: 42px !important;
+  padding: 9px 17px !important;
+  border: 1px solid #dce2ed !important;
+  border-radius: 999px !important;
+  background: #f7f9fc !important;
+  color: #555d6d !important;
+  font-size: 13px !important;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.transactions-page .transaction-modal .category-choice-list button:hover {
+  border-color: #b6a0e7 !important;
+  background: #f2edfc !important;
+}
+.transactions-page .transaction-modal .category-choice-list button.active {
+  border: 1px solid #a68be2 !important;
+  background: #b6a0e7 !important;
+  color: white !important;
+}
+.transactions-page .transaction-modal .category-create-row { margin-top: 12px; }
+.transactions-page .transaction-modal .category-create-row button:disabled { opacity: .55; cursor: not-allowed; }
