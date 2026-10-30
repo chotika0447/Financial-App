@@ -92,10 +92,11 @@ function Debts() {
   }, []);
 
   //useEffect สำหรับเปิดรายการหนี้สินจาก LINE
-  // เปิดรายการหนี้สินจาก LINE
   useEffect(() => {
     const debtId = searchParams.get("debtId");
     const requestedTab = searchParams.get("tab");
+    const openPaymentHistory =
+      searchParams.get("openPaymentHistory") === "1";
 
     if (!debtId || loading) return;
 
@@ -121,15 +122,20 @@ function Debts() {
     );
 
     if (requestedTab === "paid") {
-      // ลิงก์แจ้งเตือนชำระหนี้ครบ:
-      // เปิดแท็บชำระครบ โดยไม่เปิดหน้าต่างบันทึกการชำระซ้ำ
+      // เปิดแท็บชำระครบแล้ว
       setActiveStatus("paid");
       setShowDebtPay(false);
       setShowDebtHistory(false);
       setSelectedDebt(null);
+
+    } else if (openPaymentHistory) {
+      // เปิดประวัติการชำระหนี้
+      setSelectedDebt(targetDebt);
+      setShowDebtPay(false);
+      setShowDebtHistory(true);
+
     } else {
-      // ลิงก์จากการแจ้งเตือนทั่วไป:
-      // คงพฤติกรรมเดิมที่เปิดหน้าต่างบันทึกการชำระ
+      // ลิงก์แจ้งเตือนทั่วไป เปิดหน้าชำระหนี้เหมือนเดิม
       setSelectedDebt(targetDebt);
       setShowDebtHistory(false);
       setShowDebtPay(true);
@@ -137,6 +143,7 @@ function Debts() {
 
     // ล้าง query string หลังจัดการลิงก์แล้ว
     setSearchParams({}, { replace: true });
+
   }, [debts, loading, searchParams, setSearchParams]);
 
 

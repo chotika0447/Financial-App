@@ -36,7 +36,7 @@ from transactions.ocr import (
 )
 from users.models import User
 from friends.models import Friends
-
+from .messaging import approve_payment_from_line
 
 logger = logging.getLogger(__name__)
 
@@ -237,6 +237,20 @@ def handle_postback(data, line_user_id):
 
     if user is None:
         return "กรุณาเข้าสู่ระบบและเชื่อมบัญชี LINE ก่อนค่ะ"
+
+        # ปุ่มอนุมัติรายการชำระหนี้จาก LINE
+    if action == "payment_approve":
+        try:
+            payment_id = int(
+                params.get("payment_id", [""])[0]
+            )
+        except (TypeError, ValueError):
+            return "รหัสรายการชำระเงินไม่ถูกต้องค่ะ"
+
+        return approve_payment_from_line(
+            payment_id=payment_id,
+            creditor=user,
+        )
 
      # ปุ่มยอมรับ/ปฏิเสธคำขอเป็นเพื่อนจาก LINE
     if action in ("friend_accept", "friend_reject"):
