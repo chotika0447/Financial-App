@@ -54,7 +54,12 @@ function EntryRoute() {
         destination = `/edit-transaction/?transaction=${encodeURIComponent(transactionId)}`;
       }
       if (debtId) {
-        destination = `/debts/?debtId=${encodeURIComponent(debtId)}`;
+        const debtParams = new URLSearchParams(queryParams);
+
+        // ไม่จำเป็นต้องส่ง returnTo ต่อไป
+        debtParams.delete('returnTo');
+
+        destination = `/debts/?${debtParams.toString()}`;
       }
       const redirectUri =
         `${window.location.origin}${window.location.pathname}${window.location.search}`;
