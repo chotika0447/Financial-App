@@ -1,4 +1,5 @@
 import os
+import logging
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -24,7 +25,52 @@ ALLOWED_HOSTS = [
     "financial-app-xgc0.onrender.com",
     "debtmodule-backend.onrender.com"
 ]
+# =================== LOGGING ===================
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
 
+    "formatters": {
+        "verbose": {
+            "format": (
+                "{asctime} [{levelname}] "
+                "{name}: {message}"
+            ),
+            "style": "{",
+        },
+    },
+
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "debts": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+
+    # เพิ่มส่วนนี้
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
 # =================== LINE ===================
 
 # LINE Messaging API / LINE OA
