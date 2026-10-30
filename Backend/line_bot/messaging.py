@@ -987,11 +987,6 @@ def approve_payment_from_line(payment_id, creditor):
     payment = (
         Payments.objects
         .select_for_update()
-        .select_related(
-            "debt",
-            "debt__user",
-            "debt__paired_debt",
-        )
         .filter(pk=payment_id)
         .first()
     )
