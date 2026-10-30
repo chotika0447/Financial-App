@@ -97,6 +97,14 @@ function Debts() {
     const requestedTab = searchParams.get("tab");
     const view = searchParams.get("view");
 
+    console.log("LINE DEBT LINK DEBUG:", {
+      fullUrl: window.location.href,
+      search: window.location.search,
+      debtId,
+      requestedTab,
+      view,
+    });
+
     if (!debtId || loading) return;
 
     if (!/^[1-9]\d*$/.test(debtId)) {
