@@ -14,16 +14,26 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 #กำหนดว่า Host ไหนเข้าถึง Django ได้
+# กำหนด Host ที่อนุญาตให้เข้าถึง Django
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    
-    'glimmer-grunt-obstruct.ngrok-free.dev',
+    "glimmer-grunt-obstruct.ngrok-free.dev",
     "tammara-semivolcanic-randee.ngrok-free.dev",
-
-    "financial-app-xgc0.onrender.com",
-    "debtmodule-backend.onrender.com"
+    "financial-app-xgco.onrender.com",
+    "debtmodule-backend.onrender.com",
+    "financial-app-neverlandtest.onrender.com",
 ]
+
+# อ่าน Host เพิ่มเติมจาก Environment Variable
+extra_hosts = os.getenv("ALLOWED_HOSTS", "")
+
+if extra_hosts:
+    ALLOWED_HOSTS += [
+        host.strip()
+        for host in extra_hosts.split(",")
+        if host.strip()
+    ]
 
 # =================== LINE ===================
 
