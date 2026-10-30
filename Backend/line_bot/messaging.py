@@ -378,7 +378,7 @@ def push_new_debt_notification(debt, target_debt=None):
         print("ไม่สามารถแจ้งเตือนหนี้: ยังไม่ได้ตั้งค่า FRONTEND_URL")
         return False
 
-    detail_url = f"{frontend_url}/debts/"
+    detail_url = f"{frontend_url}/debts/?debtId={detail_debt.pk}"
 
     if detail_debt.type == "borrowed":
         debt_type_text = "หนี้สิน"
@@ -756,19 +756,27 @@ def _push_debt_flex(
         },
     }
 
+
     # แสดงรูปหลักฐานไว้ด้านบนของการ์ด
     if image_url:
-        bubble["hero"] = {
-            "type": "image",
-            "url": image_url,
-            "size": "full",
-            "aspectRatio": "9:16",
-            "aspectMode": "fit",
-            "action": {
-                "type": "uri",
-                "uri": image_url
-            }
-        }
+        bubble["body"]["contents"].insert(0, {
+            "type": "box",
+            "layout": "vertical",
+            "paddingAll": "0px",
+            "contents": [
+                {
+                    "type": "image",
+                    "url": image_url,
+                    "size": "full",
+                    "aspectRatio": "9:16",
+                    "aspectMode": "fit",
+                    "action": {
+                        "type": "uri",
+                        "uri": image_url
+                    }
+                }
+            ]
+        })
 
     message = {
         "type": "flex",
