@@ -222,7 +222,7 @@ def push_new_debt_notification(debt, target_debt=None):
         debt_type_text = "รายการให้ยืม"
     else:
         print("ไม่สามารถสร้างข้อความแจ้งเตือนได้: ไม่พบประเภทหนี้ที่ถูกต้อง")
-    return False
+        return False
 
     due_date_text = (
         detail_debt.due_date.strftime("%d/%m/%Y")

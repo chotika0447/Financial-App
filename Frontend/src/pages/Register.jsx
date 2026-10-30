@@ -22,7 +22,7 @@ function Register() {
 
   const reloginLine = () => {
     liff.logout();
-    
+
     liff.login({
       redirectUri: `${window.location.origin}/register/`,
     });
@@ -81,7 +81,7 @@ function Register() {
       return false;
     }
   };
-  
+
   useEffect(() => {
     if (!liffId) return;
 
@@ -254,19 +254,29 @@ function Register() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="occupation">อาชีพ</label>
-              <input
+              <label htmlFor="occupation">กลุ่มอาชีพ</label>
+              <select
                 id="occupation"
-                type="text"
-                maxLength="100"
                 value={occupation}
                 onChange={(event) => setOccupation(event.target.value)}
                 required
-              />
+              >
+                <option value="" disabled>
+                  -- เลือกกลุ่มอาชีพ --
+                </option>
+                <option value="นักเรียน / นักศึกษา">นักเรียน / นักศึกษา</option>
+                <option value="พนักงานบริษัท / เอกชน">พนักงานบริษัท / เอกชน</option>
+                <option value="ข้าราชการ / รัฐวิสาหกิจ">ข้าราชการ / รัฐวิสาหกิจ</option>
+                <option value="เจ้าของธุรกิจ / ค้าขาย">เจ้าของธุรกิจ / ค้าขาย</option>
+                <option value="อาชีพอิสระ / ฟรีแลนซ์">อาชีพอิสระ / ฟรีแลนซ์</option>
+                <option value="รับจ้างทั่วไป / แรงงาน">รับจ้างทั่วไป / แรงงาน</option>
+                <option value="เกษตรกร">เกษตรกร</option>
+                <option value="ไม่ได้ประกอบอาชีพ / อื่น ๆ">ไม่ได้ประกอบอาชีพ / อื่น ๆ</option>
+              </select>
             </div>
 
             <div className="form-group">
-              <label htmlFor="email">อีเมล(ไม่บังคับ)</label>
+              <label htmlFor="email">อีเมล *สำหรับรับเอกสารที่ส่งออก</label>
               <input
                 id="email"
                 type="email"
@@ -277,7 +287,7 @@ function Register() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="monthly-income">รายได้ต่อเดือน (บาท)</label>
+              <label htmlFor="monthly-income">รายได้ต่อเดือน *สำหรับการประเมิณสุขภาพการเงิน</label>
               <input
                 id="monthly-income"
                 type="number"
