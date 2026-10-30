@@ -22,6 +22,7 @@ ALLOWED_HOSTS = [
     "tammara-semivolcanic-randee.ngrok-free.dev",
 
     "financial-app-xgc0.onrender.com",
+    "financial-app-gbnw.onrender.com"
 ]
 
 # =================== LINE ===================
@@ -100,6 +101,8 @@ INSTALLED_APPS = [
     'savings',
     'transactions',
     'categories',
+
+    'dashboard',
 
 ]
 # =================== Authentication ===================
