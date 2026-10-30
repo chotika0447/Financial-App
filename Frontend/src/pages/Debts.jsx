@@ -95,6 +95,7 @@ function Debts() {
   useEffect(() => {
     const debtId = searchParams.get("debtId");
     const requestedTab = searchParams.get("tab");
+    const requestedType = searchParams.get("type");
     const view = searchParams.get("view");
 
     console.log("LINE DEBT LINK DEBUG:", {
@@ -105,7 +106,21 @@ function Debts() {
       view,
     });
 
-    if (!debtId || loading) return;
+    if (loading) return;
+
+    // เปิดแท็บให้คนอื่นยืม
+    if (requestedType === "lend") {
+      setActiveTab("lend");
+      setActiveStatus("ongoing");
+      setShowDebtPay(false);
+      setShowDebtHistory(false);
+      setSelectedDebt(null);
+
+      setSearchParams({}, { replace: true });
+      return;
+    }
+
+    if (!debtId) return;
 
     if (!/^[1-9]\d*$/.test(debtId)) {
       setError("ลิงก์รายการหนี้ไม่ถูกต้อง");

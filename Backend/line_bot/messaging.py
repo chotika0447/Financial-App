@@ -195,14 +195,34 @@ def push_new_debt_notification(debt, target_debt=None):
         print("ไม่สามารถแจ้งเตือนหนี้: ยังไม่ได้ตั้งค่า FRONTEND_URL")
         return False
 
-    detail_url = f"{frontend_url}/debts/?debtId={detail_debt.pk}"
+    # กำหนด URL ตามประเภทหนี้ในบัญชีของผู้รับ
+    if detail_debt.type == "lent":
+        # ผู้รับเป็นเจ้าหนี้: เปิดแท็บรายการให้คนอื่นยืม
+        query = urlencode({
+            "type": "lend",
+        })
+
+    elif detail_debt.type == "borrowed":
+        # ผู้รับเป็นลูกหนี้: เปิดหน้า PayDebt ของหนี้ก้อนนั้น
+        query = urlencode({
+            "debtId": detail_debt.pk,
+        })
+
+    else:
+        print("ไม่สามารถสร้างลิงก์ได้: ไม่พบประเภทหนี้ที่ถูกต้อง")
+        return False
+
+    detail_url = f"{frontend_url}/debts/?{query}"
 
     if detail_debt.type == "borrowed":
+        notification_text = "มีรายการหนี้สินใหม่แจ้งถึงคุณ"
         debt_type_text = "หนี้สิน"
     elif detail_debt.type == "lent":
+        notification_text = "มีรายการให้ยืมใหม่แจ้งถึงคุณ"
         debt_type_text = "รายการให้ยืม"
     else:
-        debt_type_text = "รายการหนี้"
+        print("ไม่สามารถสร้างข้อความแจ้งเตือนได้: ไม่พบประเภทหนี้ที่ถูกต้อง")
+    return False
 
     due_date_text = (
         detail_debt.due_date.strftime("%d/%m/%Y")
@@ -215,7 +235,7 @@ def push_new_debt_notification(debt, target_debt=None):
     contents = [
         {
             "type": "text",
-            "text": "มีรายการหนี้ใหม่แจ้งถึงคุณ",
+            "text": notification_text,
             "weight": "bold",
             "size": "lg",
             "color": "#30294A",
@@ -290,7 +310,7 @@ def push_new_debt_notification(debt, target_debt=None):
             {
                 "type": "flex",
                 "altText": (
-                    f"มีรายการหนี้ใหม่: {detail_debt.name}"
+                    f"{notification_text}: {detail_debt.name}"
                 )[:400],
                 "contents": {
                     "type": "bubble",
