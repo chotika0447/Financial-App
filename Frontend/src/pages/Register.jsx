@@ -262,17 +262,6 @@ function Register() {
         {/* Header */}
         <div className="text-center mb-9">
 
-          <div className="
-            inline-flex items-center justify-center
-            w-14 h-14 mb-4
-            rounded-2xl
-            bg-white/80
-            shadow-sm
-            text-2xl
-          ">
-            ✨
-          </div>
-
           <h1 className="
             text-2xl sm:text-3xl
             font-bold text-gray-800
@@ -391,12 +380,9 @@ function Register() {
                 <h3 className="
                   text-base font-semibold text-gray-800
                 ">
-                  ข้อมูลสมาชิก
+                  กรุณากรอกข้อมูลเพื่อสร้างบัญชีของคุณ
                 </h3>
 
-                <p className="text-xs text-gray-400 mt-1">
-                  กรุณากรอกข้อมูลเพื่อสร้างบัญชีของคุณ
-                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-5">
@@ -568,7 +554,7 @@ function Register() {
           mt-6 text-center
           text-xs text-gray-400
         ">
-          Personal Finance Management
+          KaneCho : Personal Finance Management
         </p>
 
       </div>
