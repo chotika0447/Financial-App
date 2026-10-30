@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import {
     ArrowLeft,
-    CalendarDays,
     X,
     Trash2,
     ImagePlus,
@@ -11,20 +10,18 @@ import {
 function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
     const isBorrow = debt.type === "borrowed";
     const [payments, setPayments] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(true);//
+    const [error, setError] = useState("");//
     const [editingId, setEditingId] = useState(null);
     const [previewImage, setPreviewImage] = useState(null);
     const [savingId, setSavingId] = useState(null); //state ป้องกันการกดบันทึกซ้ำ
 
-    const [showAddReceived, setShowAddReceived] = useState(false);
     const [newReceived, setNewReceived] = useState({
         paid_amount: "",
         paid_date: "",
         note: "",
         proof_image: null,
     });
-    const [savingReceived, setSavingReceived] = useState(false);
 
     useEffect(() => {
         const fetchPayments = async () => {
@@ -236,18 +233,13 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
     };
 
 
-    const updateApprovementStatus = async (payment) => {
+    const updateApprovementStatus = async (payment, action) => {
         const accessToken = sessionStorage.getItem("accessToken");
 
         if (!accessToken) {
             alert("ไม่พบข้อมูลการเข้าสู่ระบบ");
             return;
         }
-
-        const action =
-            payment.approvement_status === "approved"
-                ? "cancel"
-                : "approve";
 
         setSavingId(payment.id);
 
@@ -285,16 +277,15 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
             if (onDebtUpdated) {
                 await onDebtUpdated();
             }
+
         } catch (error) {
-            console.error("Update debt approvement error:", error);
-            alert(error.message || "ไม่สามารถเปลี่ยนสถานะได้");
+            console.error("Update approvement error:", error);
+            alert(error.message || "ไม่สามารถเปลี่ยนสถานะการอนุมัติได้");
         } finally {
             setSavingId(null);
         }
     };
-
-
-
+    
     return (
         <div className="min-h-screen bg-[#f4f4f4] pb-24">
             {/* Header */}
@@ -484,10 +475,17 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                             <button
                                                 type="button"
                                                 disabled={savingId === payment.id}
-                                                onClick={() => updateApprovementStatus(payment)}
+                                                onClick={() =>
+                                                    updateApprovementStatus(
+                                                        payment,
+                                                        payment.approvement_status === "approved"
+                                                            ? "cancel"
+                                                            : "confirm"
+                                                    )
+                                                }
                                                 className={`w-full rounded-md text-[10px] py-2 text-white disabled:opacity-50 ${payment.approvement_status === "approved"
-                                                        ? "bg-[#252525]"
-                                                        : "bg-green-500"
+                                                    ? "bg-[#252525]"
+                                                    : "bg-green-500"
                                                     }`}
                                             >
                                                 {savingId === payment.id
