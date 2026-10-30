@@ -27,7 +27,7 @@ function Wallet() {
 
   const accessToken = () => sessionStorage.getItem('accessToken')
 
-  // แปลงชื่อ field จาก Django ให้ตรงกับ WalletCard เดิม
+  //แปลงชื่อ field จาก Django ให้ตรงกับ WalletCard เดิม
   const normalizeWallet = (item) => ({
     id: item.saving_id,
     name: item.saving_name,
@@ -76,7 +76,7 @@ function Wallet() {
     return data
   }
 
-  // โหลดรายการจากฐานข้อมูลเมื่อเปิดหน้า
+  //โหลดรายการจากฐานข้อมูลเมื่อเปิดหน้า
   const fetchWallets = async () => {
     setLoading(true)
     setError('')
@@ -100,7 +100,33 @@ function Wallet() {
       ? 'แก้ไขกระเป๋าเงินออม'
       : 'เพิ่มกระเป๋าเงินออม'
 
-  // เพิ่มหรือแก้ไขกระเป๋าในฐานข้อมูล
+  //ตรวจสอบชื่อกระเป๋าซ้ำและเพิ่มเลขเลย
+  const getUniqueWalletName = (walletName) => {
+  const baseName = walletName.trim()
+
+  //ดึงชื่อกระเป๋าที่มีอยู่ โดยไม่รวมกระเป๋าที่กำลังแก้ไข
+  const existingNames = wallets
+    .filter((wallet) => wallet.id !== editingWalletId)
+    .map((wallet) => wallet.name.trim().toLowerCase())
+
+  //ถ้าชื่อไม่ซ้ำให้ใช้ชื่อเดิม
+  if (!existingNames.includes(baseName.toLowerCase())) {
+    return baseName
+  }
+
+  //ถ้าชื่อซ้ำเพิ่มเลขต่อท้าย
+  let number = 1
+  let newName = `${baseName} (${number})`
+
+  while (existingNames.includes(newName.toLowerCase())) {
+    number++
+    newName = `${baseName} (${number})`
+  }
+
+  return newName
+}
+
+  //เพิ่มหรือแก้ไขกระเป๋าในฐานข้อมูล
   const addWallet = async () => {
     if (!name.trim()) {
       alert('กรุณากรอกชื่อกระเป๋า')
@@ -124,8 +150,11 @@ function Wallet() {
       (wallet) => wallet.id === editingWalletId
     )
 
+    //ตรวจชื่อซ้ำก่อนบันทึก
+    const uniqueName = getUniqueWalletName(name)
+
     const payload = {
-      saving_name: name.trim(),
+      saving_name: uniqueName,
       target: Number(target),
       target_date: targetDate || null,
       status: existingWallet?.status || 'active',
@@ -162,7 +191,7 @@ function Wallet() {
     }
   }
 
-  // เตรียมข้อมูลสำหรับแก้ไข
+  //เตรียมข้อมูลสำหรับแก้ไข
   const editWallet = (wallet) => {
     setEditingWalletId(wallet.id)
     setName(wallet.name)
@@ -171,7 +200,7 @@ function Wallet() {
     setShowForm(true)
   }
 
-  // ลบกระเป๋าจากฐานข้อมูล
+  //ลบกระเป๋าจากฐานข้อมูล
   const deleteWallet = async (id) => {
     const confirmDelete = window.confirm(
       'คุณแน่ใจหรือไม่ว่าต้องการลบกระเป๋าเงินนี้?'
@@ -194,7 +223,7 @@ function Wallet() {
   }
 
 
-  // ฝากเงินและอัปเดต state จากข้อมูลที่ backend ส่งกลับ
+  //ฝากเงินและอัปเดต state จากข้อมูลที่ backend ส่งกลับ
   const deposit = async (id, amount) => {
     setError('')
 
@@ -220,7 +249,7 @@ function Wallet() {
     }
   }
 
-  // ถอนเงินและรับยอดล่าสุดจาก backend
+  //ถอนเงินและรับยอดล่าสุดจาก backend
   const withdraw = async (id, amount) => {
     setError('')
 
