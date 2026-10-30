@@ -470,7 +470,7 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                     )}
 
                                     {/* ถ้าเป็นการยืมและมีการเชื่อมบัญชีเพื่อน จะมีปุ่มให้อนุมัติการชำระหนี้*/}
-                                    {!isBorrow && debt.counterparty && (
+                                    {!isBorrow && debt.counterparty && String(payment.debt) === String(debt.paired_debt) && (
                                         <div className="mt-2">
                                             <button
                                                 type="button"

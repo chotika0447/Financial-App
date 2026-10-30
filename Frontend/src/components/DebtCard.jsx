@@ -165,8 +165,11 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
         {/* Progress bar */}
         <div className="w-full h-[5px] bg-gray-300 rounded-full mt-1 overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${progressColor}`}
-            style={{ width: `${progress}%` }}
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${progress}%`,
+              backgroundColor: progressColor,
+            }}
           />
         </div>
       </div>
