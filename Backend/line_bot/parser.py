@@ -135,6 +135,15 @@ def parse_financial_message(text, transaction_type):
     if matched_account:
         item_name = re.sub(re.escape(matched_account), "", item_name, flags=re.IGNORECASE)
 
+    # ตัดชื่อร้านที่ระบุท้ายข้อความออกจากชื่อรายการเท่านั้น
+    # ยังคงใช้ข้อความต้นฉบับสำหรับจับหมวดหมู่ เช่น เซเว่น -> ซูเปอร์มาร์เก็ต
+    if transaction_type == "expense":
+        stores = ("7-eleven", "เซเว่น", "โลตัส", "บิ๊กซี", "แม็คโคร")
+        for store in stores:
+            if item_name.lower().endswith(store) and len(item_name) > len(store):
+                item_name = item_name[:-len(store)].strip()
+                break
+
     # ลบหน่วยเงินที่เหลืออยู่ และเว้นวรรคส่วนเกิน
     item_name = re.sub(r"^(?:บาท|บ\.|฿)", "", item_name.strip())
     item_name = re.sub(r"(?:บาท|บ\.|฿)$", "", item_name.strip())
