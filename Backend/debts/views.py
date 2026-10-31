@@ -667,6 +667,7 @@ class SendDebtReminderView(APIView):
         )
 
 #รายการชำระหนี้
+
 class PaymentListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -862,7 +863,6 @@ class PaymentListCreateView(APIView):
             PaymentSerializer(payment).data,
             status=status.HTTP_201_CREATED,
         )
-
 
 
 

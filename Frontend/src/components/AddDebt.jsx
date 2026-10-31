@@ -222,6 +222,42 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
       return;
     }
 
+    let validationError = "";
+    if (!form.name.trim()) {
+      validationError = "กรุณากรอกชื่อรายการหนี้";
+    } else if (!form.counterparty.trim()) {
+      validationError = "กรุณากรอกชื่อเจ้าหนี้หรือลูกหนี้";
+    } else if (
+      !Number.isFinite(Number(form.totalAmount))
+      || Number(form.totalAmount) <= 0
+    ) {
+      validationError = "กรุณากรอกจำนวนหนี้ที่มากกว่า 0";
+    } else if (!form.dueDate) {
+      validationError = "กรุณากำหนดวันสิ้นสุดการชำระหนี้";
+    } else if (
+      form.paymentType === "monthly"
+      && (
+        !Number.isFinite(Number(form.paymentAmount))
+        || Number(form.paymentAmount) <= 0
+      )
+    ) {
+      validationError = "กรุณากรอกจำนวนเงินที่ต้องชำระรายงวดให้มากกว่า 0";
+    } else if (
+      form.paymentType === "monthly"
+      && (
+        !Number.isInteger(Number(form.paymentDate))
+        || Number(form.paymentDate) < 1
+        || Number(form.paymentDate) > 31
+      )
+    ) {
+      validationError = "กรุณากำหนดวันชำระรายเดือนระหว่างวันที่ 1-31";
+    }
+
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -663,7 +699,9 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
             </div>
 
 
+
             <div className="flex items-center gap-2">
+              {/* ช่องชื่อคู่สัญญา */}
               {/* ช่องชื่อคู่สัญญา */}
               <input
                 type="text"
@@ -672,7 +710,16 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                   ? "กรอกชื่อเจ้าหนี้"
                   : "กรอกชื่อลูกหนี้"}
                 readOnly={counterpartyMode === "friend" && !!form.counterpartyId}
+                placeholder={currentDebtType === "borrow"
+                  ? "กรอกชื่อเจ้าหนี้"
+                  : "กรอกชื่อลูกหนี้"}
+                readOnly={counterpartyMode === "friend" && !!form.counterpartyId}
                 onChange={(e) => {
+                  // ถ้าเลือกเพื่อนอยู่ จะไม่ให้แก้ไขชื่อ
+                  if (counterpartyMode === "friend" && form.counterpartyId) {
+                    return;
+                  }
+
                   // ถ้าเลือกเพื่อนอยู่ จะไม่ให้แก้ไขชื่อ
                   if (counterpartyMode === "friend" && form.counterpartyId) {
                     return;
@@ -715,6 +762,7 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                 </button>
               )}
             </div>
+
 
 
             {/* แสดงสถานะเมื่อเลือกเพื่อนแล้ว */}

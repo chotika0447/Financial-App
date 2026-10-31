@@ -34,9 +34,9 @@ function Wallet() {
         status: item.status || 'active',
     })
 
-    // เรียก API และจัดการ error
-    const apiRequest = async (url, options = {}) => {
-    const token = accessToken()
+  // เรียก API และจัดการ error
+  const apiRequest = async (url, options = {}) => {
+    const token = sessionStorage.getItem('accessToken')
 
     if (!token) {
         throw new Error('ไม่พบ Token กรุณาเข้าสู่ระบบใหม่')
