@@ -113,6 +113,7 @@ INSTALLED_APPS = [
     'savings',
     'transactions',
     'categories',
+    'news',
 
 ]
 # =================== Authentication ===================
