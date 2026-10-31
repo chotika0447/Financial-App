@@ -21,11 +21,12 @@ import './Transactions.css';
 const emptyForm = () => ({
   transaction_type: 'expense',
   amount: '',
+  item_name: '',
   category: '',
   // receipt: null,
   account: '',
   transaction_date: getTodayString(),
-  transaction_time: '',
+  transaction_time: new Date().toTimeString().slice(0, 5),
   description: '',
 });
 
@@ -307,7 +308,7 @@ function Transactions() {
       const categoryMatched = filterCategory === 'all' || (
         `${transaction.transaction_type}:${transaction.category}` === filterCategory
       );
-      const text = [transaction.description, transaction.category_name,
+      const text = [transaction.item_name, transaction.description, transaction.category_name,
         transaction.account, transaction.amount].filter(Boolean).join(' ').toLowerCase();
       return typeMatched && dateMatched && categoryMatched && (!keyword || text.includes(keyword));
     });
@@ -397,6 +398,9 @@ function Transactions() {
 
       amount:
         transaction.amount || '',
+
+      item_name:
+        transaction.item_name || '',
 
       category:
         transaction.category || '',
@@ -671,6 +675,8 @@ function Transactions() {
       form.amount
     );
 
+    payload.append('item_name', form.item_name.trim());
+
     payload.append(
       'transaction_date',
       form.transaction_date
@@ -783,7 +789,7 @@ function Transactions() {
 
   async function remove(transaction) {
     const label =
-      transaction.description ||
+      transaction.item_name ||
       transaction.category_name ||
       'รายการนี้';
 
@@ -1087,7 +1093,7 @@ function Transactions() {
                   'income';
 
                 const name =
-                  transaction.description ||
+                  transaction.item_name ||
                   transaction.category_name ||
                   (income
                     ? 'รายรับ'
@@ -1353,6 +1359,21 @@ function Transactions() {
 
               </div>
 
+
+              {/* ชื่อรายการแยกจากรายละเอียดที่ใช้จดโน้ต */}
+              <div className="form-group full">
+                <label htmlFor="item_name">ชื่อรายการ *</label>
+                <input
+                  id="item_name"
+                  name="item_name"
+                  type="text"
+                  maxLength={200}
+                  placeholder="เช่น ชาเขียว"
+                  value={form.item_name}
+                  onChange={change}
+                  required
+                />
+              </div>
 
               {/* จำนวนเงิน */}
               <div className="form-group full">
