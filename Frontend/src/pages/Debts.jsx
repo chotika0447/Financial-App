@@ -8,6 +8,8 @@ import DebtPayHistory from "./DebtPayHistory";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { useSearchParams } from "react-router-dom";
+
 import {
   Search,
   ArrowUpDown,
@@ -318,7 +320,14 @@ function Debts() {
         .flat()
         .filter((message) => typeof message === "string");
 
+      const validationMessages = Object.values(data)
+        .flat()
+        .filter((message) => typeof message === "string");
+
       throw new Error(
+        data.detail
+        || validationMessages.join("\n")
+        || "ไม่สามารถบันทึกข้อมูลหนี้สินได้"
         data.detail
         || validationMessages.join("\n")
         || "ไม่สามารถบันทึกข้อมูลหนี้สินได้"
@@ -613,6 +622,7 @@ function Debts() {
   return (
     <div className="debts-page pb-20">
 
+
       <CustomHeader title="หนี้สินและการให้ยืม" color="var(--color-debts)" />
 
       <AddDebt
@@ -632,6 +642,10 @@ function Debts() {
         open={showDebtPay}
         debt={selectedDebt}
         onSaved={async () => {
+          try {
+            await refreshDebts();
+          } catch (error) {
+            console.error("Refresh debts error:", error);
           try {
             await refreshDebts();
           } catch (error) {

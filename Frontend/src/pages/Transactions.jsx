@@ -23,6 +23,7 @@ const emptyForm = () => ({
   amount: '',
   category: '',
   // receipt: null,
+  // receipt: null,
   account: '',
   transaction_date: getTodayString(),
   transaction_time: '',
@@ -61,11 +62,14 @@ function Transactions() {
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [draftId, setDraftId] = useState(null); // Draft ที่เปิดมาจาก LINE OA
 
   const [form, setForm] = useState(emptyForm);
 
   // รูปใบเสร็จที่ผู้ใช้เลือกใหม่
   const [receiptFile, setReceiptFile] = useState(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrMessage, setOcrMessage] = useState('');
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrMessage, setOcrMessage] = useState('');
 
@@ -347,10 +351,12 @@ function Transactions() {
 
   function openAdd() {
     setEditingId(null);
+    setDraftId(null);
     setError('');
     setSuccess('');
 
     clearReceiptPreview();
+    setOcrMessage('');
     setOcrMessage('');
 
     setForm(emptyForm());
@@ -373,9 +379,11 @@ function Transactions() {
 
     setReceiptFile(null);
     setOcrMessage('');
+    setOcrMessage('');
 
     // แสดงรูปเดิมตอนแก้ไข
     setReceiptPreview(
+      transaction.receipt_url || ''
       transaction.receipt_url || ''
     );
 
@@ -410,6 +418,7 @@ function Transactions() {
 
 
   function closeModal() {
+    if (saving || ocrLoading) return;
     if (saving || ocrLoading) return;
 
     if (
@@ -516,6 +525,7 @@ function Transactions() {
     if (!allowedTypes.includes(file.type)) {
       setError(
         'กรุณาเลือกไฟล์ JPG หรือ PNG เท่านั้น'
+        'กรุณาเลือกไฟล์ JPG หรือ PNG เท่านั้น'
       );
 
       event.target.value = '';
@@ -549,10 +559,13 @@ function Transactions() {
     );
 
     scanReceipt(file);
+
+    scanReceipt(file);
   }
 
 
   function removeSelectedReceipt() {
+    setOcrMessage('');
     setOcrMessage('');
     if (
       receiptPreview &&
@@ -684,6 +697,8 @@ function Transactions() {
       url.searchParams.delete('transaction');
       window.history.replaceState({}, '', url.pathname + url.search + url.hash);
       setShowModal(false);
+      const wasDraft = Boolean(draftId);
+      setDraftId(null);
       setEditingId(null);
 
       if (
@@ -1019,6 +1034,7 @@ function Transactions() {
             <div className="transaction-card-list">
 
               {visibleTransactions.map((transaction) => {
+              {visibleTransactions.map((transaction) => {
 
                 const income =
                   transaction.transaction_type ===
@@ -1113,8 +1129,10 @@ function Transactions() {
 
 
                       {transaction.receipt_url && (
+                      {transaction.receipt_url && (
                         <a
                           className="receipt-view-link"
+                          href={transaction.receipt_url}
                           href={transaction.receipt_url}
                           target="_blank"
                           rel="noreferrer"
@@ -1315,7 +1333,22 @@ function Transactions() {
 
 
               {/* หมวดหมู่แบบปุ่ม เลือกได้จากข้อมูล Backend เดิม */}
+              {/* หมวดหมู่แบบปุ่ม เลือกได้จากข้อมูล Backend เดิม */}
               <div className="form-group full">
+                <label>หมวดหมู่</label>
+                <div className="category-choice-list">
+                  {categories.map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      className={String(form.category) === String(category.id) ? 'active' : ''}
+                      onClick={() => setForm({ ...form, category: category.id })}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                  {categories.length === 0 && <span>ยังไม่มีหมวดหมู่ให้เลือก</span>}
+                </div>
                 <label>หมวดหมู่</label>
                 <div className="category-choice-list">
                   {categories.map((category) => (
@@ -1428,6 +1461,7 @@ function Transactions() {
 
                     <span>
                       JPG หรือ PNG
+                      JPG หรือ PNG
                       ขนาดไม่เกิน 5 MB
                     </span>
 
@@ -1474,10 +1508,20 @@ function Transactions() {
                   id="receipt"
                   type="file"
                   accept="image/jpeg,image/png"
+                  accept="image/jpeg,image/png"
                   onChange={
                     handleReceiptChange
                   }
                   className="receipt-file-input"
+                  disabled={ocrLoading}
+                />
+
+                {ocrLoading && (
+                  <p role="status">กำลังอ่านข้อมูลจากใบเสร็จ...</p>
+                )}
+                {ocrMessage && (
+                  <p role="status">{ocrMessage}</p>
+                )}
                   disabled={ocrLoading}
                 />
 
@@ -1506,6 +1550,7 @@ function Transactions() {
                 <button
                   type="submit"
                   className="save-button"
+                  disabled={saving || ocrLoading}
                   disabled={saving || ocrLoading}
                 >
 

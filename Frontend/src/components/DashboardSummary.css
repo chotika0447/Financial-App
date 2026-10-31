@@ -1,0 +1,151 @@
+
+.dashboard-section {
+    width: 100%;
+    margin-top: 21px;
+    color: #111;
+}
+
+.dashboard-section h3 {
+    font-size: 15px;
+    margin: 0 0 12px 13px;
+    font-weight: 700;
+}
+
+.dashboard-tabs {
+    height: 38px;
+    margin: 0 12px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 3px;
+    padding: 3px;
+    background: #e8e8e8;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.dashboard-tabs button {
+    min-width: 0;
+    padding: 0 2px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    font-family: inherit;
+    font-size: 13px;
+    color: #444;
+    cursor: pointer;
+}
+
+.dashboard-tabs button.active {
+    background: #fff;
+    color: #222;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.dashboard-chart-card {
+    margin: 18px 12px 0;
+    padding: 16px 14px 10px;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.dashboard-chart-label {
+    margin: 0 0 8px;
+    color: #777;
+    font-size: 12px;
+}
+
+.dashboard-total {
+    display: block;
+    margin-bottom: 18px;
+    font-size: 25px;
+    font-weight: 700;
+    color: #252525;
+}
+
+.dashboard-chart {
+    height: 150px;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 8px;
+    padding-top: 8px;
+    border-bottom: 1px solid #eee;
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 35px,
+        #f0f0f0 36px
+    );
+}
+
+.dashboard-bar-item {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+}
+
+.dashboard-bar-area {
+    width: 100%;
+    max-width: 25px;
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+}
+
+.dashboard-bar {
+    width: 100%;
+    min-height: 4px;
+    border-radius: 5px 5px 0 0;
+    transition: height 0.25s ease;
+}
+
+.dashboard-bar-item span {
+    flex-shrink: 0;
+    padding-bottom: 5px;
+    font-size: 10px;
+    color: #777;
+}
+
+.dashboard-demo-note {
+    margin: 12px 0 0;
+    font-size: 10px;
+    color: #999;
+    text-align: right;
+}
+
+.dashboard-compact .dashboard-chart-card {
+    padding: 14px 12px 10px;
+}
+
+@media (max-width: 380px) {
+    .dashboard-tabs {
+        margin: 0 6px;
+    }
+
+    .dashboard-tabs button {
+        font-size: 11px;
+    }
+
+    .dashboard-chart-card {
+        margin-left: 6px;
+        margin-right: 6px;
+    }
+
+    .dashboard-total {
+        font-size: 22px;
+    }
+}
+
+.dashboard-summary-click {
+    curser: pointer;
+}
+
+.dashboard-summary-click:hover{
+    opacity: 0.95;
+}

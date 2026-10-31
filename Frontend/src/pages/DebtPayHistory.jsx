@@ -314,6 +314,7 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
 
 
 
+
                 {payments.map((payment, index) => {
                     const isEditing = editingId === payment.id;
 
@@ -496,6 +497,7 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                             </button>
                                         </div>
                                     )}
+
 
                                 </div>
 
