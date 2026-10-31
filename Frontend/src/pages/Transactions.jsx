@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   ArrowDownCircle,
   ArrowUpCircle,
+  Coffee, ShoppingBag, CarFront, Heart, BookOpen, Wallet,
+  Gift, Sparkles, UtensilsCrossed, BriefcaseBusiness,
+  Banknote, TrendingUp, MoreHorizontal, Phone, House,
+  Zap, HandHeart,
   CalendarDays,
   Image as ImageIcon,
   LoaderCircle,
@@ -42,13 +46,22 @@ const getTodayString = () => {
 };
 
 
+// Icons are chosen by category name, without changing category IDs from the backend.
+const categoryIcons = {
+  'ของใช้': Coffee, 'ความงาม': ShoppingBag, 'ความบันเทิง': CarFront,
+  'ค่าเช่า': Heart, 'ค่าเดินทาง': BookOpen, 'ค่าโทรศัพท์': Phone,
+  'ค่าน้ำไฟ': Zap, 'ค่าหมอ': Sparkles, 'เครื่องดื่ม': Coffee,
+  'ช้อปปิ้ง': ShoppingBag, 'ซูเปอร์มาร์เก็ต': CarFront,
+  'ทำบุญ': HandHeart, 'อาหาร': UtensilsCrossed, 'อื่นๆ': Wallet,
+  'งานเสริม': BriefcaseBusiness, 'เงินเดือน': Banknote,
+  'โบนัส': Gift, 'รายได้': Wallet, 'ลงทุน': TrendingUp,
+};
+const getCategoryIcon = (name) => categoryIcons[name] || MoreHorizontal;
+
 function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
   const [showMoreCategories, setShowMoreCategories] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [addingCategory, setAddingCategory] = useState(false);
-  const [categorySaving, setCategorySaving] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -73,6 +86,7 @@ function Transactions() {
 
   // รูปใบเสร็จที่ผู้ใช้เลือกใหม่
   const [receiptFile, setReceiptFile] = useState(null);
+  const [removeReceipt, setRemoveReceipt] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrMessage, setOcrMessage] = useState('');
 
@@ -354,6 +368,7 @@ function Transactions() {
 
   function openAdd() {
     setEditingId(null);
+    setRemoveReceipt(false);
     setError('');
     setSuccess('');
 
@@ -365,14 +380,13 @@ function Transactions() {
     setForm(initialForm);
     setShowExitConfirm(false);
     setShowMoreCategories(false);
-    setAddingCategory(false);
-    setNewCategoryName('');
     setShowModal(true);
   }
 
 
   function openEdit(transaction) {
     setEditingId(transaction.id);
+    setRemoveReceipt(false);
 
     setError('');
     setSuccess('');
@@ -425,8 +439,6 @@ function Transactions() {
     setShowExitConfirm(false);
 
     setShowMoreCategories(false);
-    setAddingCategory(false);
-    setNewCategoryName('');
     setShowModal(true);
   }
 
@@ -437,8 +449,7 @@ function Transactions() {
     // เตือนเฉพาะเมื่อมีการแก้ไขข้อมูลหรือเลือกรูปใหม่
     const hasChanges =
       JSON.stringify(form) !== JSON.stringify(initialFormRef.current) ||
-      receiptFile !== null ||
-      newCategoryName.trim() !== '';
+      receiptFile !== null;
 
     if (hasChanges) {
       setShowExitConfirm(true);
@@ -487,42 +498,6 @@ function Transactions() {
 
 
   const visibleCategories = categories;
-
-  async function addCategory() {
-    const name = newCategoryName.trim();
-    if (!name) { setError('กรุณาระบุชื่อหมวดหมู่'); return; }
-    if (name.length > 100) { setError('ชื่อหมวดหมู่ต้องไม่เกิน 100 ตัวอักษร'); return; }
-    try {
-      setCategorySaving(true);
-      setError('');
-      const response = await fetch('/categories/', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, transaction_type: form.transaction_type }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const detail = data.error || data.detail || data.name?.[0] ||
-          `เพิ่มหมวดหมู่ไม่สำเร็จ (HTTP ${response.status})`;
-        throw new Error(response.status === 405
-          ? 'API /categories/ ไม่รองรับ POST (405) กรุณาตรวจสอบ Vercel rewrite และ Backend ที่เชื่อมต่อ'
-          : typeof detail === 'string' ? detail : JSON.stringify(detail));
-      }
-      if (data.id == null) throw new Error('Backend ไม่ส่ง ID ของหมวดหมู่ที่สร้างกลับมา');
-      // เพิ่มในหน้าจอทันที โดยไม่ต้องรอ GET รอบใหม่
-      const created = { ...data, name: data.name || name, transaction_type: form.transaction_type };
-      setCategories((current) => current.some((item) => String(item.id) === String(created.id))
-        ? current : [...current, created]);
-      setListCategories((current) => current.some((item) =>
-        String(item.id) === String(created.id) && item.transaction_type === created.transaction_type)
-        ? current : [...current, created]);
-      setForm((current) => ({ ...current, category: created.id }));
-      setNewCategoryName('');
-      setAddingCategory(false);
-      setSuccess('เพิ่มหมวดหมู่เรียบร้อยแล้ว');
-    } catch (err) { setError(err.message); }
-    finally { setCategorySaving(false); }
-  }
 
   // OCR reads a receipt but never saves a transaction automatically.
   async function scanReceipt(file) {
@@ -620,15 +595,18 @@ function Transactions() {
 
     setError('');
     setReceiptFile(file);
+    setRemoveReceipt(false);
 
     setReceiptPreview(
       URL.createObjectURL(file)
     );
 
-    scanReceipt(file);
+    // OCR เฉพาะตอนเพิ่มรายการใหม่
+    // ถ้าแก้ไขรายการเดิม ให้แนบรูปอย่างเดียว
+    if (!editingId) {
+      scanReceipt(file);
+    }
   }
-
-
   function removeSelectedReceipt() {
     setOcrMessage('');
     if (
@@ -640,6 +618,7 @@ function Transactions() {
 
     setReceiptFile(null);
     setReceiptPreview('');
+    setRemoveReceipt(true);
   }
 
 
@@ -712,6 +691,10 @@ function Transactions() {
         'receipt',
         receiptFile
       );
+    }
+
+    if (editingId && removeReceipt && !receiptFile) {
+      payload.append('remove_receipt', 'true');
     }
 
     try {
@@ -1113,15 +1096,10 @@ function Transactions() {
                         }`
                       }
                     >
-                      {income ? (
-                        <ArrowDownCircle
-                          size={22}
-                        />
-                      ) : (
-                        <ArrowUpCircle
-                          size={22}
-                        />
-                      )}
+                      {(() => {
+                        const CategoryIcon = getCategoryIcon(transaction.category_name);
+                        return <CategoryIcon size={22} strokeWidth={1.8} />;
+                      })()}
                     </div>
 
 
@@ -1397,35 +1375,24 @@ function Transactions() {
               </div>
 
 
-              {/* เลือกหมวดหมู่แบบปุ่มข้อความ */}
+              {/* หมวดหมู่ที่กำหนดไว้ในระบบเท่านั้น */}
               <div className="form-group full">
-                <div className="category-section-heading">
-                  <label>หมวดหมู่</label>
-                  <button type="button" className="category-add-link"
-                    onClick={() => { setAddingCategory((value) => !value); setError(''); }}>
-                    <Plus size={15} /> เพิ่มหมวดหมู่
-                  </button>
-                </div>
+                <label>หมวดหมู่ *</label>
                 <div className="category-choice-list">
-                  {visibleCategories.map((category) => (
-                    <button key={category.id} type="button"
-                      aria-pressed={String(form.category) === String(category.id)}
-                      className={String(form.category) === String(category.id) ? 'active' : ''}
-                      onClick={() => setForm((current) => ({ ...current, category: category.id }))}>
-                      {category.name}
-                    </button>
-                  ))}
+                  {visibleCategories.map((category) => {
+                    const CategoryIcon = getCategoryIcon(category.name);
+                    return (
+                      <button key={category.id} type="button"
+                        aria-pressed={String(form.category) === String(category.id)}
+                        className={String(form.category) === String(category.id) ? 'active' : ''}
+                        onClick={() => setForm((current) => ({ ...current, category: category.id }))}>
+                        <CategoryIcon size={22} strokeWidth={1.8} />
+                        <span>{category.name}</span>
+                      </button>
+                    );
+                  })}
                   {categories.length === 0 && <span>ยังไม่มีหมวดหมู่</span>}
                 </div>
-                {addingCategory && (
-                  <div className="category-create-row">
-                    <input value={newCategoryName} maxLength={100} placeholder="ชื่อหมวดหมู่ใหม่"
-                      onChange={(event) => setNewCategoryName(event.target.value)} />
-                    <button type="button" onClick={addCategory} disabled={categorySaving || !newCategoryName.trim()}>
-                      {categorySaving ? 'กำลังเพิ่ม...' : 'บันทึก'}
-                    </button>
-                  </div>
-                )}
               </div>
 
               {/* บัญชี */}

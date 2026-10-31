@@ -161,6 +161,8 @@ def parse_financial_message(text, transaction_type):
         pass  # คง 'ซื้อของ' ไว้ เพราะยังไม่ทราบชื่อสิ่งของ
     elif item_name.startswith("ซื้อ"):
         item_name = item_name[len("ซื้อ"):]
+    elif item_name.startswith("กิน"):
+        item_name = item_name[len("กิน"):]
     elif item_name.startswith("จ่ายค่า"):
         item_name = item_name[len("จ่าย"):]
     elif item_name.startswith("จ่าย"):

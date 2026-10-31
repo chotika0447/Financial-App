@@ -1151,3 +1151,19 @@
 }
 .transactions-page .transaction-modal .category-create-row { margin-top: 12px; }
 .transactions-page .transaction-modal .category-create-row button:disabled { opacity: .55; cursor: not-allowed; }
+
+/* Category icon grid: predefined categories only */
+.transactions-page .transaction-modal .category-choice-list button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+}
+.transactions-page .transaction-modal .category-choice-list button svg {
+  flex-shrink: 0;
+}
+.transactions-page .transaction-modal .category-choice-list button span {
+  white-space: normal;
+  text-align: center;
+}
