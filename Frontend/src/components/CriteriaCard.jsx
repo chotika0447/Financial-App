@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 
 function CriteriaCard({ item, onClick }) {

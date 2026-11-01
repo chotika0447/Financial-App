@@ -21,6 +21,7 @@ function Wallet() {
     const [error, setError] = useState('')
 
     const [transactions, setTransactions] = useState([])
+    const [transactionLoading, setTransactionLoading] = useState(true)
     const [transactionError, setTransactionError] = useState('')
 
     const today = new Date().toISOString().split('T')[0]
@@ -107,8 +108,8 @@ function Wallet() {
     }
 
     useEffect(() => {
-        fetchWallets(),
-            fetchTransactions()
+        fetchWallets()
+        fetchTransactions()
     }, [])
 
     const fromTitle =
@@ -565,7 +566,7 @@ function Wallet() {
                         </div>
                     )}
                 </section>
-                
+
             </main>
 
             <Navbar />
