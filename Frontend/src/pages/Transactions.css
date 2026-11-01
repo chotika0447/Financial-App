@@ -605,17 +605,17 @@
 }
 /* =========================================================
    Transaction - Date Filter & Receipt
-   ========================================================= */
+   ========================================================= \*/
 /* =========================================================
    Receipt Upload
-   ========================================================= */
+   ========================================================= \*/
 .receipt-form-group {
   margin-top: 2px;
 }
 .receipt-file-input {
   display: none;
 }
-/* กล่องเลือกรูป */
+/* กล่องเลือกรูป \*/
 .receipt-upload-box {
   min-height: 115px;
   box-sizing: border-box;
@@ -650,7 +650,7 @@
   font-size: 11px;
   font-weight: 400;
 }
-/* ---------- Receipt Preview ---------- */
+/* ---------- Receipt Preview ---------- \*/
 .receipt-preview {
   overflow: hidden;
   border: 1px solid #e1e6ef;
@@ -703,7 +703,7 @@
 .receipt-remove-button:hover {
   background: #ffe7e9;
 }
-/* ---------- Receipt Link in Transaction Card ---------- */
+/* ---------- Receipt Link in Transaction Card ---------- \*/
 .receipt-view-link {
   width: fit-content;
   margin-top: 7px;
@@ -725,7 +725,7 @@
 /* =========================================================
    Modal polish
    ให้ Add / Edit ดูใกล้กับ Design System ของหน้า Debt
-   ========================================================= */
+   ========================================================= \*/
 .transaction-modal {
   border: 1px solid #edf0f5;
 }
@@ -745,7 +745,7 @@
   background: #e9edf4;
   color: #50596a;
 }
-/* ช่องกรอก */
+/* ช่องกรอก \*/
 .transaction-form {
   margin-top: 2px;
 }
@@ -764,7 +764,7 @@
 .transaction-form .form-group select:hover {
   border-color: #cbd4e3;
 }
-/* Type buttons */
+/* Type buttons \*/
 .type-buttons {
   padding: 4px;
   gap: 4px;
@@ -790,7 +790,7 @@
   box-shadow:
     0 2px 7px rgba(50, 60, 80, 0.06);
 }
-/* ---------- Modal Actions ---------- */
+/* ---------- Modal Actions ---------- \*/
 .modal-actions {
   margin-top: 10px;
   padding-top: 15px;
@@ -814,7 +814,7 @@
 }
 /* =========================================================
    Mobile
-   ========================================================= */
+   ========================================================= \*/
 @media (max-width: 600px) {
   .receipt-preview img {
     height: 180px;
@@ -844,7 +844,7 @@
     grid-template-columns: 1fr;
   }
 }
-/* ===== ปรับหน้า Transactions (โค้ดเรียบง่าย) ===== */
+/* ===== ปรับหน้า Transactions (โค้ดเรียบง่าย) ===== \*/
 .transaction-list-buttons {
   display: flex;
   align-items: center;
@@ -858,34 +858,13 @@
   cursor: pointer;
   padding: 8px;
 }
-.category-choice-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 9px;
-}
-.category-choice-list button {
-  border: 1px solid #dfe4ed;
-  background: #f7f9fc;
-  border-radius: 22px;
-  padding: 10px 15px;
-  color: #555d6d;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-.category-choice-list button.active {
-  background: #779ee8;
-  border-color: #779ee8;
-  color: white;
-}
-.category-choice-list span { font-size: 13px; color: #888; }
-/* ส่วนแนบใบเสร็จยังเป็นการอัปโหลดรูป ไม่ใช่สแกน OCR */
+/* ส่วนแนบใบเสร็จยังเป็นการอัปโหลดรูป ไม่ใช่สแกน OCR \*/
 .receipt-upload-box { min-height: 80px; padding: 12px; }
 @media (max-width: 600px) {
   .transaction-list-buttons { gap: 2px; }
   .see-all-button { font-size: 12px; }
 }
-/* ---------- Date navigation (current UI) ---------- */
+/* ---------- Date navigation (current UI) ---------- \*/
 .transaction-date-filter {
   width: 100%;
   margin-top: 14px;
@@ -985,8 +964,7 @@
     width: 194px;
   }
 }
-
-/* Filters: period -> navigation -> type -> category */
+/* Filters: period -> navigation -> type -> category \*/
 .transaction-period-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 14px; }
 .transaction-period-tabs button { min-width: 0; padding: 10px 2px; border: 1px solid #dfe4ed; border-radius: 999px; background: white; color: #71798a; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .transaction-period-tabs button.active { background: #779ee8; border-color: #779ee8; color: white; }
@@ -996,13 +974,11 @@
 .date-picker-trigger { width: auto; min-width: 194px; max-width: min(260px, 64vw); }
 .date-picker-trigger strong { overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
 @media (max-width: 400px) { .transaction-period-tabs { gap: 4px; } .transaction-period-tabs button { font-size: 11px; } .date-navigation { gap: 6px; } .date-picker-trigger { min-width: 0; width: 225px; max-width: 60vw; } }
-
-/* Scope shared summary selectors to Transactions to avoid Home layout bleed */
+/* Scope shared summary selectors to Transactions to avoid Home layout bleed \*/
 .transactions-page .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .transactions-page .summary-card { min-width: 0; }
 @media (max-width: 520px) { .transactions-page .transactions-content { width: calc(100% - 28px); } .transactions-page .summary-card { padding: 13px; gap: 8px; } .transactions-page .summary-card strong { font-size: 18px; } }
-
-/* Fix Transactions summary cards being vertically broken by Home.css global selectors */
+/* Fix Transactions summary cards being vertically broken by Home.css global selectors \*/
 .transactions-page .summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
 .transactions-page .summary-grid > .summary-card { box-sizing:border-box; width:100%; height:auto; min-height:132px; display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:16px; padding:22px; background:#fff; border:1px solid #e8ebf2; border-radius:18px; min-width:0; }
 .transactions-page .summary-grid > .summary-card > div:last-child { min-width:0; flex:1; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:6px; }
@@ -1010,8 +986,7 @@
 .transactions-page .summary-grid > .summary-card span { display:block; margin:0; line-height:1.4; font-size:14px; }
 .transactions-page .summary-grid > .summary-card strong { display:block; margin:0; font-size:clamp(20px,2.1vw,29px); line-height:1.25; overflow-wrap:anywhere; white-space:normal; }
 @media(max-width:600px) { .transactions-page .summary-grid { gap:10px; } .transactions-page .summary-grid > .summary-card { min-height:115px; flex-direction:column; align-items:flex-start; gap:10px; padding:14px; } .transactions-page .summary-grid > .summary-card .summary-icon { flex:0 0 36px; width:36px; height:36px; } .transactions-page .summary-grid > .summary-card strong { font-size:clamp(17px,4vw,23px); } }
-
-/* ===== KaneCho UI refinements: only categories, description, receipt ===== */
+/* ===== KaneCho UI refinements: only categories, description, receipt ===== \*/
 .category-filter-control { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 10px; width: 100%; }
 .category-filter-control select, .category-filter-control input { min-width: 0; width: 100%; box-sizing: border-box; border: 1px solid #dce4f4; border-radius: 12px; background: #fff; color: #47516a; padding: 10px 13px; font: inherit; }
 .category-filter-control select { max-height: 44px; }
@@ -1019,20 +994,14 @@
 .description-label-row span { font-size: 12px; color: #8d97ae; }
 .category-add-link, .category-more-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 0; background: transparent; color: #6b82d9; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .category-search-input { background: #f9faff !important; }
-.category-choice-list { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px !important; max-height: 270px; overflow-y: auto; padding: 3px; }
-.category-choice-list button { display: flex !important; flex-direction: column; justify-content: center; align-items: center; gap: 7px; min-width: 0; min-height: 72px; padding: 10px 5px !important; border: 1px solid #e7e2f5 !important; border-radius: 13px !important; background: #f8f5fd !important; color: #625a82 !important; font-size: 12px !important; cursor: pointer; }
-.category-choice-list button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.category-choice-list button:hover { background: #f0e9fd !important; border-color: #cdb8f3 !important; }
-.category-choice-list button.active { background: #ece2ff !important; border: 2px solid #5477c2 !important; color: var(--color-transactions)  !important; }
 .category-more-button { align-self: center; padding: 6px 12px; }
 .category-create-row { display: flex; gap: 8px; }
 .category-create-row input { flex: 1; min-width: 0; }
 .category-create-row button { border: 0; border-radius: 9px; padding: 0 16px; background: #8c83df; color: white; font: inherit; font-weight: 700; cursor: pointer; }
 .receipt-upload-box { gap: 9px; }
 .receipt-upload-box strong, .receipt-upload-box span { display: block; }
-@media (max-width: 600px) { .category-filter-control { grid-template-columns: 1fr; } .category-choice-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-
-/* กล่องยืนยันเมื่อออกจากฟอร์มโดยยังไม่บันทึก */
+@media (max-width: 600px) { .category-filter-control { grid-template-columns: 1fr; } }
+/* กล่องยืนยันเมื่อออกจากฟอร์มโดยยังไม่บันทึก \*/
 .transaction-exit-overlay {
   position: fixed;
   inset: 0;
@@ -1083,8 +1052,7 @@
   color: white;
   border-color: #1e293b;
 }
-
-/* Category filters: horizontal scrollable pills */
+/* Category filters: horizontal scrollable pills \*/
 .transactions-page .category-filter-pills {
   display: flex; gap: 9px; overflow-x: auto; padding: 5px 2px 10px;
   scrollbar-width: thin; scroll-behavior: smooth;
@@ -1097,11 +1065,8 @@
 .transactions-page .category-filter-pills button.active {
   background: #b6a0e7; border-color: #b6a0e7; color: #fff;
 }
-/* Category cards: no search box; expand with existing button */
-.transactions-page .category-choice-list { max-height: none; overflow: visible; }
-.transactions-page .category-choice-list button { min-height: 90px; }
-.transactions-page .category-choice-list button span { font-size: 12px; }
-/* Center receipt icon and text vertically */
+/* Category cards: no search box; expand with existing button \*/
+/* Center receipt icon and text vertically \*/
 .transactions-page .receipt-upload-box {
   min-height: 120px; display: flex; flex-direction: column;
   justify-content: center; align-items: center; gap: 7px; text-align: center;
@@ -1109,61 +1074,82 @@
 .transactions-page .receipt-upload-icon { display: block; margin: 0 auto 3px; color: #596578; }
 .transactions-page .receipt-upload-box strong { margin-top: 2px; }
 @media (max-width: 600px) {
-  .transactions-page .category-choice-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+/* KaneCho: compact text-only category chips inside add/edit modal \*/
+.transactions-page .transaction-modal .category-create-row { margin-top: 12px; }
+.transactions-page .transaction-modal .category-create-row button:disabled { opacity: .55; cursor: not-allowed; }
+/* Category icon grid: predefined categories only \*/
 
-/* KaneCho: compact text-only category chips inside add/edit modal */
-.transactions-page .transaction-modal .category-choice-list {
-  display: flex !important;
+/* =========================
+   Category choices
+   ใช้คลาสเดียวกันสำหรับรายการหมวดหมู่
+   ========================= */
+
+.transactions-page .category-choice-list {
+  display: flex;
   flex-wrap: wrap;
-  grid-template-columns: none !important;
   align-items: flex-start;
-  gap: 9px !important;
+  gap: 9px;
   max-height: none;
   overflow: visible;
   padding: 2px 0;
 }
-.transactions-page .transaction-modal .category-choice-list button {
-  display: inline-flex !important;
-  flex: 0 0 auto;
-  flex-direction: row !important;
-  align-items: center;
-  justify-content: center;
-  width: auto;
-  min-height: 42px !important;
-  padding: 9px 17px !important;
-  border: 1px solid #dce2ed !important;
-  border-radius: 999px !important;
-  background: #f7f9fc !important;
-  color: #555d6d !important;
-  font-size: 13px !important;
-  line-height: 1.3;
-  white-space: nowrap;
-}
-.transactions-page .transaction-modal .category-choice-list button:hover {
-  border-color: #b6a0e7 !important;
-  background: #f2edfc !important;
-}
-.transactions-page .transaction-modal .category-choice-list button.active {
-  border: 1px solid #a68be2 !important;
-  background: #b6a0e7 !important;
-  color: white !important;
-}
-.transactions-page .transaction-modal .category-create-row { margin-top: 12px; }
-.transactions-page .transaction-modal .category-create-row button:disabled { opacity: .55; cursor: not-allowed; }
 
-/* Category icon grid: predefined categories only */
-.transactions-page .transaction-modal .category-choice-list button {
+.transactions-page .category-choice-list button {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 9px;
+  width: auto;
+  min-width: 0;
+  min-height: 90px;
+  padding: 9px 17px;
+  border: 1px solid #dce2ed;
+  border-radius: 999px;
+  background: #f7f9fc;
+  color: #555d6d;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.3;
+  cursor: pointer;
 }
-.transactions-page .transaction-modal .category-choice-list button svg {
+
+.transactions-page .category-choice-list button:hover {
+  border-color: #cdb8f3;
+  background: #f2edfc;
+}
+
+.transactions-page .category-choice-list button.active {
+  border: 2px solid var(--color-transactions);
+  background: var(--color-transactions);
+  color: #fff;
+}
+
+.transactions-page .category-choice-list button svg {
   flex-shrink: 0;
 }
-.transactions-page .transaction-modal .category-choice-list button span {
-  white-space: normal;
+
+.transactions-page .category-choice-list button span {
+  max-width: 100%;
+  overflow: hidden;
   text-align: center;
+  text-overflow: ellipsis;
+  white-space: normal;
+}
+
+.transactions-page .category-choice-list > span {
+  color: #888;
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .transactions-page .category-choice-list {
+    gap: 8px;
+  }
+
+  .transactions-page .category-choice-list button {
+    min-height: 90px;
+  }
 }
