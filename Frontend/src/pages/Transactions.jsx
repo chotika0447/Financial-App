@@ -23,7 +23,6 @@ const emptyForm = () => ({
   amount: '',
   category: '',
   // receipt: null,
-  // receipt: null,
   account: '',
   transaction_date: getTodayString(),
   transaction_time: '',
@@ -68,8 +67,6 @@ function Transactions() {
 
   // รูปใบเสร็จที่ผู้ใช้เลือกใหม่
   const [receiptFile, setReceiptFile] = useState(null);
-  const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrMessage, setOcrMessage] = useState('');
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrMessage, setOcrMessage] = useState('');
 
@@ -306,7 +303,7 @@ function Transactions() {
         `${transaction.transaction_type}:${transaction.category}` === filterCategory
       );
       const text = [transaction.description, transaction.category_name,
-        transaction.account, transaction.amount].filter(Boolean).join(' ').toLowerCase();
+      transaction.account, transaction.amount].filter(Boolean).join(' ').toLowerCase();
       return typeMatched && dateMatched && categoryMatched && (!keyword || text.includes(keyword));
     });
   }, [transactions, filterType, filterCategory, periodRange, search]);
@@ -383,7 +380,6 @@ function Transactions() {
 
     // แสดงรูปเดิมตอนแก้ไข
     setReceiptPreview(
-      transaction.receipt_url || ''
       transaction.receipt_url || ''
     );
 
@@ -478,7 +474,7 @@ function Transactions() {
         throw new Error(response.status === 401
           ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'
           : data.error || data.detail ||
-            `อ่านใบเสร็จไม่สำเร็จ (HTTP ${response.status})`);
+          `อ่านใบเสร็จไม่สำเร็จ (HTTP ${response.status})`);
       }
 
       setForm((current) => {
@@ -524,7 +520,6 @@ function Transactions() {
 
     if (!allowedTypes.includes(file.type)) {
       setError(
-        'กรุณาเลือกไฟล์ JPG หรือ PNG เท่านั้น'
         'กรุณาเลือกไฟล์ JPG หรือ PNG เท่านั้น'
       );
 
@@ -977,8 +972,8 @@ function Transactions() {
                 type="button"
                 className="see-all-button"
                 onClick={() => {
-                // แสดงรายการทั้งหมดโดยไม่เปลี่ยนวันที่หรือตัวกรอง
-                setShowAll((current) => !current);
+                  // แสดงรายการทั้งหมดโดยไม่เปลี่ยนวันที่หรือตัวกรอง
+                  setShowAll((current) => !current);
                 }}
               >
                 {showAll ? 'แสดงน้อยลง' : 'แสดงทั้งหมด ›'}
@@ -1033,7 +1028,6 @@ function Transactions() {
 
             <div className="transaction-card-list">
 
-              {visibleTransactions.map((transaction) => {
               {visibleTransactions.map((transaction) => {
 
                 const income =
@@ -1127,12 +1121,9 @@ function Transactions() {
 
                       </div>
 
-
-                      {transaction.receipt_url && (
                       {transaction.receipt_url && (
                         <a
                           className="receipt-view-link"
-                          href={transaction.receipt_url}
                           href={transaction.receipt_url}
                           target="_blank"
                           rel="noreferrer"
@@ -1508,23 +1499,12 @@ function Transactions() {
                   id="receipt"
                   type="file"
                   accept="image/jpeg,image/png"
-                  accept="image/jpeg,image/png"
                   onChange={
                     handleReceiptChange
                   }
                   className="receipt-file-input"
                   disabled={ocrLoading}
                 />
-
-                {ocrLoading && (
-                  <p role="status">กำลังอ่านข้อมูลจากใบเสร็จ...</p>
-                )}
-                {ocrMessage && (
-                  <p role="status">{ocrMessage}</p>
-                )}
-                  disabled={ocrLoading}
-                />
-
                 {ocrLoading && (
                   <p role="status">กำลังอ่านข้อมูลจากใบเสร็จ...</p>
                 )}
@@ -1550,7 +1530,6 @@ function Transactions() {
                 <button
                   type="submit"
                   className="save-button"
-                  disabled={saving || ocrLoading}
                   disabled={saving || ocrLoading}
                 >
 

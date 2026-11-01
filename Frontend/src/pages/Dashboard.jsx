@@ -170,13 +170,13 @@ export default function Dashboard() {
     const balance = income - expense;
 
     // รวมยอดเงินออมและเป้าหมายที่ยังดำเนินการ
-    const totalSavings = savings.reduce(
-        (sum, item) => sum + toNumber(item.balance),
-        0
-    );
-
     const activeSavings = savings.filter(
         (item) => item.status === "active"
+    );
+
+    const totalSavings = activeSavings.reduce(
+        (sum, item) => sum + toNumber(item.balance),
+        0
     );
 
     const totalTargets = activeSavings.reduce(

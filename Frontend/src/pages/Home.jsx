@@ -1,11 +1,14 @@
 import './Home.css';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import HomeHeader from '../components/HomeHeader';
 import Navbar from '../components/Navbar';
 import DashboardSummary from '../components/DashboardSummary';
 
 function Home() {
+
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [monthly, setMonthly] = useState({ income: null, expense: null });
   const [monthlyError, setMonthlyError] = useState('');
@@ -188,28 +191,25 @@ function Home() {
 
         {/* ================= DASHBOARD ================= */}
         <div
-          className='dashboard-summary-click'
-          onClick={(e) => {
-            if (e.target.closest('button'))
-              return;
-            navigate('/dashboard');}
-          }
-            
-          role='button'
+          className="dashboard-summary-click"
+          role="button"
           tabIndex={0}
+          aria-label="ดู Dashboard แบบเต็ม"
+          onClick={(e) => {
+            if (e.target.closest('button')) return;
+            navigate('/dashboard');
+          }}
           onKeyDown={(e) => {
-            if (e.target.closest('button'))
-              return;
-            if (e.key === 'Enter' || e.key === ' '){
+            if (e.target.closest('button')) return;
+
+            if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
               navigate('/dashboard');
             }
           }}
-          >
-            <DashboardSummary compact/>
-          </div>
-
-        
+        >
+          <DashboardSummary compact />
+        </div>
 
       </main>
 

@@ -80,13 +80,10 @@ function EntryRoute() {
 
           if (response.ok) {
             navigate(destination, { replace: true });
-            navigate(destination, { replace: true });
             return;
           }
         } catch {
-          if (!cancelled) {
-            setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
-          }
+
           if (!cancelled) {
             setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
           }
@@ -191,6 +188,7 @@ function EntryRoute() {
   );
 }
 
+
 function DebtEntryRoute() {
   const location = useLocation();
   const [authorizationState, setAuthorizationState] = useState('checking');
@@ -203,7 +201,7 @@ function DebtEntryRoute() {
       const accessToken = sessionStorage.getItem('accessToken');
 
       if (!accessToken) {
-        setAuthorizationState('unauthorized');
+        if (!cancelled) setAuthorizationState('unauthorized');
         return;
       }
 
@@ -215,11 +213,16 @@ function DebtEntryRoute() {
         if (!response.ok) {
           sessionStorage.removeItem('accessToken');
           sessionStorage.removeItem('refreshToken');
-          if (!cancelled) setAuthorizationState('unauthorized');
+
+          if (!cancelled) {
+            setAuthorizationState('unauthorized');
+          }
           return;
         }
 
-        if (!cancelled) setAuthorizationState('authorized');
+        if (!cancelled) {
+          setAuthorizationState('authorized');
+        }
       } catch {
         if (!cancelled) {
           setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
@@ -229,6 +232,7 @@ function DebtEntryRoute() {
     }
 
     verifyAccessToken();
+
     return () => {
       cancelled = true;
     };
@@ -237,18 +241,24 @@ function DebtEntryRoute() {
   if (authorizationState === 'unauthorized') {
     const queryParams = new URLSearchParams(location.search);
     queryParams.set('returnTo', '/debts/');
-    const search = '?' + queryParams.toString();
 
     return (
       <Navigate
-        to={{ pathname: '/', search }}
+        to={{
+          pathname: '/',
+          search: `?${queryParams.toString()}`,
+        }}
         replace
       />
     );
   }
 
   if (authorizationState === 'error') {
-    return <main className="entry-route"><p>{error}</p></main>;
+    return (
+      <main className="entry-route">
+        <p>{error}</p>
+      </main>
+    );
   }
 
   if (authorizationState !== 'authorized') {
@@ -258,72 +268,6 @@ function DebtEntryRoute() {
   return <Debts />;
 }
 
-function DebtEntryRoute() {
-  const location = useLocation();
-  const [authorizationState, setAuthorizationState] = useState('checking');
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function verifyAccessToken() {
-      const accessToken = sessionStorage.getItem('accessToken');
-
-      if (!accessToken) {
-        setAuthorizationState('unauthorized');
-        return;
-      }
-
-      try {
-        const response = await fetch('/users/me/', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-
-        if (!response.ok) {
-          sessionStorage.removeItem('accessToken');
-          sessionStorage.removeItem('refreshToken');
-          if (!cancelled) setAuthorizationState('unauthorized');
-          return;
-        }
-
-        if (!cancelled) setAuthorizationState('authorized');
-      } catch {
-        if (!cancelled) {
-          setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
-          setAuthorizationState('error');
-        }
-      }
-    }
-
-    verifyAccessToken();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (authorizationState === 'unauthorized') {
-    const queryParams = new URLSearchParams(location.search);
-    queryParams.set('returnTo', '/debts/');
-    const search = '?' + queryParams.toString();
-
-    return (
-      <Navigate
-        to={{ pathname: '/', search }}
-        replace
-      />
-    );
-  }
-
-  if (authorizationState === 'error') {
-    return <main className="entry-route"><p>{error}</p></main>;
-  }
-
-  if (authorizationState !== 'authorized') {
-    return <main className="entry-route"><p>กำลังตรวจสอบบัญชีของคุณ...</p></main>;
-  }
-
-  return <Debts />;
-}
 
 function App() {
   return (
@@ -347,6 +291,11 @@ function App() {
         <Route
           path="/home/"
           element={<Home />}
+        />
+        
+        <Route 
+          path="/dashboard" 
+          element={<Dashboard />} 
         />
 
         <Route
@@ -404,15 +353,14 @@ function App() {
           path="/compound-interest"
           element={<CompoundInterest />}
         />
-        {<Route
+        <Route
           path="/saving-plan"
           element={<SavingPlan />}
-        />}
-
-        {<Route
+        />
+        <Route
           path="/calculator"
           element={<Retirement />}
-        />}
+        />
 
         <Route
           path="/financial-health"

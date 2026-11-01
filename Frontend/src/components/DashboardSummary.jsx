@@ -22,7 +22,7 @@ const normalizeArray = (data) => {
 
 const getCurrentMonth = () => {
     const data = new Date();
-    return `${data.getFullYear()}-${String(data.getMonth()+1).padStart(2,'0')}`;
+    return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
 };
 
 const formatMoney = (value) =>
@@ -37,7 +37,7 @@ async function fetchAPI(url, token) {
         headers: {
             Authorization: `Bearer ${token}`,
         },
-    });    
+    });
     if (response.status === 401) {
         throw new Error("Session หมดอายุ กรุณาเข้าสู่ระบบใหม่");
     }
@@ -49,7 +49,7 @@ async function fetchAPI(url, token) {
     return response.json();
 }
 
-export default function DashboardSummary({compact=false, onClick}) {
+export default function DashboardSummary({ compact = false, onClick }) {
     const [activeTab, setActiveTab] = useState("รายรับ");
     const [selectedMonth] = useState(getCurrentMonth);
 
@@ -62,8 +62,8 @@ export default function DashboardSummary({compact=false, onClick}) {
     const [reloadKey, setReloadKey] = useState(0);
 
 
-//โหลดข้อมูลจากBackend
-useEffect(() => {
+    //โหลดข้อมูลจากBackend
+    useEffect(() => {
         let cancelled = false;
 
         async function loadData() {
@@ -154,8 +154,8 @@ useEffect(() => {
             0
         );
 
-//เตรียมข้อมูลทำกราฟ
-const summaryData = useMemo(() => {
+    //เตรียมข้อมูลทำกราฟ
+    const summaryData = useMemo(() => {
         const daysInMonth = new Date(
             Number(selectedMonth.slice(0, 4)),
             Number(selectedMonth.slice(5, 7)),
@@ -205,8 +205,8 @@ const summaryData = useMemo(() => {
             },
             หนี้สิน: {
                 total: totalBorrowed + totalLent,
-                color: ['#ffb936','#ec5e5e'],
-                labels: ['ยืมจากคนอื่น', '.ให้คนอื่นยืม'],
+                color: ['#ffb936', '#ec5e5e'],
+                labels: ['ยืมจากคนอื่น', 'ให้คนอื่นยืม'],
                 values: [totalBorrowed, totalLent]
             },
         };
@@ -227,9 +227,8 @@ const summaryData = useMemo(() => {
 
     return (
         <section
-            className={`home-dashboard-summary ${
-                compact ? "home-dashboard-compact" : ""
-            } ${onClick ? 'clickable-dashboard' : ''}`}
+            className={`home-dashboard-summary ${compact ? "home-dashboard-compact" : ""
+                } ${onClick ? 'clickable-dashboard' : ''}`}
             onClick={onClick}
         >
             <h3>แดชบอร์ด</h3>
@@ -278,7 +277,7 @@ const summaryData = useMemo(() => {
                         </strong>
 
                         {data.values.length === 0 ||
-                        maxValue === 0 ? (
+                            maxValue === 0 ? (
                             <p className="home-dashboard-message">
                                 ยังไม่มีข้อมูล{activeTab}
                             </p>
@@ -293,13 +292,11 @@ const summaryData = useMemo(() => {
                                             <div
                                                 className="home-dashboard-bar"
                                                 style={{
-                                                    height: `${
-                                                        (value / maxValue) *
-                                                        100
-                                                    }%`,
-                                                    backgroundColor: data.color,
+                                                    height: `${(value / maxValue) * 100}%`,
+                                                    backgroundColor: Array.isArray(data.color)
+                                                        ? data.color[index]
+                                                        : data.color,
                                                 }}
-                                                title={`${data.labels[index]}: ${formatMoney(value)}`}
                                             />
                                         </div>
 
@@ -313,7 +310,7 @@ const summaryData = useMemo(() => {
 
                         <p className="home-dashboard-note">
                             {activeTab === "รายรับ" ||
-                            activeTab === "รายจ่าย"
+                                activeTab === "รายจ่าย"
                                 ? "ยอดแยกตามวันของเดือนปัจจุบัน"
                                 : "ข้อมูลจากรายการที่บันทึกไว้"}
                         </p>
