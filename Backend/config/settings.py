@@ -15,18 +15,21 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 #กำหนดว่า Host ไหนเข้าถึง Django ได้
+# กำหนด Host ที่อนุญาตให้เข้าถึง Django
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    
-    'glimmer-grunt-obstruct.ngrok-free.dev',
+    "glimmer-grunt-obstruct.ngrok-free.dev",
     "tammara-semivolcanic-randee.ngrok-free.dev",
 
-    "financial-app-xgc0.onrender.com",
+    "financial-app-xgco.onrender.com",
+
+    "debtmodule-backend.onrender.com",
+    "financial-app-neverlandtest.onrender.com",
     "financial-app-gbnw.onrender.com"
-    "debtmodule-backend.onrender.com"
 ]
 # =================== LOGGING ===================
+#สำหรับบันทึก Log ของ Django และ App เพื่อใช้ Debug 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -66,7 +69,6 @@ LOGGING = {
         },
     },
 
-    # เพิ่มส่วนนี้
     "root": {
         "handlers": ["console"],
         "level": "INFO",
@@ -150,6 +152,7 @@ INSTALLED_APPS = [
     'savings',
     'transactions',
     'categories',
+    'news',
 
     'dashboard',
 
@@ -273,3 +276,23 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+# =================== Cache ===================
+REDIS_URL = os.getenv("REDIS_URL")
+
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }

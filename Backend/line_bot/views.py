@@ -12,6 +12,8 @@ import json
 import logging
 
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
+from uuid import uuid4
 from io import BytesIO
 from urllib.parse import parse_qs, urlencode
 
@@ -26,6 +28,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 
 from .parser import parse_financial_message
+from .category_matching import accessible_category, fallback_category, match_category
 
 from .models import LineRecordMode
 from .supabase_storage import upload_receipt
@@ -40,6 +43,8 @@ from transactions.ocr import (
 )
 from users.models import User
 from friends.models import Friends
+from savings.models import Savings
+
 from .messaging import approve_payment_from_line
 
 logger = logging.getLogger(__name__)
@@ -167,20 +172,10 @@ def reply_to_line(reply_token, message):
 
 # ==================== Category ====================
 
-def find_category(name, transaction_type):
-    for candidate in [name, "อื่นๆ", "อื่น"]:
-        if not candidate:
-            continue
-
-        category = Category.objects.filter(
-            name=candidate,
-            transaction_type=transaction_type
-        ).first()
-
-        if category:
-            return category
-
-    return None
+def find_category(name, transaction_type, user):
+    """Only resolve global categories or categories owned by this user."""
+    return (accessible_category(name, transaction_type, user)
+            or fallback_category(transaction_type, user))
 
 
 # ==================== Date / Time ====================
@@ -209,6 +204,16 @@ def build_transaction_flex(item):
     if item.sub_category:
         category_text += f" / {item.sub_category}"
 
+    # วันที่และเวลาที่บันทึกไว้ในรายการ
+    date_text = "ไม่ระบุ"
+    if item.transaction_date:
+        date = item.transaction_date
+        date_text = f"{date.day:02d}/{date.month:02d}/{date.year + 543}"
+
+    time_text = "ไม่ระบุ"
+    if item.transaction_time:
+        time_text = item.transaction_time.strftime("%H:%M น.")
+
     frontend_url = settings.FRONTEND_URL.rstrip("/")
     query = urlencode({"returnTo": "/edit-transaction/", "transaction": item.id})
     edit_url = f"{frontend_url}/?{query}"
@@ -236,9 +241,11 @@ def build_transaction_flex(item):
                      "weight": "bold", "size": "xxl", "color": "#805035"},
                     {"type": "separator", "margin": "md", "color": "#E8DCC8"},
                     detail(f"ประเภท: {type_label}"),
-                    detail(f"รายการ: {item.description or 'ไม่ระบุ'}"),
+                    detail(f"รายการ: {item.item_name or 'ไม่ระบุ'}"),
                     detail(f"หมวดหมู่: {category_text}"),
                     detail(f"ช่องทาง: {item.account or 'ไม่ระบุ'}"),
+                    detail(f"วันที่: {date_text}"),
+                    detail(f"เวลา: {time_text}"),
                     {"type": "text", "text": "บันทึกแล้ว หากข้อมูลไม่ถูกต้องสามารถแก้ไขได้",
                      "size": "xs", "color": "#8B7A68", "wrap": True}
                 ]
@@ -276,6 +283,218 @@ def remember_recent_transaction(line_user_id, item):
     cache.set(recent_transaction_key(line_user_id), item.id, timeout=300)
 
 
+# ==================== Savings via LINE ====================
+
+SAVINGS_TIMEOUT_SECONDS = 15 * 60
+
+
+def savings_state_key(line_user_id):
+    return f"line_savings_state:{line_user_id}"
+
+
+def get_savings_state(line_user_id):
+    return cache.get(savings_state_key(line_user_id))
+
+
+def set_savings_state(line_user_id, state):
+    cache.set(savings_state_key(line_user_id), state, SAVINGS_TIMEOUT_SECONDS)
+
+
+def clear_savings_state(line_user_id):
+    cache.delete(savings_state_key(line_user_id))
+
+
+def savings_button(label, data, color="#B8D95A"):
+    return {
+        "type": "button", "style": "primary", "color": color,
+        "action": {"type": "postback", "label": label, "data": data}
+    }
+
+
+def build_savings_list_flex(user):
+    """แสดงกระเป๋าของเจ้าของบัญชี (LINE carousel รองรับสูงสุด 12 bubbles)"""
+    savings = list(Savings.objects.filter(user=user).order_by("-created_at")[:12])
+    if not savings:
+        return "ยังไม่มีกระเป๋าออมค่ะ กรุณาสร้างกระเป๋าบนเว็บไซต์ KaneCho ก่อน"
+
+    bubbles = []
+    for saving in savings:
+        bubbles.append({
+            "type": "bubble", "size": "mega",
+            "body": {
+                "type": "box", "layout": "vertical", "spacing": "md",
+                "backgroundColor": "#FFF9EE", "contents": [
+                    {"type": "text", "text": saving.saving_name or "กระเป๋าออม",
+                     "weight": "bold", "size": "xl", "wrap": True, "color": "#805035"},
+                    {"type": "text", "text": f"ยอดคงเหลือ ฿{saving.balance:,.2f}",
+                     "size": "md", "color": "#805035"},
+                    {"type": "text", "text": f"เป้าหมาย ฿{saving.target:,.2f}",
+                     "size": "sm", "color": "#8B7A68"}
+                ]
+            },
+            "footer": {
+                "type": "box", "layout": "vertical", "backgroundColor": "#FFF9EE",
+                "contents": [savings_button(
+                    "เลือกกระเป๋านี้", f"action=savings_select&id={saving.saving_id}"
+                )]
+            }
+        })
+    return {"type": "flex", "altText": "เลือกกระเป๋าออม KaneCho",
+            "contents": {"type": "carousel", "contents": bubbles}}
+
+
+def build_savings_action_flex(saving):
+    return {
+        "type": "flex", "altText": "เลือกฝากหรือถอนเงิน",
+        "contents": {
+            "type": "bubble",
+            "body": {"type": "box", "layout": "vertical", "spacing": "md",
+                     "backgroundColor": "#FFF9EE", "contents": [
+                         {"type": "text", "text": saving.saving_name or "กระเป๋าออม",
+                          "weight": "bold", "size": "xl", "wrap": True},
+                         {"type": "text", "text": f"ยอดคงเหลือ ฿{saving.balance:,.2f}"}
+                     ]},
+            "footer": {"type": "box", "layout": "vertical", "spacing": "sm",
+                       "backgroundColor": "#FFF9EE", "contents": [
+                           savings_button("ฝากเงิน", f"action=savings_amount&id={saving.saving_id}&type=deposit"),
+                           savings_button("ถอนเงิน", f"action=savings_amount&id={saving.saving_id}&type=withdraw")
+                       ]}
+        }
+    }
+
+
+def build_savings_confirm_flex(saving, operation, amount, token):
+    label = "ฝากเงิน" if operation == "deposit" else "ถอนเงิน"
+    return {
+        "type": "flex", "altText": f"ยืนยัน{label} {amount:,.2f} บาท",
+        "contents": {
+            "type": "bubble",
+            "body": {"type": "box", "layout": "vertical", "spacing": "md",
+                     "backgroundColor": "#FFF9EE", "contents": [
+                         {"type": "text", "text": f"ยืนยัน{label}", "weight": "bold", "size": "xl"},
+                         {"type": "text", "text": saving.saving_name or "กระเป๋าออม", "wrap": True},
+                         {"type": "text", "text": f"฿{amount:,.2f}", "weight": "bold", "size": "xxl"}
+                     ]},
+            "footer": {"type": "box", "layout": "vertical", "spacing": "sm",
+                       "backgroundColor": "#FFF9EE", "contents": [
+                           savings_button("ยืนยัน", f"action=savings_confirm&token={token}"),
+                           savings_button("ยกเลิก", f"action=savings_cancel&token={token}", "#B0A394")
+                       ]}
+        }
+    }
+
+
+def handle_savings_postback(action, params, user, line_user_id):
+    if action == "savings_select":
+        try:
+            saving_id = int(params.get("id", [""])[0])
+        except (TypeError, ValueError):
+            return "รหัสกระเป๋าไม่ถูกต้องค่ะ"
+        saving = Savings.objects.filter(saving_id=saving_id, user=user).first()
+        if saving is None:
+            return "ไม่พบกระเป๋าออมค่ะ"
+        clear_savings_state(line_user_id)
+        return build_savings_action_flex(saving)
+
+    if action == "savings_amount":
+        try:
+            saving_id = int(params.get("id", [""])[0])
+        except (TypeError, ValueError):
+            return "รหัสกระเป๋าไม่ถูกต้องค่ะ"
+        operation = params.get("type", [""])[0]
+        if operation not in ("deposit", "withdraw"):
+            return "ประเภทการทำรายการไม่ถูกต้องค่ะ"
+        saving = Savings.objects.filter(saving_id=saving_id, user=user).first()
+        if saving is None:
+            return "ไม่พบกระเป๋าออมค่ะ"
+        set_savings_state(line_user_id, {
+            "saving_id": saving_id, "operation": operation, "step": "amount"
+        })
+        label = "ฝาก" if operation == "deposit" else "ถอน"
+        return (f"ต้องการ{label}เงินในกระเป๋า {saving.saving_name or 'กระเป๋าออม'}\n"
+                "กรุณาพิมพ์จำนวนเงิน เช่น 500")
+
+    if action in ("savings_confirm", "savings_cancel"):
+        state = get_savings_state(line_user_id)
+        token = params.get("token", [""])[0]
+        if not state or state.get("step") != "confirm" or state.get("token") != token:
+            return "รายการนี้หมดอายุหรือดำเนินการไปแล้วค่ะ"
+        if action == "savings_cancel":
+            clear_savings_state(line_user_id)
+            return "ยกเลิกรายการการออมแล้วค่ะ"
+
+        # ต้องตั้งค่า cache แบบแชร์ทุก worker (เช่น Redis) ก่อนใช้งานจริง
+        lock_key = f"line_savings_lock:{line_user_id}"
+        if not cache.add(lock_key, True, timeout=60):
+            return "ระบบกำลังทำรายการ กรุณารอสักครู่ค่ะ"
+        try:
+            # อ่านสถานะซ้ำหลังได้ lock เพื่อป้องกันการกดยืนยันซ้ำ
+            state = get_savings_state(line_user_id)
+            if not state or state.get("step") != "confirm" or state.get("token") != token:
+                return "รายการนี้ดำเนินการไปแล้วค่ะ"
+            amount = Decimal(state["amount"])
+            operation = state["operation"]
+            if not amount.is_finite() or amount <= 0 or amount.as_tuple().exponent < -2:
+                clear_savings_state(line_user_id)
+                return "จำนวนเงินไม่ถูกต้องค่ะ"
+            with transaction.atomic():
+                saving = Savings.objects.select_for_update().filter(
+                    saving_id=state["saving_id"], user=user
+                ).first()
+                if saving is None:
+                    clear_savings_state(line_user_id)
+                    return "ไม่พบกระเป๋าออมค่ะ"
+                if operation == "deposit":
+                    if saving.balance + amount > Decimal("999999.99"):
+                        return "ยอดเงินเกินขีดจำกัดที่ระบบรองรับค่ะ"
+                    saving.balance += amount
+                    label = "ฝาก"
+                elif operation == "withdraw":
+                    if amount > saving.balance:
+                        return "ยอดเงินในกระเป๋าไม่เพียงพอค่ะ"
+                    saving.balance -= amount
+                    label = "ถอน"
+                else:
+                    clear_savings_state(line_user_id)
+                    return "ประเภทการทำรายการไม่ถูกต้องค่ะ"
+                saving.save(update_fields=["balance", "updated_at"])
+            clear_savings_state(line_user_id)
+            return (f"{label}เงินสำเร็จค่ะ\n"
+                    f"กระเป๋า: {saving.saving_name or 'กระเป๋าออม'}\n"
+                    f"จำนวน: {amount:,.2f} บาท\n"
+                    f"ยอดคงเหลือ: {saving.balance:,.2f} บาท")
+        finally:
+            cache.delete(lock_key)
+
+    return "ไม่พบคำสั่งการออมค่ะ"
+
+
+def handle_savings_amount(text, user, line_user_id):
+    state = get_savings_state(line_user_id)
+    if not state or state.get("step") != "amount":
+        return None
+    try:
+        amount = Decimal(text.strip().replace(",", ""))
+    except (InvalidOperation, ValueError):
+        return "กรุณาพิมพ์จำนวนเงินเป็นตัวเลข เช่น 500"
+    if not amount.is_finite() or amount <= 0:
+        return "จำนวนเงินต้องมากกว่า 0 บาทค่ะ"
+    if amount.as_tuple().exponent < -2 or amount > Decimal("999999.99"):
+        return "จำนวนเงินไม่ถูกต้อง (ไม่เกิน 999,999.99 และทศนิยมไม่เกิน 2 ตำแหน่ง)"
+    saving = Savings.objects.filter(saving_id=state["saving_id"], user=user).first()
+    if saving is None:
+        clear_savings_state(line_user_id)
+        return "ไม่พบกระเป๋าออมค่ะ"
+    if state["operation"] == "withdraw" and amount > saving.balance:
+        return "ยอดเงินในกระเป๋าไม่เพียงพอค่ะ"
+    if state["operation"] == "deposit" and saving.balance + amount > Decimal("999999.99"):
+        return "ยอดเงินเกินขีดจำกัดที่ระบบรองรับค่ะ"
+    token = uuid4().hex
+    state.update({"amount": str(amount), "step": "confirm", "token": token})
+    set_savings_state(line_user_id, state)
+    return build_savings_confirm_flex(saving, state["operation"], amount, token)
+
+
 # ==================== Rich Menu / Flex Postback ====================
 
 def handle_postback(data, line_user_id):
@@ -291,6 +510,16 @@ def handle_postback(data, line_user_id):
     if user is None:
         return "กรุณาเข้าสู่ระบบและเชื่อมบัญชี LINE ก่อนค่ะ"
 
+    #=============================================================================
+     # เปิดการออมจาก Rich Menu
+    if action == "select_record" and record_type == "savings":
+        clear_savings_state(line_user_id)
+        return build_savings_list_flex(user)
+
+    if action.startswith("savings_"):
+        return handle_savings_postback(action, params, user, line_user_id)
+    
+    #=============================================================================
         # ปุ่มอนุมัติรายการชำระหนี้จาก LINE
     if action == "payment_approve":
         try:
@@ -349,6 +578,8 @@ def handle_postback(data, line_user_id):
     if record_type not in ("income", "expense"):
         return "เมนูจดหนี้สิน/การออมยังไม่เปิดใช้งานค่ะ"
 
+    clear_savings_state(line_user_id)
+
     previous = LineRecordMode.objects.filter(
         user=user
     ).first()
@@ -376,8 +607,9 @@ def handle_postback(data, line_user_id):
     )
 
     return (
-        f"เลือกโหมดจด{label}แล้วค่ะ "
-        "ส่งข้อความหรือรูปภาพได้เลย"
+        f"เลือกโหมดจด{label}แล้วค่ะ\n"
+        "สามารถส่งข้อความบันทึกรายการ "
+        "และแนบรูปภาพเพื่อเป็นหลักฐานได้เลยค่ะ"
     )
 
 
@@ -405,11 +637,16 @@ def handle_text_message(text, line_user_id):
         )
 
     command = text.strip()
+    # เมื่อกำลังรอจำนวนเงินออม ให้รับเป็นจำนวนเงินก่อนเข้า parser รายรับรายจ่าย
+    savings_answer = handle_savings_amount(command, user, line_user_id)
+    if savings_answer is not None:
+        return savings_answer
+
     draft = get_pending(line_user_id, user)
 
     # ไม่ใช้คำสั่งยืนยัน/ยกเลิกสำหรับรายการที่บันทึกแล้ว
     if command in ("ยืนยัน", "ยกเลิก"):
-        return "ระบบบันทึกรายการอัตโนมัติแล้วค่ะ กดแก้ไขจากการ์ดรายการได้เลย"
+        return "ระบบบันทึกรายการแล้วค่ะ กดแก้ไขจากการ์ดรายการได้เลย"
 
     # อ่านโหมดจากฐานข้อมูล
     transaction_type = get_record_mode(user)
@@ -436,21 +673,21 @@ def handle_text_message(text, line_user_id):
         result.get("category") or "อื่นๆ"
     )
 
-    category = find_category(
-        parsed_category,
-        transaction_type
+    category = match_category(
+        command, transaction_type, user, rule_category=parsed_category
     )
 
     if category is None:
         return (
-            "ไม่พบหมวดหมู่ในฐานข้อมูล "
-            "กรุณาเพิ่มหมวดหมู่ 'อื่นๆ' ก่อน"
+            "ไม่พบหมวดหมู่ที่ตรงกับข้อความค่ะ "
+            "ลองพิมพ์ใหม่ หรือเลือกหมวดหมู่จากเว็บไซต์"
         )
 
     # ถ้ารูปก่อนหน้าอ่านยอดไม่ได้ ให้นำข้อมูลข้อความมาเติม
     if draft is not None:
         draft.amount = result["amount"]
         draft.transaction_type = transaction_type
+        draft.item_name = result.get("item_name") or ""
         draft.description = result.get("description") or ""
         draft.category = category
         draft.sub_category = result.get("sub_category") or ""
@@ -464,6 +701,7 @@ def handle_text_message(text, line_user_id):
             user=user,
             amount=result["amount"],
             transaction_type=transaction_type,
+            item_name=result.get("item_name") or "",
             description=result.get("description") or "",
             category=category,
             sub_category=result.get("sub_category") or "",
@@ -498,6 +736,9 @@ def handle_image_message(message_id, line_user_id):
 
     if not message_id:
         return "ไม่พบรหัสรูปภาพ กรุณาส่งรูปใหม่"
+
+    if get_savings_state(line_user_id):
+        return "ขณะนี้กำลังทำรายการการออม กรุณากรอกจำนวนเงินหรือยกเลิกจากการ์ดค่ะ"
 
     transaction_type = get_record_mode(user)
 
@@ -568,7 +809,8 @@ def handle_image_message(message_id, line_user_id):
             user=user,
             amount=amount,
             transaction_type=transaction_type,
-            category=find_category("อื่นๆ", transaction_type),
+            category=find_category("อื่นๆ", transaction_type, user),
+            item_name="",
             description="",
             transaction_date=date_value or now.date(),
             transaction_time=time_value or now.time().replace(microsecond=0),
@@ -576,7 +818,7 @@ def handle_image_message(message_id, line_user_id):
     else:
         draft.amount = amount
         draft.transaction_type = transaction_type
-        draft.category = find_category("อื่นๆ", transaction_type)
+        draft.category = find_category("อื่นๆ", transaction_type, user)
         if date_value:
             draft.transaction_date = date_value
         if time_value:

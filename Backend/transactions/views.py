@@ -215,6 +215,11 @@ class TransactionDetailView(APIView):
 
             transaction_item = serializer.save()
 
+            # ลบการเชื่อมโยงรูปใบเสร็จ เมื่อผู้ใช้กดลบรูป
+            if request.data.get("remove_receipt") == "true":
+                transaction_item.receipt = None
+                transaction_item.save(update_fields=["receipt"])
+
             return Response(
                 TransactionSerializer(transaction_item).data
             )

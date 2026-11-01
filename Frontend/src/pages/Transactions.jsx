@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   ArrowDownCircle,
   ArrowUpCircle,
+  Coffee, ShoppingBag, CarFront, Heart, BookOpen, Wallet,
+  Gift, Sparkles, UtensilsCrossed, BriefcaseBusiness,
+  Banknote, TrendingUp, MoreHorizontal, Phone, House,
+  Zap, HandHeart,
   CalendarDays,
   Image as ImageIcon,
   LoaderCircle,
@@ -21,11 +25,12 @@ import './Transactions.css';
 const emptyForm = () => ({
   transaction_type: 'expense',
   amount: '',
+  item_name: '',
   category: '',
   // receipt: null,
   account: '',
   transaction_date: getTodayString(),
-  transaction_time: '',
+  transaction_time: new Date().toTimeString().slice(0, 5),
   description: '',
 });
 
@@ -41,9 +46,22 @@ const getTodayString = () => {
 };
 
 
+// Icons are chosen by category name, without changing category IDs from the backend.
+const categoryIcons = {
+  'ของใช้': Coffee, 'ความงาม': ShoppingBag, 'ความบันเทิง': CarFront,
+  'ค่าเช่า': Heart, 'ค่าเดินทาง': BookOpen, 'ค่าโทรศัพท์': Phone,
+  'ค่าน้ำไฟ': Zap, 'ค่าหมอ': Sparkles, 'เครื่องดื่ม': Coffee,
+  'ช้อปปิ้ง': ShoppingBag, 'ซูเปอร์มาร์เก็ต': CarFront,
+  'ทำบุญ': HandHeart, 'อาหาร': UtensilsCrossed, 'อื่นๆ': Wallet,
+  'งานเสริม': BriefcaseBusiness, 'เงินเดือน': Banknote,
+  'โบนัส': Gift, 'รายได้': Wallet, 'ลงทุน': TrendingUp,
+};
+const getCategoryIcon = (name) => categoryIcons[name] || MoreHorizontal;
+
 function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [showMoreCategories, setShowMoreCategories] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -60,6 +78,8 @@ function Transactions() {
   const [showAll, setShowAll] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const initialFormRef = useRef(null);
   const [editingId, setEditingId] = useState(null);
   const [draftId, setDraftId] = useState(null); // Draft ที่เปิดมาจาก LINE OA
 
@@ -67,6 +87,7 @@ function Transactions() {
 
   // รูปใบเสร็จที่ผู้ใช้เลือกใหม่
   const [receiptFile, setReceiptFile] = useState(null);
+  const [removeReceipt, setRemoveReceipt] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrMessage, setOcrMessage] = useState('');
 
@@ -302,8 +323,8 @@ function Transactions() {
       const categoryMatched = filterCategory === 'all' || (
         `${transaction.transaction_type}:${transaction.category}` === filterCategory
       );
-      const text = [transaction.description, transaction.category_name,
-      transaction.account, transaction.amount].filter(Boolean).join(' ').toLowerCase();
+      const text = [transaction.item_name, transaction.description, transaction.category_name,
+        transaction.account, transaction.amount].filter(Boolean).join(' ').toLowerCase();
       return typeMatched && dateMatched && categoryMatched && (!keyword || text.includes(keyword));
     });
   }, [transactions, filterType, filterCategory, periodRange, search]);
@@ -348,7 +369,7 @@ function Transactions() {
 
   function openAdd() {
     setEditingId(null);
-    setDraftId(null);
+    setRemoveReceipt(false);
     setError('');
     setSuccess('');
 
@@ -356,13 +377,18 @@ function Transactions() {
     setOcrMessage('');
     setOcrMessage('');
 
-    setForm(emptyForm());
+    const initialForm = emptyForm();
+    initialFormRef.current = initialForm;
+    setForm(initialForm);
+    setShowExitConfirm(false);
+    setShowMoreCategories(false);
     setShowModal(true);
   }
 
 
   function openEdit(transaction) {
     setEditingId(transaction.id);
+    setRemoveReceipt(false);
 
     setError('');
     setSuccess('');
@@ -383,12 +409,15 @@ function Transactions() {
       transaction.receipt_url || ''
     );
 
-    setForm({
+    const initialForm = {
       transaction_type:
         transaction.transaction_type || 'expense',
 
       amount:
         transaction.amount || '',
+
+      item_name:
+        transaction.item_name || '',
 
       category:
         transaction.category || '',
@@ -407,8 +436,12 @@ function Transactions() {
 
       description:
         transaction.description || '',
-    });
+    };
+    initialFormRef.current = initialForm;
+    setForm(initialForm);
+    setShowExitConfirm(false);
 
+    setShowMoreCategories(false);
     setShowModal(true);
   }
 
@@ -416,6 +449,22 @@ function Transactions() {
   function closeModal() {
     if (saving || ocrLoading) return;
     if (saving || ocrLoading) return;
+
+    // เตือนเฉพาะเมื่อมีการแก้ไขข้อมูลหรือเลือกรูปใหม่
+    const hasChanges =
+      JSON.stringify(form) !== JSON.stringify(initialFormRef.current) ||
+      receiptFile !== null;
+
+    if (hasChanges) {
+      setShowExitConfirm(true);
+      return;
+    }
+
+    discardAndClose();
+  }
+
+  function discardAndClose() {
+    setShowExitConfirm(false);
 
     if (
       receiptPreview &&
@@ -451,6 +500,8 @@ function Transactions() {
     }));
   }
 
+
+  const visibleCategories = categories;
 
   // OCR reads a receipt but never saves a transaction automatically.
   async function scanReceipt(file) {
@@ -548,17 +599,18 @@ function Transactions() {
 
     setError('');
     setReceiptFile(file);
+    setRemoveReceipt(false);
 
     setReceiptPreview(
       URL.createObjectURL(file)
     );
 
-    scanReceipt(file);
-
-    scanReceipt(file);
+    // OCR เฉพาะตอนเพิ่มรายการใหม่
+    // ถ้าแก้ไขรายการเดิม ให้แนบรูปอย่างเดียว
+    if (!editingId) {
+      scanReceipt(file);
+    }
   }
-
-
   function removeSelectedReceipt() {
     setOcrMessage('');
     setOcrMessage('');
@@ -571,6 +623,7 @@ function Transactions() {
 
     setReceiptFile(null);
     setReceiptPreview('');
+    setRemoveReceipt(true);
   }
 
 
@@ -605,6 +658,8 @@ function Transactions() {
       'amount',
       form.amount
     );
+
+    payload.append('item_name', form.item_name.trim());
 
     payload.append(
       'transaction_date',
@@ -641,6 +696,10 @@ function Transactions() {
         'receipt',
         receiptFile
       );
+    }
+
+    if (editingId && removeReceipt && !receiptFile) {
+      payload.append('remove_receipt', 'true');
     }
 
     try {
@@ -692,8 +751,7 @@ function Transactions() {
       url.searchParams.delete('transaction');
       window.history.replaceState({}, '', url.pathname + url.search + url.hash);
       setShowModal(false);
-      const wasDraft = Boolean(draftId);
-      setDraftId(null);
+      setShowExitConfirm(false);
       setEditingId(null);
 
       if (
@@ -719,7 +777,7 @@ function Transactions() {
 
   async function remove(transaction) {
     const label =
-      transaction.description ||
+      transaction.item_name ||
       transaction.category_name ||
       'รายการนี้';
 
@@ -934,18 +992,6 @@ function Transactions() {
             ))}
           </div>
 
-          <div className="transaction-category-filter">
-            <label htmlFor="transaction-category-select">หมวดหมู่</label>
-            <select id="transaction-category-select" value={filterCategory}
-              onChange={(event) => { setFilterCategory(event.target.value); setShowAll(false); }}>
-              <option value="all">ทุกหมวดหมู่</option>
-              {availableCategories.map((item) => (
-                <option key={`${item.transaction_type}:${item.id}`} value={`${item.transaction_type}:${item.id}`}>
-                  {filterType === 'all' ? `${item.transaction_type === 'income' ? 'รายรับ' : 'รายจ่าย'} · ` : ''}{item.name}
-                </option>
-              ))}
-            </select>
-          </div>
 
         </section>
 
@@ -1035,7 +1081,7 @@ function Transactions() {
                   'income';
 
                 const name =
-                  transaction.description ||
+                  transaction.item_name ||
                   transaction.category_name ||
                   (income
                     ? 'รายรับ'
@@ -1055,15 +1101,10 @@ function Transactions() {
                         }`
                       }
                     >
-                      {income ? (
-                        <ArrowDownCircle
-                          size={22}
-                        />
-                      ) : (
-                        <ArrowUpCircle
-                          size={22}
-                        />
-                      )}
+                      {(() => {
+                        const CategoryIcon = getCategoryIcon(transaction.category_name);
+                        return <CategoryIcon size={22} strokeWidth={1.8} />;
+                      })()}
                     </div>
 
 
@@ -1301,6 +1342,21 @@ function Transactions() {
               </div>
 
 
+              {/* ชื่อรายการแยกจากรายละเอียดที่ใช้จดโน้ต */}
+              <div className="form-group full">
+                <label htmlFor="item_name">ชื่อรายการ *</label>
+                <input
+                  id="item_name"
+                  name="item_name"
+                  type="text"
+                  maxLength={200}
+                  placeholder="เช่น ชาเขียว"
+                  value={form.item_name}
+                  onChange={change}
+                  required
+                />
+              </div>
+
               {/* จำนวนเงิน */}
               <div className="form-group full">
 
@@ -1323,22 +1379,23 @@ function Transactions() {
               </div>
 
 
-              {/* หมวดหมู่แบบปุ่ม เลือกได้จากข้อมูล Backend เดิม */}
-              {/* หมวดหมู่แบบปุ่ม เลือกได้จากข้อมูล Backend เดิม */}
+              {/* หมวดหมู่ที่กำหนดไว้ในระบบเท่านั้น */}
               <div className="form-group full">
-                <label>หมวดหมู่</label>
+                <label>หมวดหมู่ *</label>
                 <div className="category-choice-list">
-                  {categories.map((category) => (
-                    <button
-                      key={category.id}
-                      type="button"
-                      className={String(form.category) === String(category.id) ? 'active' : ''}
-                      onClick={() => setForm({ ...form, category: category.id })}
-                    >
-                      {category.name}
-                    </button>
-                  ))}
-                  {categories.length === 0 && <span>ยังไม่มีหมวดหมู่ให้เลือก</span>}
+                  {visibleCategories.map((category) => {
+                    const CategoryIcon = getCategoryIcon(category.name);
+                    return (
+                      <button key={category.id} type="button"
+                        aria-pressed={String(form.category) === String(category.id)}
+                        className={String(form.category) === String(category.id) ? 'active' : ''}
+                        onClick={() => setForm((current) => ({ ...current, category: category.id }))}>
+                        <CategoryIcon size={22} strokeWidth={1.8} />
+                        <span>{category.name}</span>
+                      </button>
+                    );
+                  })}
+                  {categories.length === 0 && <span>ยังไม่มีหมวดหมู่</span>}
                 </div>
                 <label>หมวดหมู่</label>
                 <div className="category-choice-list">
@@ -1411,29 +1468,21 @@ function Transactions() {
               </div>
 
 
-              {/* รายละเอียด */}
+              {/* รายละเอียด พร้อมตัวนับอักษร */}
               <div className="form-group full">
-
-                <label htmlFor="description">
-                  รายละเอียด
-                </label>
-
-                <input
-                  id="description"
-                  name="description"
-                  placeholder="เช่น ข้าวกลางวัน"
-                  value={form.description}
-                  onChange={change}
-                />
-
+                <div className="description-label-row">
+                  <label htmlFor="description">รายละเอียด</label>
+                  <span>{form.description.length}/100</span>
+                </div>
+                <input id="description" name="description" maxLength={100}
+                  placeholder="เช่น ข้าวกลางวัน" value={form.description} onChange={change} />
               </div>
-
 
               {/* รูปใบเสร็จ */}
               <div className="form-group full receipt-form-group">
 
                 <label htmlFor="receipt">
-                  รูปใบเสร็จ / หลักฐาน
+                  รูปใบเสร็จ
                 </label>
 
 
@@ -1444,16 +1493,14 @@ function Transactions() {
                     className="receipt-upload-box"
                   >
 
-                    <Upload size={24} />
+                    <Upload size={28} strokeWidth={2} className="receipt-upload-icon" />
 
                     <strong>
                       เลือกรูปใบเสร็จ
                     </strong>
 
                     <span>
-                      JPG หรือ PNG
-                      JPG หรือ PNG
-                      ขนาดไม่เกิน 5 MB
+                      JPG หรือ PNG ขนาดไม่เกิน 5 MB
                     </span>
 
                   </label>
@@ -1554,6 +1601,32 @@ function Transactions() {
 
       )}
 
+
+      {/* ยืนยันก่อนปิดฟอร์มที่มีข้อมูลยังไม่ได้บันทึก */}
+      {showExitConfirm && (
+        <div className="transaction-exit-overlay" role="presentation">
+          <div
+            className="transaction-exit-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="transaction-exit-title"
+            aria-describedby="transaction-exit-description"
+          >
+            <h3 id="transaction-exit-title">ต้องการออกจากหน้าต่างหรือไม่?</h3>
+            <p id="transaction-exit-description">
+              หากปิดหน้าต่างนี้ ข้อมูลที่กรอกไว้จะไม่ถูกบันทึก
+            </p>
+            <div className="transaction-exit-actions">
+              <button type="button" onClick={() => setShowExitConfirm(false)}>
+                ยกเลิก
+              </button>
+              <button type="button" className="exit-confirm-button" onClick={discardAndClose}>
+                ออกจากหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Navbar />
 

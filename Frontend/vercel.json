@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+    "source": "/news/",
+    "destination": "https://financial-app-xgc0.onrender.com/news/"
+    },
+    {
+      "source": "/news/:path*",
+      "destination": "https://financial-app-xgc0.onrender.com/news/:path*"
+    },
+    {
       "source": "/users/me/",
       "destination": "https://financial-app-xgc0.onrender.com/users/me/"
     },

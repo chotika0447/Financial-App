@@ -71,25 +71,19 @@ function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
+
     async function loadNews() {
       try {
-        // Official Thai PBS public API: no key, CORS enabled.
-        const response = await fetch('https://api.thaipbs.net/v1/news/posts?page=1&limit=60', { signal: controller.signal });
+        const response = await fetch('/news/', { signal: controller.signal });
         if (!response.ok) throw new Error(`News API HTTP ${response.status}`);
+
         const payload = await response.json();
-        if (!Array.isArray(payload.data)) throw new Error('Unexpected news response');
-        const keywords = /เศรษฐกิจ|การเงิน|ธนาคาร|ดอกเบี้ย|เงินเฟ้อ|การลงทุน|ตลาดหุ้น|เงินบาท|หนี้|ภาษี|ออมเงิน|ค่าครองชีพ|ธุรกิจ|กองทุน|สินเชื่อ|ราคาทอง/;
-        const filtered = payload.data.filter(item => {
-          const category = Array.isArray(item.categories) ? item.categories.map(c => c.title || '').join(' ') : '';
-          const tags = Array.isArray(item.tags) ? item.tags.map(t => t.title || '').join(' ') : '';
-          return keywords.test(`${item.title || ''} ${category} ${tags}`);
-        }).filter(item => item.title && /^https:\/\//.test(item.canonical || ''))
-          .sort((a, b) => new Date(b.publishTime || 0) - new Date(a.publishTime || 0))
-          .slice(0, 6);
+        const items = Array.isArray(payload.news) ? payload.news : [];
+
         if (!controller.signal.aborted) {
-          setNews(filtered);
+          setNews(items);
           setActiveNews(0);
-          setNewsState(filtered.length ? 'ready' : 'empty');
+          setNewsState(items.length ? 'ready' : 'empty');
         }
       } catch (error) {
         if (!controller.signal.aborted) {
@@ -98,6 +92,7 @@ function Home() {
         }
       }
     }
+
     loadNews();
     return () => controller.abort();
   }, []);
@@ -159,14 +154,13 @@ function Home() {
           <div className="home-news-heading">
             <div>
               <h3>ข่าวสารเกี่ยวกับการเงิน</h3>
-              <p className="home-news-note">ข่าวเศรษฐกิจและการเงินจาก Thai PBS • อัปเดตจากแหล่งข่าวจริง</p>
+              <p className="home-news-note">ข่าวเศรษฐกิจและการเงินจาก Thai PBS</p>
             </div>
-            <a href="https://www.thaipbs.or.th/news" target="_blank" rel="noopener noreferrer">ดูข่าวทั้งหมด ↗</a>
           </div>
 
           {newsState === 'loading' && <div className="home-news-status" role="status">กำลังโหลดข่าวล่าสุด...</div>}
           {newsState === 'error' && <div className="home-news-status" role="status">ไม่สามารถโหลดข่าวได้ในขณะนี้ <a href="https://www.thaipbs.or.th/news" target="_blank" rel="noopener noreferrer">อ่านข่าวที่ Thai PBS ↗</a></div>}
-          {newsState === 'empty' && <div className="home-news-status" role="status">ยังไม่พบข่าวการเงินในรายการล่าสุด <a href="https://www.thaipbs.or.th/news" target="_blank" rel="noopener noreferrer">ดูข่าวทั้งหมด ↗</a></div>}
+          {newsState === 'empty' && <div className="home-news-status" role="status">ยังไม่พบข่าวการเงินในรายการล่าสุด</div>}
           {newsState === 'ready' && news[activeNews] && (
             <>
               <a className="home-news-feature" href={news[activeNews].canonical} target="_blank" rel="noopener noreferrer">

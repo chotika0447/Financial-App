@@ -29,6 +29,8 @@ class Transaction(models.Model):
     )
 
 
+    item_name = models.CharField(max_length=200, blank=True)
+
     description = models.TextField(
         blank=True
     )
@@ -101,6 +103,8 @@ class TransactionDraft(models.Model):
         max_length=10,
         blank=True
     )
+
+    item_name = models.CharField(max_length=200, blank=True)
 
     description = models.TextField(
         blank=True
