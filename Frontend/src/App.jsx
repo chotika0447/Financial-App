@@ -1,5 +1,14 @@
 
+
 import { useEffect, useState } from 'react';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import {
   BrowserRouter,
   Routes,
@@ -32,6 +41,8 @@ import CompoundInterest from './pages/CompoundInterest';
 
 import FinHealth from './pages/FinHealth';
 import FinHealthDetail from './pages/FinHealthDetail';
+
+import Dashboard from './pages/Dashboard';
 
 import { initializeLineLiff, liff, readLineIdentity } from './lineAuth';
 
@@ -74,11 +85,16 @@ function EntryRoute() {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
 
+
           if (response.ok) {
+            navigate(destination, { replace: true });
             navigate(destination, { replace: true });
             return;
           }
         } catch {
+          if (!cancelled) {
+            setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+          }
           if (!cancelled) {
             setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
           }
@@ -250,6 +266,73 @@ function DebtEntryRoute() {
   return <Debts />;
 }
 
+function DebtEntryRoute() {
+  const location = useLocation();
+  const [authorizationState, setAuthorizationState] = useState('checking');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function verifyAccessToken() {
+      const accessToken = sessionStorage.getItem('accessToken');
+
+      if (!accessToken) {
+        setAuthorizationState('unauthorized');
+        return;
+      }
+
+      try {
+        const response = await fetch('/users/me/', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (!response.ok) {
+          sessionStorage.removeItem('accessToken');
+          sessionStorage.removeItem('refreshToken');
+          if (!cancelled) setAuthorizationState('unauthorized');
+          return;
+        }
+
+        if (!cancelled) setAuthorizationState('authorized');
+      } catch {
+        if (!cancelled) {
+          setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+          setAuthorizationState('error');
+        }
+      }
+    }
+
+    verifyAccessToken();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (authorizationState === 'unauthorized') {
+    const queryParams = new URLSearchParams(location.search);
+    queryParams.set('returnTo', '/debts/');
+    const search = '?' + queryParams.toString();
+
+    return (
+      <Navigate
+        to={{ pathname: '/', search }}
+        replace
+      />
+    );
+  }
+
+  if (authorizationState === 'error') {
+    return <main className="entry-route"><p>{error}</p></main>;
+  }
+
+  if (authorizationState !== 'authorized') {
+    return <main className="entry-route"><p>กำลังตรวจสอบบัญชีของคุณ...</p></main>;
+  }
+
+  return <Debts />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -293,6 +376,7 @@ function App() {
           path="/debts/"
           element={<DebtEntryRoute />}
         />
+
 
         <Route
           path="/notifications/"

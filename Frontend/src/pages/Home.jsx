@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 
 import HomeHeader from '../components/HomeHeader';
 import Navbar from '../components/Navbar';
+import DashboardSummary from '../components/DashboardSummary';
 
 function Home() {
   const [user, setUser] = useState(null);
@@ -186,61 +187,29 @@ function Home() {
 
 
         {/* ================= DASHBOARD ================= */}
-        <section className="dashboard-section">
-
-          <h3>แดชบอร์ด <small>(ข้อมูลกราฟตัวอย่าง)</small></h3>
-
-          {/* Dashboard tabs */}
-          <div className="dashboard-tabs">
-            <button className="active">รายรับ</button>
-            <button>รายรายจ่าย</button>
-            <button>การออม</button>
-            <button>หนี้สิน</button>
+        <div
+          className='dashboard-summary-click'
+          onClick={(e) => {
+            if (e.target.closest('button'))
+              return;
+            navigate('/dashboard');}
+          }
+            
+          role='button'
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.target.closest('button'))
+              return;
+            if (e.key === 'Enter' || e.key === ' '){
+              e.preventDefault();
+              navigate('/dashboard');
+            }
+          }}
+          >
+            <DashboardSummary compact/>
           </div>
 
-
-          {/* Donut Chart */}
-          <div className="chart-container">
-
-            <div className="donut-chart"></div>
-
-            <div className="chart-legend">
-
-              <div>
-                <span className="legend-color food"></span>
-                อาหาร 58%
-              </div>
-
-              <div>
-                <span className="legend-color saving"></span>
-                ออมเงิน 15%
-              </div>
-
-              <div>
-                <span className="legend-color rent"></span>
-                ค่าเช่า 10%
-              </div>
-
-              <div>
-                <span className="legend-color travel"></span>
-                ขนม 8%
-              </div>
-
-              <div>
-                <span className="legend-color debt"></span>
-                หนี้ 6%
-              </div>
-
-              <div>
-                <span className="legend-color other"></span>
-                ของใช้ 3%
-              </div>
-
-            </div>
-
-          </div>
-
-        </section>
+        
 
       </main>
 
