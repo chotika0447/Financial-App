@@ -22,7 +22,7 @@ ALLOWED_HOSTS = [
     "glimmer-grunt-obstruct.ngrok-free.dev",
     "tammara-semivolcanic-randee.ngrok-free.dev",
 
-    "financial-app-xgco.onrender.com",
+    "financial-app-xgc0.onrender.com",
 
     "debtmodule-backend.onrender.com",
     "financial-app-neverlandtest.onrender.com",
