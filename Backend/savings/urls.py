@@ -4,12 +4,16 @@ from .views import (
     SavingsDetailView,
     SavingsDepositView,
     SavingsWithdrawView,
+
     SavingsTransactionListView,
+    FinHealthWalletView,
 )
 
 urlpatterns = [
     path('', SavingsListCreateView.as_view(), name='savings-list-create'),
-    path('transactions/', SavingsTransactionListView.as_view(), name='savings-transactions'),
+
+    path('saving-transac', SavingsTransactionListView.as_view(), name='savings-transactions'),
+    path('financial-health/wallet/', FinHealthWalletView.as_view(), name='financial-health-wallet'),
 
     path('<int:pk>/', SavingsDetailView.as_view(), name='savings-detail'),
     

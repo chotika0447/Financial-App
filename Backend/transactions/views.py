@@ -384,7 +384,7 @@ class TransactionDraftConfirmView(APIView):
 
 
 # คำนวณตัวชี้วัด อัตรารายจ่ายต่อรายได้สำหรับเดือนปัจจุบัน เพื่อเอาไปใช้ในการประเมินสุขภาพทางการเงิน
-class FinancialHealthSpendView(APIView):
+class FinHealthSpendView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):

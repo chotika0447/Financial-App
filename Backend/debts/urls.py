@@ -5,6 +5,7 @@ from .views import (
     PaymentListCreateView,
     PaymentDetailView,
     SendDebtReminderView,
+    FinHealthBorrowView
 )
 urlpatterns = [
     # หนี้
@@ -17,5 +18,7 @@ urlpatterns = [
 
     # การแจ้งเตือนชำระหนี้
     path("<int:debt_id>/send-reminder/", SendDebtReminderView.as_view(), name="debt-send-reminder"),
+
+    path('financial-health/borrow/', FinHealthBorrowView.as_view(), name='financial-health-borrow',),
 ]
 

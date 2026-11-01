@@ -11,6 +11,10 @@ from django.shortcuts import get_object_or_404
 from .models import Debts, Payments
 from .serializers import DebtSerializer, PaymentSerializer
 
+from django.utils import timezone
+from transactions.models import Transaction
+from users.models import PersonalProfile
+
 from decimal import Decimal
 from line_bot.messaging import (
     push_new_debt_notification,
@@ -1211,3 +1215,194 @@ class PaymentDetailView(APIView):
             {'detail': 'ลบรายการชำระเรียบร้อยแล้ว'},
             status=status.HTTP_200_OK
         )
+
+
+# คำนวณอัตราส่วนภาระหนี้และการชำระหนี้ตรงเวลา
+class FinHealthBorrowView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        today = timezone.localdate()
+
+        # ==========================================
+        # 1. คำนวณรายได้สุทธิรายเดือน
+        # ใช้หลักเดียวกับ FinancialHealthSpendView
+        # ==========================================
+
+        current_month_transactions = Transaction.objects.filter(
+            user=request.user,
+            transaction_date__year=today.year,
+            transaction_date__month=today.month,
+        )
+
+        transaction_income_total = (
+            current_month_transactions
+            .filter(transaction_type="income")
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        profile = PersonalProfile.objects.filter(
+            user=request.user
+        ).first()
+
+        monthly_income = (
+            profile.monthly_income
+            if profile
+            else Decimal("0.00")
+        )
+
+        net_monthly_income = (
+            monthly_income + transaction_income_total
+        )
+
+        # ==========================================
+        # 2. DSR
+        # คำนวณเฉพาะหนี้ยืมแบบรายเดือนที่ยังดำเนินการอยู่
+        # ==========================================
+
+        monthly_ongoing_debts = Debts.objects.filter(
+            user=request.user,
+            type="borrowed",
+            payment_type="monthly",
+            status="ongoing",
+        )
+
+        monthly_debt_total = (
+            monthly_ongoing_debts
+            .aggregate(total=Sum("payment_amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        if net_monthly_income > 0:
+            dsr_percentage = (
+                monthly_debt_total
+                / net_monthly_income
+                * Decimal("100")
+            ).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+        else:
+            dsr_percentage = None
+
+        # ==========================================
+        # 3. ODP
+        # คำนวณเฉพาะหนี้ยืมแบบรายเดือน
+        # ==========================================
+
+        monthly_debts = Debts.objects.filter(
+            user=request.user,
+            type="borrowed",
+            payment_type="monthly",
+        )
+
+        due_installments = 0
+        on_time_installments = 0
+
+        for debt in monthly_debts:
+            if not debt.payment_amount:
+                continue
+
+            payments = Payments.objects.filter(
+                debt=debt,
+                due_date__lte=today,
+            ).order_by("due_date", "paid_date", "id")
+
+            # รวมวันที่ครบกำหนดจากประวัติการชำระ
+            due_dates = set(
+                payments.values_list("due_date", flat=True)
+            )
+
+            # เพิ่มงวดปัจจุบัน หากถึงกำหนดแล้ว
+            if (
+                debt.current_due_date
+                and debt.current_due_date <= today
+            ):
+                due_dates.add(debt.current_due_date)
+
+            # เรียงวันที่เพื่อคำนวณยอดหนี้คงเหลือก่อนแต่ละงวด
+            due_dates = sorted(due_dates)
+
+            accepted_paid_before = Decimal("0.00")
+
+            for installment_due_date in due_dates:
+                due_installments += 1
+
+                installment_payments = payments.filter(
+                    due_date=installment_due_date
+                )
+
+                # หนี้ที่ผูกบัญชีเพื่อนต้องใช้รายการที่อนุมัติแล้ว
+                # หนี้ที่ไม่ได้ผูกบัญชีเพื่อนไม่ต้องตรวจสถานะอนุมัติ
+                if debt.paired_debt_id:
+                    accepted_payments = installment_payments.filter(
+                        approvement_status="approved"
+                    )
+                else:
+                    accepted_payments = installment_payments
+
+                # ยอดที่ต้องชำระในงวดนี้
+                remaining_before_installment = max(
+                    Decimal("0.00"),
+                    Decimal(debt.total_amount) - accepted_paid_before,
+                )
+
+                installment_target = min(
+                    Decimal(debt.payment_amount),
+                    remaining_before_installment,
+                )
+
+                # รวมยอดที่ชำระภายในกำหนด
+                paid_on_time = (
+                    accepted_payments.filter(
+                        paid_date__isnull=False,
+                        paid_date__lte=installment_due_date,
+                    )
+                    .aggregate(total=Sum("paid_amount"))["total"]
+                    or Decimal("0.00")
+                )
+
+                if (
+                    installment_target > 0
+                    and paid_on_time >= installment_target
+                ):
+                    on_time_installments += 1
+
+                # รวมยอดชำระที่ได้รับการยอมรับทั้งหมดของงวดนี้
+                # เพื่อคำนวณยอดคงเหลือก่อนงวดถัดไป
+                accepted_paid_before += (
+                    accepted_payments.aggregate(
+                        total=Sum("paid_amount")
+                    )["total"]
+                    or Decimal("0.00")
+                )
+
+        if due_installments > 0:
+            odp_percentage = (
+                Decimal(on_time_installments)
+                / Decimal(due_installments)
+                * Decimal("100")
+            ).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+        else:
+            odp_percentage = None
+
+        return Response({
+            "year": today.year,
+            "month": today.month,
+
+            "monthly_income": monthly_income,
+            "transaction_income_total": transaction_income_total,
+            "net_monthly_income": net_monthly_income,
+
+            "monthly_debt_total": monthly_debt_total,
+            "dsr_percentage": dsr_percentage,
+            "monthly_debt_count": monthly_ongoing_debts.count(),
+
+            "on_time_installments": on_time_installments,
+            "due_installments": due_installments,
+            "odp_percentage": odp_percentage,
+        })

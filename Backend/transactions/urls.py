@@ -6,7 +6,7 @@ from .views import (
     TransactionDetailView,
     ReceiptOCRView,
     TransactionDraftDetailView,
-    FinancialHealthSpendView
+    FinHealthSpendView
 )
 
 urlpatterns = [
@@ -15,5 +15,6 @@ urlpatterns = [
     path('<int:pk>/', TransactionDetailView.as_view(), name='transaction-detail'),
     path('drafts/<int:pk>/', TransactionDraftDetailView.as_view(), name='transaction-draft-detail'),
     path('drafts/<int:pk>/confirm/', TransactionDraftConfirmView.as_view(), name='transaction-draft-confirm'),
-    path('financial-health/spend/', FinancialHealthSpendView.as_view(), name='financial-health-spend'),
+    
+    path('financial-health/spend/', FinHealthSpendView.as_view(), name='financial-health-spend'),
 ]
