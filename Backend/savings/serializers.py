@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Savings 
+from .models import Savings, SavingsTransaction
 
 class SavingsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,3 +38,20 @@ class SavingsSerializer(serializers.ModelSerializer):
             if value < date.today():
                 raise serializers.ValidationError("วันที่เป้าหมายต้องไม่เป็นวันในอดีต")
         return value
+
+
+class SavingsTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SavingsTransaction
+        fields = [
+            "transaction_id",
+            "saving",
+            "saving_name",
+            "transaction_type",
+            "amount",
+            "transaction_date",
+            "balance_after",
+            "note",
+            "created_at",
+        ]
+        read_only_fields = fields

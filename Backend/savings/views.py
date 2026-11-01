@@ -4,8 +4,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
-from .models import Savings
-from .serializers import SavingsSerializer
+from .models import Savings, SavingsTransaction
+from .serializers import SavingsSerializer, SavingsTransactionSerializer
 
 from decimal import Decimal, InvalidOperation
 
@@ -97,24 +97,25 @@ class SavingsBalanceActionView(APIView):
         except (InvalidOperation, TypeError, ValueError):
             return Response(
                 {"error": "กรุณาระบุจำนวนเงินที่ถูกต้อง"},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_400_BAD_REQUEST
             )
 
         if not amount.is_finite() or amount <= 0:
             return Response(
                 {"error": "จำนวนเงินต้องมากกว่า 0"},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_400_BAD_REQUEST
             )
 
         if amount.as_tuple().exponent < -2:
             return Response(
                 {"error": "รองรับทศนิยมไม่เกิน 2 ตำแหน่ง"},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_400_BAD_REQUEST
             )
 
         with transaction.atomic():
             saving = (
-                Savings.objects.select_for_update()
+                Savings.objects
+                .select_for_update()
                 .filter(saving_id=pk, user=request.user)
                 .first()
             )
@@ -122,41 +123,54 @@ class SavingsBalanceActionView(APIView):
             if saving is None:
                 return Response(
                     {"error": "ไม่พบรายการการออม"},
-                    status=status.HTTP_404_NOT_FOUND,
+                    status=status.HTTP_404_NOT_FOUND
                 )
 
             if self.action == "deposit":
                 new_balance = saving.balance + amount
 
-                # balance มี max_digits=8, decimal_places=2
                 if new_balance > Decimal("999999.99"):
                     return Response(
                         {"error": "ยอดเงินเกินขีดจำกัดที่ระบบรองรับ"},
-                        status=status.HTTP_400_BAD_REQUEST,
+                        status=status.HTTP_400_BAD_REQUEST
                     )
 
                 saving.balance = new_balance
+                transaction_type = SavingsTransaction.TransactionType.DEPOSIT
 
             elif self.action == "withdraw":
                 if amount > saving.balance:
                     return Response(
                         {"error": "ยอดเงินไม่เพียงพอสำหรับการถอน"},
-                        status=status.HTTP_400_BAD_REQUEST,
+                        status=status.HTTP_400_BAD_REQUEST
                     )
 
                 saving.balance -= amount
+                transaction_type = SavingsTransaction.TransactionType.WITHDRAW
 
             else:
                 return Response(
                     {"error": "ไม่รองรับการทำรายการนี้"},
-                    status=status.HTTP_400_BAD_REQUEST,
+                    status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # อัปเดตยอดเงินในกระเป๋า
             saving.save(update_fields=["balance", "updated_at"])
 
+            # บันทึกประวัติการฝาก/ถอน
+            SavingsTransaction.objects.create(
+                saving=saving,
+                user=request.user,
+                saving_name=saving.saving_name,
+                transaction_type=transaction_type,
+                amount=amount,
+                balance_after=saving.balance,
+            )
+
+        # คืนข้อมูลในรูปแบบเดิม เพื่อไม่ให้กระทบ Frontend
         return Response(
             SavingsSerializer(saving).data,
-            status=status.HTTP_200_OK,
+            status=status.HTTP_200_OK
         )
 
 
@@ -166,3 +180,32 @@ class SavingsDepositView(SavingsBalanceActionView):
 
 class SavingsWithdrawView(SavingsBalanceActionView):
     action = "withdraw"
+
+
+class SavingsTransactionListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        transactions = SavingsTransaction.objects.filter(
+            user=request.user
+        ).select_related(
+            "saving"
+        ).order_by(
+            "-transaction_date",
+            "-created_at"
+        )
+
+        # กรองตามกระเป๋าได้ หากส่ง saving_id มา
+        saving_id = request.query_params.get("saving_id")
+
+        if saving_id:
+            transactions = transactions.filter(
+                saving_id=saving_id
+            )
+
+        serializer = SavingsTransactionSerializer(
+            transactions,
+            many=True
+        )
+
+        return Response(serializer.data)
