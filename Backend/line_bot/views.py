@@ -1,10 +1,3 @@
-
-"""LINE OA: บันทึกด้วยข้อความ รูปสลิป และข้อความพร้อมรูปหลักฐาน"""
-
-import base64
-
-"""LINE OA: บันทึกด้วยข้อความ รูปสลิป และข้อความพร้อมรูปหลักฐาน"""
-
 import base64
 import hashlib
 import hmac
@@ -25,7 +18,7 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-
+from django.db.models import Sum
 
 from .parser import parse_financial_message
 from .category_matching import accessible_category, fallback_category, match_category
@@ -47,10 +40,23 @@ from savings.models import Savings
 
 from .messaging import approve_payment_from_line
 
+import re
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+from debts.models import Debts, Payments
+from debts.views import (
+    calculate_payment_due_date,
+    get_next_monthly_due_date,
+    get_related_debts,
+    recalculate_debt_remaining,
+    send_payment_created_notification,
+    upload_debt_image,
+)
+
 logger = logging.getLogger(__name__)
 
 PENDING_TIMEOUT_SECONDS = 24 * 60 * 60
-
 
 # ==================== Pending Draft ====================
 
@@ -107,6 +113,392 @@ def set_transaction_flow(line_user_id, state):
 def clear_transaction_flow(line_user_id):
     cache.delete(transaction_flow_key(line_user_id))
 
+# ==================== LINE Debt Payment Flow ====================
+
+def debt_flow_key(line_user_id):
+    return f"line_debt_payment:{line_user_id}"
+
+
+def get_debt_flow(line_user_id):
+    return cache.get(debt_flow_key(line_user_id))
+
+
+def set_debt_flow(line_user_id, state):
+    cache.set(
+        debt_flow_key(line_user_id),
+        state,
+        timeout=PENDING_TIMEOUT_SECONDS,
+    )
+
+
+def clear_debt_flow(line_user_id):
+    cache.delete(debt_flow_key(line_user_id))
+
+def build_line_debt_list_flex(user):
+    debts = Debts.objects.filter(
+        user=user,
+        type="borrowed",
+        status="ongoing",
+        remaining_amount__gt=0,
+    ).order_by("due_date", "-created_at")
+
+    if not debts.exists():
+        return {
+            "type": "text",
+            "text": "ตอนนี้ไม่มีรายการหนี้สินที่ต้องชำระค่ะ 😊",
+        }
+
+    bubbles = []
+
+    for debt in debts[:10]:
+        due_date = (
+            debt.due_date.strftime("%d/%m/%Y")
+            if debt.due_date else "-"
+        )
+
+        counterparty = (
+            debt.counterparty_name or "-"
+        )
+
+        bubbles.append({
+            "type": "bubble",
+            "size": "kilo",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "md",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": debt.name[:100],
+                        "weight": "bold",
+                        "size": "lg",
+                        "wrap": True,
+                        "color": "#30294A",
+                    },
+                    {
+                        "type": "separator",
+                        "color": "#E8E5F0",
+                    },
+                    {
+                        "type": "text",
+                        "text": f"เจ้าหนี้: {counterparty}",
+                        "size": "sm",
+                        "wrap": True,
+                        "color": "#777286",
+                    },
+                    {
+                        "type": "text",
+                        "text": (
+                            f"ยอดหนี้คงเหลือ: "
+                            f"{debt.remaining_amount:,.2f} บาท"
+                        ),
+                        "size": "lg",
+                        "weight": "bold",
+                        "color": "#6C4BC1",
+                        "wrap": True,
+                    },
+                    {
+                        "type": "text",
+                        "text": f"ครบกำหนด: {due_date}",
+                        "size": "sm",
+                        "color": "#777286",
+                    },
+                ],
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "button",
+                        "style": "primary",
+                        "color": "#6C4BC1",
+                        "action": {
+                            "type": "postback",
+                            "label": "ชำระหนี้รายการนี้",
+                            "data": (
+                                f"action=debt_select"
+                                f"&debt_id={debt.pk}"
+                            ),
+                            "displayText": (
+                                f"เลือกชำระหนี้ {debt.name}"
+                            ),
+                        },
+                    },
+                ],
+            },
+        })
+
+    return {
+        "type": "flex",
+        "altText": "รายการหนี้สินที่ต้องชำระ",
+        "contents": {
+            "type": "carousel",
+            "contents": bubbles,
+        },
+    }
+def build_debt_attach_image_flex():
+    return {
+        "type": "flex",
+        "altText": "ต้องการแนบรูปหลักฐานการชำระเงินไหม?",
+        "contents": {
+            "type": "bubble",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "md",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "รับจำนวนเงินแล้วค่ะ",
+                        "weight": "bold",
+                        "size": "lg",
+                        "color": "#30294A",
+                    },
+                    {
+                        "type": "text",
+                        "text": (
+                            "ต้องการแนบรูปหลักฐานการโอนเงินไหมคะ?"
+                        ),
+                        "size": "sm",
+                        "wrap": True,
+                        "color": "#777286",
+                    },
+                    {
+                        "type": "text",
+                        "text": (
+                            "หากต้องการแนบรูป สามารถส่งรูปภาพ "
+                            "เข้ามาในแชตได้เลยค่ะ"
+                        ),
+                        "size": "xs",
+                        "wrap": True,
+                        "color": "#777286",
+                    },
+                ],
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "button",
+                        "style": "primary",
+                        "color": "#6C4BC1",
+                        "action": {
+                            "type": "postback",
+                            "label": "ไม่แนบรูป / บันทึกเลย",
+                            "data": (
+                                "action=debt_finish_without_image"
+                            ),
+                            "displayText": "ไม่แนบรูปหลักฐาน",
+                        },
+                    },
+                ],
+            },
+        },
+    }
+# คำนวณยอดคงเหลือและการแจ้งเตือนจาก debts/views.py
+def save_line_debt_payment(
+    user,
+    line_user_id,
+    image_bytes=None,
+    message_id=None,
+):
+    state = get_debt_flow(line_user_id)
+
+    if not state or state.get("step") != "await_image":
+        return "ไม่พบรายการที่กำลังรอชำระค่ะ กรุณาเริ่มใหม่อีกครั้ง"
+
+    debt = Debts.objects.filter(
+        pk=state.get("debt_id"),
+        user=user,
+        type="borrowed",
+        status="ongoing",
+    ).first()
+
+    if debt is None:
+        clear_debt_flow(line_user_id)
+        return "ไม่พบรายการหนี้นี้ หรือรายการนี้ชำระครบแล้วค่ะ"
+
+    paid_amount = Decimal(state.get("amount", "0"))
+
+    if paid_amount <= 0:
+        clear_debt_flow(line_user_id)
+        return "จำนวนเงินไม่ถูกต้อง กรุณาเริ่มรายการใหม่ค่ะ"
+
+    # อัปโหลดรูปหลักฐานไป Supabase
+    proof_image_url = None
+
+    if image_bytes:
+        try:
+            image_file = SimpleUploadedFile(
+                name=f"line_debt_{message_id}.jpg",
+                content=image_bytes,
+                content_type="image/jpeg",
+            )
+
+            proof_image_url = upload_debt_image(image_file)
+
+        except Exception as error:
+            logger.exception(
+                "LINE debt proof upload failed: %s",
+                error,
+            )
+            return (
+                "อัปโหลดรูปหลักฐานไม่สำเร็จค่ะ "
+                "กรุณาส่งรูปอีกครั้ง"
+            )
+
+    try:
+        with transaction.atomic():
+
+            debt = Debts.objects.select_for_update().get(
+                pk=debt.pk,
+                user=user,
+                type="borrowed",
+            )
+
+            # อัปเดตยอดหนี้ให้เป็นปัจจุบันก่อนตรวจสอบ
+            recalculate_debt_remaining(debt)
+            debt.refresh_from_db()
+
+            related_debts = get_related_debts(debt)
+            related_ids = [item.pk for item in related_debts]
+
+            # รวมยอดที่ชำระแล้วและรายการที่รออนุมัติ
+            paid_total = (
+                Payments.objects.filter(
+                    debt_id__in=related_ids,
+                    approvement_status__in=[
+                        "approved",
+                        "pending",
+                    ],
+                ).aggregate(
+                    total=Sum("paid_amount")
+                )["total"]
+                or Decimal("0.00")
+            )
+
+            shared_remaining = (
+                Decimal(debt.total_amount) - Decimal(paid_total)
+            )
+
+            if shared_remaining <= 0:
+                return "รายการนี้ชำระครบแล้วค่ะ"
+
+            if paid_amount > shared_remaining:
+                return (
+                    f"จำนวนเงินเกินยอดหนี้คงเหลือค่ะ "
+                    f"คุณสามารถชำระได้ไม่เกิน "
+                    f"{shared_remaining:,.2f} บาท"
+                )
+
+            # คำนวณวันครบกำหนดจากระบบเดิม
+            current_due_date = calculate_payment_due_date(debt)
+
+            # หนี้ผูกบัญชีเพื่อนต้องรอเจ้าหนี้อนุมัติ
+            approvement_status = (
+                "pending"
+                if debt.paired_debt_id
+                else "approved"
+            )
+
+            scheduled_amount = (
+                debt.payment_amount
+                if debt.payment_type == "monthly"
+                else None
+            )
+
+            payment = Payments.objects.create(
+                debt=debt,
+                scheduled_amount=scheduled_amount,
+                paid_amount=paid_amount,
+                due_date=current_due_date,
+                paid_date=timezone.localdate(),
+                proof_image=proof_image_url,
+                note="ชำระผ่าน LINE OA",
+                approvement_status=approvement_status,
+            )
+
+            # คำนวณยอดหนี้คงเหลือใหม่
+            recalculate_debt_remaining(debt)
+            debt.refresh_from_db()
+
+            # เลื่อนงวดถัดไปเฉพาะหนี้รายเดือนที่อนุมัติแล้ว
+            if (
+                debt.payment_type == "monthly"
+                and debt.payment_amount is not None
+                and approvement_status == "approved"
+            ):
+                installment_paid_total = (
+                    Payments.objects.filter(
+                        debt_id__in=related_ids,
+                        due_date=current_due_date,
+                        approvement_status="approved",
+                    ).aggregate(
+                        total=Sum("paid_amount")
+                    )["total"]
+                    or Decimal("0.00")
+                )
+
+                installment_target = min(
+                    Decimal(debt.payment_amount),
+                    shared_remaining,
+                )
+
+                if (
+                    installment_target > 0
+                    and installment_paid_total >= installment_target
+                    and debt.remaining_amount > 0
+                ):
+                    next_due_date = get_next_monthly_due_date(
+                        current_due_date,
+                        debt.payment_date,
+                    )
+
+                    for related_debt in related_debts:
+                        related_debt.current_due_date = next_due_date
+                        related_debt.save(
+                            update_fields=[
+                                "current_due_date",
+                                "updated_at",
+                            ]
+                        )
+
+            # เรียกใช้ระบบแจ้งเตือนเดิมหลังบันทึกสำเร็จ
+            transaction.on_commit(
+                lambda payment_id=payment.pk,
+                       previous_remaining=shared_remaining:
+                    send_payment_created_notification(
+                        payment_id,
+                        previous_remaining,
+                    )
+            )
+
+        clear_debt_flow(line_user_id)
+
+        if approvement_status == "pending":
+            return (
+                f"ส่งรายการชำระหนี้ {debt.name} "
+                f"จำนวน {paid_amount:,.2f} บาทเรียบร้อยแล้วค่ะ\n\n"
+                "ระบบได้แจ้งเจ้าหนี้เพื่อรอตรวจสอบและอนุมัติแล้วค่ะ"
+            )
+
+        return (
+            f"บันทึกการชำระหนี้ {debt.name} "
+            f"จำนวน {paid_amount:,.2f} บาทเรียบร้อยแล้วค่ะ"
+        )
+
+    except Exception as error:
+        logger.exception(
+            "LINE debt payment creation failed: %s",
+            error,
+        )
+        return (
+            "เกิดข้อผิดพลาดในการบันทึกการชำระหนี้ค่ะ "
+            "กรุณาลองใหม่อีกครั้ง"
+        )
 # ==================== LINE Reply ====================
 
 def reply_to_line(reply_token, message):
@@ -597,7 +989,55 @@ def handle_postback(data, line_user_id):
 
     if user is None:
         return "กรุณาเข้าสู่ระบบและเชื่อมบัญชี LINE ก่อนค่ะ"
+    #=====================จดหนี้สิน========================
+    if action == "debt_select":
+        try:
+            debt_id = int(
+                params.get("debt_id", [""])[0]
+            )
+        except (TypeError, ValueError):
+            return "ไม่พบรหัสรายการหนี้ค่ะ"
 
+        debt = Debts.objects.filter(
+            pk=debt_id,
+            user=user,
+            type="borrowed",
+            status="ongoing",
+            remaining_amount__gt=0,
+        ).first()
+
+        if debt is None:
+            return "ไม่พบรายการหนี้ หรือรายการนี้ชำระครบแล้วค่ะ"
+
+        clear_debt_flow(line_user_id)
+
+        set_debt_flow(line_user_id, {
+            "step": "await_amount",
+            "debt_id": debt.pk,
+        })
+
+        return (
+            f"คุณเลือกรายการ: {debt.name}\n\n"
+            f"ยอดหนี้คงเหลือ: "
+            f"{debt.remaining_amount:,.2f} บาท\n\n"
+            "กรุณาพิมพ์จำนวนเงินที่ต้องการชำระค่ะ\n"
+            "ตัวอย่าง: 500 หรือ 500 บาท"
+        )
+
+    if action == "debt_finish_without_image":
+        state = get_debt_flow(line_user_id)
+
+        if (
+            not state
+            or state.get("step") != "await_image"
+        ):
+            return "รายการนี้หมดอายุหรือดำเนินการไปแล้วค่ะ"
+
+        return save_line_debt_payment(
+            user=user,
+            line_user_id=line_user_id,
+        )
+    #=====================จดรายรับ/รายจ่าย========================
     # ยกเลิกการแนบรูปและบันทึกรายการทันที ถ้าผู้ใช้เลือกไม่แนบรูป
     if action == "transaction_finish_without_image":
         draft = get_pending(line_user_id, user)
@@ -611,6 +1051,7 @@ def handle_postback(data, line_user_id):
             return "รายการนี้หมดอายุหรือดำเนินการไปแล้วค่ะ"
 
         return save_draft_now(draft, user, line_user_id)
+     #=====================จดการออม========================
     # เปิดรายการกระเป๋าออมจาก Rich Menu
     if action == "view_savings" or (
         action == "select_record" and record_type in ("saving", "savings")
@@ -677,11 +1118,16 @@ def handle_postback(data, line_user_id):
     if action != "select_record":
         return "เมนูนี้ยังไม่เปิดใช้งานค่ะ"
 
+    if record_type == "debt":
+        clear_debt_flow(line_user_id)
+        return build_line_debt_list_flex(user)
+
     if record_type not in ("income", "expense"):
-        return "เมนูจดหนี้สิน/การออมยังไม่เปิดใช้งานค่ะ"
+        return "เมนูนี้ยังไม่เปิดใช้งานค่ะ"
 
+    clear_debt_flow(line_user_id)
     clear_savings_state(line_user_id)
-
+    
     previous = LineRecordMode.objects.filter(
         user=user
     ).first()
@@ -750,7 +1196,78 @@ def handle_text_message(text, line_user_id):
 
     if savings_answer is not None:
         return savings_answer
+    
+    # ==================== Debt Payment Text ====================
 
+    debt_state = get_debt_flow(line_user_id)
+
+    if debt_state:
+
+        if debt_state.get("step") == "await_amount":
+            # รองรับ 500, 500.50, 1,000 และ 1,000 บาท
+            amount_text = (
+                command
+                .replace(",", "")
+                .replace("บาท", "")
+                .strip()
+            )
+
+            if not re.fullmatch(
+                r"\d+(?:\.\d{1,2})?",
+                amount_text,
+            ):
+                return (
+                    "รูปแบบจำนวนเงินไม่ถูกต้องค่ะ\n"
+                    "กรุณาพิมพ์เป็นตัวเลข เช่น 500 หรือ 500.50"
+                )
+
+            try:
+                amount = Decimal(amount_text)
+            except InvalidOperation:
+                return "จำนวนเงินไม่ถูกต้องค่ะ กรุณาลองใหม่อีกครั้ง"
+
+            if amount <= 0:
+                return "จำนวนเงินต้องมากกว่า 0 บาทค่ะ"
+
+            debt = Debts.objects.filter(
+                pk=debt_state.get("debt_id"),
+                user=user,
+                type="borrowed",
+                status="ongoing",
+                remaining_amount__gt=0,
+            ).first()
+
+            if debt is None:
+                clear_debt_flow(line_user_id)
+                return "ไม่พบรายการหนี้ หรือรายการนี้ชำระครบแล้วค่ะ"
+
+            # ตรวจสอบยอดคงเหลือเบื้องต้น
+            recalculate_debt_remaining(debt)
+            debt.refresh_from_db()
+
+            if amount > debt.remaining_amount:
+                return (
+                    f"จำนวนเงินเกินยอดหนี้คงเหลือค่ะ\n"
+                    f"ยอดที่สามารถชำระได้สูงสุด "
+                    f"{debt.remaining_amount:,.2f} บาท"
+                )
+
+            debt_state.update({
+                "step": "await_image",
+                "amount": str(amount),
+            })
+
+            set_debt_flow(line_user_id, debt_state)
+
+            return build_debt_attach_image_flex()
+
+        if debt_state.get("step") == "await_image":
+            return (
+                "ระบบกำลังรอรูปหลักฐานการชำระเงินค่ะ\n"
+                "กรุณาส่งรูปภาพ หรือกดปุ่ม "
+                "'ไม่แนบรูป / บันทึกเลย' จากข้อความก่อนหน้า"
+            )
+        
     draft = get_pending(line_user_id, user)
     flow = get_transaction_flow(line_user_id)
 
@@ -968,7 +1485,54 @@ def handle_image_message(message_id, line_user_id):
 
     if not message_id:
         return "ไม่พบรหัสรูปภาพ กรุณาส่งรูปใหม่ค่ะ"
+    # ==================== Debt Payment Image ====================
 
+    debt_state = get_debt_flow(line_user_id)
+
+    if debt_state:
+        if debt_state.get("step") != "await_image":
+            return (
+                "กรุณาระบุจำนวนเงินที่ต้องการชำระก่อนส่งรูปหลักฐานค่ะ"
+            )
+
+        try:
+            response = httpx.get(
+                (
+                    "https://api-data.line.me/v2/bot/message/"
+                    f"{message_id}/content"
+                ),
+                headers={
+                    "Authorization": (
+                        f"Bearer {settings.LINE_BOT_CHANNEL_ACCESS_TOKEN}"
+                    )
+                },
+                timeout=20,
+            )
+
+            response.raise_for_status()
+
+            image_bytes = response.content
+
+            if len(image_bytes) > 5 * 1024 * 1024:
+                return "รูปภาพใหญ่เกิน 5 MB กรุณาส่งรูปใหม่ค่ะ"
+
+            return save_line_debt_payment(
+                user=user,
+                line_user_id=line_user_id,
+                image_bytes=image_bytes,
+                message_id=message_id,
+            )
+
+        except httpx.HTTPError as error:
+            logger.exception(
+                "LINE debt image download failed: %s",
+                error,
+            )
+            return (
+                "ดาวน์โหลดรูปจาก LINE ไม่สำเร็จค่ะ "
+                "กรุณาส่งรูปอีกครั้ง"
+            )
+    # ============================================================        
     if get_savings_state(line_user_id):
         return (
             "ขณะนี้กำลังทำรายการการออม "
