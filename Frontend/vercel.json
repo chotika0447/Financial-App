@@ -40,10 +40,7 @@
       "source": "/transactions/:path*/",
       "destination": "https://financial-app-xgc0.onrender.com/transactions/:path*/"
     },
-    {
-      "source": "/transactions/:path*",
-      "destination": "https://financial-app-xgc0.onrender.com/transactions/:path*"
-    },
+
     {
       "source": "/debts/",
       "has": [

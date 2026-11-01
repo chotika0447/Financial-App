@@ -42,9 +42,6 @@ function FinHealth() {
             <header className="fh-header">
                 <div className="fh-header-top">
                     <div>
-                        <span className="fh-eyebrow">
-                            FINANCIAL WELLNESS
-                        </span>
 
                         <h1>สุขภาพการเงินของคุณ</h1>
 
@@ -79,7 +76,7 @@ function FinHealth() {
                         <div>
                             <h2>คะแนนสุขภาพการเงิน</h2>
                             <p>
-                                คะแนนแต่ละด้านประเมินแยกจากกัน คะแนนเต็มด้านละ 100
+                                แบ่งออกเป็น 3 ด้านตามการใช้งานแต่ละฟีเจอร์ ดังนี้
                             </p>
                         </div>
                     </div>
@@ -116,8 +113,7 @@ function FinHealth() {
                                     </div>
 
                                     <div className="fh-score-card-title">
-                                        <strong>{category.name}</strong>
-                                        <span>{category.subtitle}</span>
+                                        <strong>{category.title}</strong>
                                     </div>
 
                                     <div className="fh-score-number">
@@ -202,7 +198,7 @@ function FinHealth() {
                                             background: category.color,
                                         }}
                                     />
-                                    {category.name}
+                                    {category.title}
                                 </div>
                             ))}
                         </div>
@@ -343,8 +339,7 @@ function FinHealth() {
 
                                             <div>
                                                 <strong>
-                                                    {category.name} —{' '}
-                                                    {category.subtitle}
+                                                    {category.title} —{' '}
                                                 </strong>
 
                                                 <p>

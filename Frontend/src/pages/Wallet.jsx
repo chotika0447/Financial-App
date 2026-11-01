@@ -494,7 +494,7 @@ function Wallet() {
 
 
                 {/*ส่วนต่อท้ายพื้นที่แสดงกระเป๋า ประวัติการฝาก-ถอน */}
-                <section className="wallet-history-section">
+                {/* <section className="wallet-history-section">
                     <h2 className="wallet-section-title">
                         ประวัติการฝาก–ถอน
                     </h2>
@@ -565,7 +565,7 @@ function Wallet() {
                             })}
                         </div>
                     )}
-                </section>
+                </section> */}
 
             </main>
 

@@ -658,6 +658,159 @@
     color: #b42318 !important;
 }
 
+/* Indicator heading */
+.fhd-indicator-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.fhd-indicator-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.fhd-indicator-heading h2 {
+    margin: 0 0 4px;
+}
+
+.fhd-indicator-heading p {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+/* TRC summary */
+.fhd-trc-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.fhd-trc-summary > div {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    border-radius: 14px;
+    background: #f8fafc;
+}
+
+.fhd-trc-summary span {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.fhd-trc-summary strong {
+    color: #1e293b;
+    font-size: 20px;
+}
+
+.fhd-trc-summary .fhd-trc-percentage strong {
+    color: #0d9488;
+}
+
+/* TRC month list */
+.fhd-trc-month-list {
+    margin-top: 24px;
+}
+
+.fhd-trc-month-list h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+}
+
+.fhd-trc-month-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.fhd-trc-month-name {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.fhd-trc-month-name strong {
+    color: #334155;
+    font-size: 14px;
+}
+
+.fhd-trc-month-name span {
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.fhd-trc-status {
+    flex-shrink: 0;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.fhd-trc-status.is-complete {
+    color: #15803d;
+    background: #dcfce7;
+}
+
+.fhd-trc-status.is-incomplete {
+    color: #b45309;
+    background: #fef3c7;
+}
+
+/* TRC note */
+.fhd-trc-note {
+    margin-top: 20px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+
+.fhd-trc-note strong {
+    display: block;
+    margin-bottom: 6px;
+    color: #475569;
+    font-size: 13px;
+}
+
+.fhd-trc-note p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .fhd-trc-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .fhd-trc-month-item {
+        align-items: flex-start;
+    }
+
+    .fhd-trc-month-name span {
+        line-height: 1.5;
+    }
+}
+
 @media (min-width: 600px) {
     .fhd-spend-row {
         padding: 15px 17px;

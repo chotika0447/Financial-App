@@ -1,91 +1,32 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, CheckCircle2, Trash2 } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 
 import Navbar from '../components/Navbar';
 import finHealthCriteria from '../data/finHealthCriteria';
 import './FinHealthDetail.css';
 
-const PLAN_ANSWERS_KEY = 'financialHealthPlanAnswers';
-const PLAN_ANSWERS_EVENT = 'financialHealthPlanAnswersChanged';
-const PLAN_QUESTIONS = [
-    {
-        id: 'q7',
-        number: '7',
-        title:
-            'เมื่อคิดถึงประกันทุกประเภทที่คุณและสมาชิกในครัวเรือนมีอยู่ในปัจจุบัน คุณมั่นใจเพียงใดว่ากรมธรรม์ประกันเหล่านั้นจะให้ความคุ้มครองเพียงพอเมื่อเกิดเหตุฉุกเฉิน?',
-        description:
-            'ตัวอย่างเช่น ประกันสุขภาพ ประกันรถยนต์หรือยานพาหนะ ประกันบ้านหรือทรัพย์สิน ประกันชีวิต และประกันทุพพลภาพ',
-        options: [
-            { value: '100', label: 'มั่นใจมากที่สุด' },
-            { value: '75', label: 'มั่นใจค่อนข้างมาก' },
-            { value: '50', label: 'มั่นใจปานกลาง' },
-            { value: '25', label: 'มั่นใจเล็กน้อย' },
-            { value: '10', label: 'ไม่มั่นใจเลย' },
-            { value: '0', label: 'ไม่มีสมาชิกในครัวเรือนคนใดมีประกัน' },
-        ],
-    },
-    {
-        id: 'q8',
-        number: '8',
-        title:
-            'คุณเห็นด้วยหรือไม่เห็นด้วยกับข้อความต่อไปนี้มากน้อยเพียงใด?',
-        statement:
-            '“ครัวเรือนของฉันมีการวางแผนทางการเงินไว้ล่วงหน้า”',
-        options: [
-            { value: '100', label: 'เห็นด้วยอย่างยิ่ง' },
-            { value: '65', label: 'เห็นด้วย' },
-            { value: '35', label: 'ไม่เห็นด้วยหรือไม่เห็นด้วยก็ไม่ใช่' },
-            { value: '15', label: 'ไม่เห็นด้วย' },
-            { value: '0', label: 'ไม่เห็นด้วยอย่างยิ่ง' },
-        ],
-    },
-];
+function formatSpendMoney(value) {
+    return Number(value || 0).toLocaleString('th-TH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
 
-function calculatePlanAverage(answers) {
-    if (!answers.q7 || !answers.q8) {
-        return null;
-    }
-
-    return (
-        (Number(answers.q7) + Number(answers.q8)) / 2
-    );
+function formatThaiMonth(year, month) {
+    return new Date(year, month - 1, 1).toLocaleDateString('th-TH', {
+        month: 'long',
+        year: 'numeric',
+    });
 }
 
 function FinHealthDetail() {
     const navigate = useNavigate();
+    const { id } = useParams();
 
     const [spendMetrics, setSpendMetrics] = useState(null);
     const [spendLoading, setSpendLoading] = useState(false);
     const [spendError, setSpendError] = useState('');
-
-    const { id } = useParams();
-    const [planAnswers, setPlanAnswers] = useState({ q7: '', q8: '' });
-    const planAverage = calculatePlanAverage(planAnswers);
-
-    const [saveError, setSaveError] = useState('');
-
-    useEffect(() => {
-        if (id !== 'plan') return;
-
-        try {
-            const saved = localStorage.getItem(PLAN_ANSWERS_KEY);
-
-            if (saved) {
-                const parsed = JSON.parse(saved);
-
-                setPlanAnswers({
-                    q7: parsed.q7 ?? '',
-                    q8: parsed.q8 ?? '',
-                });
-            } else {
-                setPlanAnswers({ q7: '', q8: '' });
-            }
-        } catch {
-            setPlanAnswers({ q7: '', q8: '' });
-            setSaveError('ไม่สามารถอ่านข้อมูลแบบประเมินที่บันทึกไว้ได้');
-        }
-    }, [id]);
 
     useEffect(() => {
         if (id !== 'spend') return;
@@ -121,7 +62,7 @@ function FinHealthDetail() {
                     throw new Error(
                         data.detail ||
                         data.error ||
-                        'ไม่สามารถโหลดข้อมูลการใช้จ่ายได้'
+                        'ไม่สามารถโหลดข้อมูลสุขภาพการเงินได้'
                     );
                 }
 
@@ -144,50 +85,6 @@ function FinHealthDetail() {
         return () => controller.abort();
     }, [id]);
 
-    function handlePlanAnswerChange(questionId, value) {
-        const updatedAnswers = {
-            ...planAnswers,
-            [questionId]: value,
-        };
-
-        setPlanAnswers(updatedAnswers);
-        setSaveError('');
-
-        try {
-            localStorage.setItem(
-                PLAN_ANSWERS_KEY,
-                JSON.stringify(updatedAnswers)
-            );
-
-            window.dispatchEvent(
-                new Event(PLAN_ANSWERS_EVENT)
-            );
-        } catch {
-            setSaveError('บันทึกคำตอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
-        }
-    }
-
-    function handleClearPlanAnswers() {
-        try {
-            localStorage.removeItem(PLAN_ANSWERS_KEY);
-            setPlanAnswers({ q7: '', q8: '' });
-            setSaveError('');
-
-            window.dispatchEvent(
-                new Event(PLAN_ANSWERS_EVENT)
-            );
-        } catch {
-            setSaveError('ล้างคำตอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
-        }
-    }
-
-    const formatSpendMoney = (value) => {
-        return Number(value || 0).toLocaleString('th-TH', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        });
-    };
-
     const criterion = finHealthCriteria.find(
         (item) => item.id === id
     );
@@ -204,13 +101,11 @@ function FinHealthDetail() {
                     >
                         <ChevronLeft size={22} />
                     </button>
-
                     <h1>ไม่พบเกณฑ์คะแนน</h1>
                 </header>
 
                 <main className="fhd-main">
                     <p>ไม่พบข้อมูลเกณฑ์ที่เลือก</p>
-
                     <button
                         type="button"
                         className="fhd-primary-button"
@@ -227,9 +122,10 @@ function FinHealthDetail() {
 
     const Icon = criterion.Icon;
 
+    const trcMonths = spendMetrics?.trc_months || [];
+
     return (
         <div className="fhd-page">
-
             <header className="fhd-header">
                 <div className="fhd-heading">
                     <button
@@ -262,219 +158,268 @@ function FinHealthDetail() {
                     <h2>เกี่ยวกับเกณฑ์นี้</h2>
                     <p>{criterion.description}</p>
                 </section>
-                
-                {/* เลือกมาแท็บหน้าการใช้จ่าย */}
+
                 {criterion.id === 'spend' && (
-                    <section className="fhd-card fhd-spend-card">
-                        <h2>อัตราค่าใช้จ่ายต่อรายได้</h2>
-
-                        <p className="fhd-spend-description">
-                            คำนวณจากรายการรายรับและรายจ่ายของเดือนปัจจุบัน
-                            รวมกับรายได้ประจำเดือนที่ระบุไว้ในข้อมูลส่วนตัว
-                        </p>
-
-                        <div className="fhd-spend-formula">
-                            <span className="fhd-spend-label">สูตร</span>
-                            <p>
-                                อัตราค่าใช้จ่ายต่อรายได้ =
-                                (ค่าใช้จ่ายทั้งหมดต่อเดือน ÷ รายได้สุทธิต่อเดือน) × 100
-                            </p>
-                        </div>
-
+                    <>
                         {spendLoading ? (
-                            <p className="fhd-spend-message">
-                                กำลังคำนวณข้อมูลการใช้จ่าย...
-                            </p>
+                            <section className="fhd-card">
+                                <p className="fhd-spend-message">
+                                    กำลังคำนวณข้อมูลสุขภาพการเงิน...
+                                </p>
+                            </section>
                         ) : spendError ? (
-                            <p className="fhd-spend-error" role="alert">
-                                {spendError}
-                            </p>
+                            <section className="fhd-card">
+                                <p className="fhd-spend-error" role="alert">
+                                    {spendError}
+                                </p>
+                            </section>
                         ) : spendMetrics ? (
                             <>
-                                <div className="fhd-spend-period">
-                                    ข้อมูลเดือน {spendMetrics.month}/{spendMetrics.year + 543}
-                                </div>
-
-                                <div className="fhd-spend-breakdown">
-                                    <div className="fhd-spend-row">
-                                        <span>ค่าใช้จ่ายทั้งหมดต่อเดือน</span>
-                                        <strong>
-                                            {formatSpendMoney(spendMetrics.expense_total)} บาท
-                                        </strong>
+                                {/* EIR */}
+                                <section className="fhd-card fhd-spend-card">
+                                    <div className="fhd-indicator-heading">
+                                        <span className="fhd-indicator-number">
+                                            01
+                                        </span>
+                                        <div>
+                                            <h2>
+                                                อัตราส่วนค่าใช้จ่ายต่อรายได้
+                                            </h2>
+                                            <p>
+                                                Expense-to-Income Ratio (EIR)
+                                            </p>
+                                        </div>
                                     </div>
 
-                                    <div className="fhd-spend-row">
-                                        <span>รายได้ประจำเดือนจากข้อมูลส่วนตัว</span>
-                                        <strong>
-                                            {formatSpendMoney(spendMetrics.monthly_income)} บาท
-                                        </strong>
+                                    <p className="fhd-spend-description">
+                                        คำนวณจากรายจ่ายทั้งหมดของเดือน
+                                        เปรียบเทียบกับรายได้สุทธิของเดือนนั้น
+                                    </p>
+
+                                    <div className="fhd-spend-formula">
+                                        <span className="fhd-spend-label">
+                                            สูตรคำนวณ
+                                        </span>
+                                        <p>
+                                            (ค่าใช้จ่ายทั้งหมด ÷ รายได้สุทธิ) × 100
+                                        </p>
                                     </div>
 
-                                    <div className="fhd-spend-row">
-                                        <span>รายรับจากธุรกรรมเดือนนี้</span>
-                                        <strong>
-                                            {formatSpendMoney(
-                                                spendMetrics.transaction_income_total
-                                            )} บาท
-                                        </strong>
+                                    <div className="fhd-spend-period">
+                                        ข้อมูลเดือน{' '}
+                                        {formatThaiMonth(
+                                            spendMetrics.year,
+                                            spendMetrics.month
+                                        )}
                                     </div>
 
-                                    <div className="fhd-spend-row fhd-spend-row-total">
-                                        <span>รายได้สุทธิต่อเดือน</span>
-                                        <strong>
-                                            {formatSpendMoney(
-                                                spendMetrics.net_monthly_income
-                                            )} บาท
-                                        </strong>
-                                    </div>
-                                </div>
-
-                                <div className="fhd-spend-result">
-                                    <span>ผลการคำนวณ</span>
-
-                                    {spendMetrics.expense_ratio === null ? (
-                                        <strong className="fhd-spend-no-result">
-                                            ยังไม่สามารถคำนวณได้ เนื่องจากรายได้รวมเป็นศูนย์
-                                        </strong>
-                                    ) : (
-                                        <div className="fhd-spend-result-value">
+                                    <div className="fhd-spend-breakdown">
+                                        <div className="fhd-spend-row">
+                                            <span>ค่าใช้จ่ายทั้งหมด</span>
                                             <strong>
                                                 {formatSpendMoney(
-                                                    spendMetrics.expense_ratio
-                                                )}
+                                                    spendMetrics.expense_total
+                                                )} บาท
                                             </strong>
-                                            <span>%</span>
                                         </div>
-                                    )}
-                                </div>
+
+                                        <div className="fhd-spend-row">
+                                            <span>เงินเดือน</span>
+                                            <strong>
+                                                {formatSpendMoney(
+                                                    spendMetrics.monthly_income
+                                                )} บาท
+                                            </strong>
+                                        </div>
+
+                                        <div className="fhd-spend-row">
+                                            <span>รายรับจากธุรกรรม</span>
+                                            <strong>
+                                                {formatSpendMoney(
+                                                    spendMetrics.transaction_income_total
+                                                )} บาท
+                                            </strong>
+                                        </div>
+
+                                        <div className="fhd-spend-row fhd-spend-row-total">
+                                            <span>รายได้สุทธิ</span>
+                                            <strong>
+                                                {formatSpendMoney(
+                                                    spendMetrics.net_monthly_income
+                                                )} บาท
+                                            </strong>
+                                        </div>
+                                    </div>
+
+                                    <div className="fhd-spend-result">
+                                        <span>ผลการคำนวณ EIR</span>
+
+                                        {spendMetrics.expense_ratio == null ? (
+                                            <strong className="fhd-spend-no-result">
+                                                ยังไม่สามารถคำนวณได้
+                                                เนื่องจากรายได้สุทธิเป็นศูนย์
+                                            </strong>
+                                        ) : (
+                                            <div className="fhd-spend-result-value">
+                                                <strong>
+                                                    {formatSpendMoney(
+                                                        spendMetrics.expense_ratio
+                                                    )}
+                                                </strong>
+                                                <span>%</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </section>
+
+                                {/* TRC */}
+                                <section className="fhd-card fhd-trc-card">
+                                    <div className="fhd-indicator-heading">
+                                        <span className="fhd-indicator-number">
+                                            02
+                                        </span>
+                                        <div>
+                                            <h2>
+                                                ความสม่ำเสมอในการบันทึก
+                                                รายรับ–รายจ่าย
+                                            </h2>
+                                            <p>
+                                                Transaction Recording Consistency (TRC)
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <p className="fhd-spend-description">
+                                        ตรวจสอบจำนวนเดือนที่มีการบันทึก
+                                        ทั้งรายการรายรับและรายจ่าย
+                                    </p>
+
+                                    <div className="fhd-spend-formula">
+                                        <span className="fhd-spend-label">
+                                            สูตรคำนวณ
+                                        </span>
+                                        <p>
+                                            (จำนวนเดือนที่มีทั้งรายรับและรายจ่าย
+                                            ÷ จำนวนเดือนที่ใช้ประเมิน) × 100
+                                        </p>
+                                    </div>
+
+                                    <div className="fhd-trc-summary">
+                                        <div>
+                                            <span>เดือนที่บันทึกครบ</span>
+                                            <strong>
+                                                {spendMetrics.trc_complete_months}
+                                                {' / '}
+                                                {spendMetrics.trc_period_months}
+                                                {' เดือน'}
+                                            </strong>
+                                        </div>
+
+                                        <div className="fhd-trc-percentage">
+                                            <span>ผลการคำนวณ TRC</span>
+                                            <strong>
+                                                {formatSpendMoney(
+                                                    spendMetrics.trc_percentage
+                                                )}%
+                                            </strong>
+                                        </div>
+                                    </div>
+
+                                    <div className="fhd-trc-month-list">
+                                        <h3>รายละเอียดข้อมูลรายเดือน</h3>
+
+                                        {trcMonths.map((item) => {
+                                            const isComplete =
+                                                item.has_income &&
+                                                item.has_expense;
+
+                                            return (
+                                                <div
+                                                    className="fhd-trc-month-item"
+                                                    key={`${item.year}-${item.month}`}
+                                                >
+                                                    <div className="fhd-trc-month-name">
+                                                        <strong>
+                                                            {formatThaiMonth(
+                                                                item.year,
+                                                                item.month
+                                                            )}
+                                                        </strong>
+
+                                                        <span>
+                                                            รายรับ {item.income_count} รายการ
+                                                            {' · '}
+                                                            รายจ่าย {item.expense_count} รายการ
+                                                        </span>
+                                                    </div>
+
+                                                    <span
+                                                        className={`fhd-trc-status ${
+                                                            isComplete
+                                                                ? 'is-complete'
+                                                                : 'is-incomplete'
+                                                        }`}
+                                                    >
+                                                        {isComplete
+                                                            ? 'บันทึกครบ'
+                                                            : 'ข้อมูลไม่ครบ'}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="fhd-trc-note">
+                                        <strong>หมายเหตุ</strong>
+                                        <p>
+                                            ระบบใช้ข้อมูลย้อนหลัง 3 เดือน
+                                            รวมเดือนปัจจุบัน หากมีข้อมูลบันทึก
+                                            ไม่ครบทั้ง 3 เดือน คะแนนที่คำนวณได้
+                                            อาจไม่สะท้อนพฤติกรรมทางการเงิน
+                                            ที่แท้จริง และอาจมีความคลาดเคลื่อน
+                                            จากความเป็นจริงได้
+                                        </p>
+                                    </div>
+                                </section>
+
+                                {/* Spend score */}
+                                <section className="fhd-card fhd-spend-total-card">
+                                    <h2>คะแนนด้านรายรับ–รายจ่าย</h2>
+                                    <p>
+                                        คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน
+                                        EIR และ TRC
+                                    </p>
+
+                                    <div className="fhd-spend-formula">
+                                        <span className="fhd-spend-label">
+                                            สูตรคำนวณ
+                                        </span>
+                                        <p>
+                                            (คะแนน EIR + คะแนน TRC) ÷ 2
+                                        </p>
+                                    </div>
+
+                                    <p className="fhd-spend-message">
+                                        ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
+                                        เนื่องจากยังไม่ได้กำหนดเกณฑ์
+                                        แปลงค่า EIR และ TRC เป็นระดับคะแนน
+                                    </p>
+                                </section>
                             </>
                         ) : (
-                            <p className="fhd-spend-message">
-                                ยังไม่มีข้อมูลสำหรับคำนวณ
-                            </p>
-                        )}
-                    </section>
-                )}
-
-                {criterion.id === 'plan' && (
-                    <section className="fhd-card fhd-survey-card">
-                        <div className="fhd-survey-heading">
-                            <div>
-                                <h2>แบบประเมินการวางแผนและการคุ้มครอง</h2>
-                                <p className="fhd-survey-description">
-                                    โปรดเลือกคำตอบที่ตรงกับสถานการณ์ของคุณมากที่สุด
-                                    คุณสามารถกลับมาแก้ไขหรือล้างคำตอบได้ตลอดเวลา
+                            <section className="fhd-card">
+                                <p className="fhd-spend-message">
+                                    ยังไม่มีข้อมูลสำหรับคำนวณ
                                 </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                className="fhd-clear-button fhd-clear-button-top"
-                                onClick={handleClearPlanAnswers}
-                                disabled={!planAnswers.q7 && !planAnswers.q8}
-                                aria-label="ล้างคำตอบแบบประเมินทั้งหมด"
-                                title="ล้างคำตอบทั้งหมด"
-                            >
-                                <Trash2 size={16} />
-                                <span>ล้างคำตอบ</span>
-                            </button>
-                        </div>
-
-                        {PLAN_QUESTIONS.map((question) => (
-                            <fieldset
-                                className="fhd-question"
-                                key={question.id}
-                            >
-                                <legend className="fhd-question-title">
-                                    <span className="fhd-question-number">
-                                        {question.number}
-                                    </span>
-                                    <span>{question.title}</span>
-                                </legend>
-
-                                {question.description && (
-                                    <p className="fhd-question-description">
-                                        {question.description}
-                                    </p>
-                                )}
-
-                                {question.statement && (
-                                    <p className="fhd-question-statement">
-                                        {question.statement}
-                                    </p>
-                                )}
-
-                                <div className="fhd-answer-options">
-                                    {question.options.map((option) => (
-                                        <label
-                                            className={`fhd-answer-option ${planAnswers[question.id] === option.value
-                                                ? 'is-selected'
-                                                : ''
-                                                }`}
-                                            key={option.value}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name={question.id}
-                                                value={option.value}
-                                                checked={
-                                                    planAnswers[question.id] === option.value
-                                                }
-                                                onChange={() =>
-                                                    handlePlanAnswerChange(
-                                                        question.id,
-                                                        option.value
-                                                    )
-                                                }
-                                            />
-
-                                            <span className="fhd-radio-indicator" />
-
-                                            <span className="fhd-answer-label">
-                                                {option.label}
-                                            </span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </fieldset>
-                        ))}
-
-                        {saveError && (
-                            <p className="fhd-survey-error" role="alert">
-                                {saveError}
-                            </p>
+                            </section>
                         )}
-
-                        <div className="fhd-survey-footer">
-                            <div className="fhd-survey-status">
-                                {planAnswers.q7 && planAnswers.q8
-                                    ? 'ตอบแบบประเมินครบแล้ว'
-                                    : 'โปรดตอบคำถามให้ครบทั้ง 2 ข้อเพื่อคำนวณคะแนนเฉลี่ย'}
-                            </div>
-
-                            <div className="fhd-average-score">
-                                <span className="fhd-average-score-label">
-                                    คะแนนเฉลี่ยด้านการวางแผนและการคุ้มครอง
-                                </span>
-
-                                <div className="fhd-average-score-value">
-                                    <strong>
-                                        {planAverage === null
-                                            ? '—'
-                                            : Number(planAverage.toFixed(2))}
-                                    </strong>
-                                    <span>/ 100 คะแนน</span>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
+                    </>
                 )}
 
                 <section className="fhd-card">
                     <h2>เป้าหมายการประเมิน</h2>
                     <p>{criterion.target}</p>
                 </section>
-
             </main>
 
             <Navbar />

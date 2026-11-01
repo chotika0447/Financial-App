@@ -9,13 +9,13 @@ const finHealthCriteria = [
     {
         id: 'spend',
         name: 'Spend',
-        title: 'การใช้จ่าย',
+        title: 'ด้านรายรับ-รายจ่าย',
         description:
             'ประเมินสัดส่วนค่าใช้จ่ายเมื่อเทียบกับรายได้ และความสม่ำเสมอในการบันทึกรายรับรายจ่าย',
 
         indicators: [
             {
-                id: 'eir',
+                id: 'EIR',
                 name: 'Expense-to-Income Ratio (EIR)',
                 title: 'อัตราส่วนค่าใช้จ่ายต่อรายได้',
                 description:
@@ -28,7 +28,7 @@ const finHealthCriteria = [
                 direction: 'lower',
             },
             {
-                id: 'trc',
+                id: 'TRC',
                 name: 'Transaction Recording Consistency (TRC)',
                 title: 'ความสม่ำเสมอในการบันทึกรายรับ–รายจ่าย',
                 description:
@@ -55,13 +55,13 @@ const finHealthCriteria = [
     {
         id: 'save',
         name: 'Save',
-        title: 'การออม',
+        title: 'ด้านการออม',
         description:
             'ประเมินความสม่ำเสมอในการออมเงินของผู้ใช้จากข้อมูลการออมที่บันทึกไว้ในระบบ',
 
         indicators: [
             {
-                id: 'sc',
+                id: 'SC',
                 name: 'Saving Consistency (SC)',
                 title: 'ความสม่ำเสมอในการออม',
                 description:
@@ -88,13 +88,13 @@ const finHealthCriteria = [
     {
         id: 'borrow',
         name: 'Borrow',
-        title: 'การกู้ยืม',
+        title: 'ด้านหนี้สิน/การให้ยืม',
         description:
             'ประเมินภาระการชำระหนี้เมื่อเทียบกับรายได้ และพฤติกรรมการชำระหนี้ตรงตามกำหนด',
 
         indicators: [
             {
-                id: 'dsr',
+                id: 'DSR',
                 name: 'Debt Service Ratio (DSR)',
                 title: 'อัตราส่วนภาระหนี้ต่อรายได้',
                 description:
@@ -107,7 +107,7 @@ const finHealthCriteria = [
                 direction: 'lower',
             },
             {
-                id: 'odp',
+                id: 'ODP',
                 name: 'On-time Debt Payment (ODP)',
                 title: 'อัตราการชำระหนี้ตรงเวลา',
                 description:
