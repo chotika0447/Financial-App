@@ -67,7 +67,7 @@
       },
       "action": {
         "type": "postback",
-        "data": "action=select_record&type=saving",
+        "data": "action=select_record&type=savings",
         "displayText": "จดการออม"
       }
     },

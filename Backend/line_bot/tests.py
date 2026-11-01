@@ -9,6 +9,7 @@ from .messaging import (
     push_new_debt_notification,
     push_payment_submitted_notification,
 )
+from .views import handle_postback
 
 
 @override_settings(
@@ -92,3 +93,28 @@ class PushPaymentSubmittedNotificationTests(SimpleTestCase):
             "https://financial-app-delta-taupe.vercel.app/"
             "debts/?debtId=42&view=payment_history",
         )
+
+
+class SavingsRichMenuTests(SimpleTestCase):
+    @patch("line_bot.views.build_savings_list_flex")
+    @patch("line_bot.views.User.objects.filter")
+    def test_savings_menu_actions_open_savings_list(
+        self, filter_user, build_savings_list
+    ):
+        user = SimpleNamespace()
+        savings_list = {"type": "flex"}
+        filter_user.return_value.first.return_value = user
+        build_savings_list.return_value = savings_list
+
+        for data in (
+            "action=select_record&type=saving",
+            "action=select_record&type=savings",
+            "action=view_savings",
+        ):
+            with self.subTest(data=data):
+                self.assertEqual(
+                    handle_postback(data, "line-user"),
+                    savings_list,
+                )
+
+        self.assertEqual(build_savings_list.call_count, 3)

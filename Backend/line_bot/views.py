@@ -612,9 +612,10 @@ def handle_postback(data, line_user_id):
             return "รายการนี้หมดอายุหรือดำเนินการไปแล้วค่ะ"
 
         return save_draft_now(draft, user, line_user_id)
-    #=============================================================================
-     # เปิดการออมจาก Rich Menu
-    if action == "select_record" and record_type == "savings":
+    # เปิดรายการกระเป๋าออมจาก Rich Menu
+    if action == "view_savings" or (
+        action == "select_record" and record_type in ("saving", "savings")
+    ):
         clear_savings_state(line_user_id)
         return build_savings_list_flex(user)
 
