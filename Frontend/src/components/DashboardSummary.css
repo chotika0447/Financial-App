@@ -1,17 +1,16 @@
-
-.dashboard-section {
+.home-dashboard-summary {
     width: 100%;
     margin-top: 21px;
     color: #111;
 }
 
-.dashboard-section h3 {
-    font-size: 15px;
+.home-dashboard-summary h3 {
     margin: 0 0 12px 13px;
+    font-size: 15px;
     font-weight: 700;
 }
 
-.dashboard-tabs {
+.home-dashboard-tabs {
     height: 38px;
     margin: 0 12px;
     display: grid;
@@ -23,7 +22,7 @@
     overflow: hidden;
 }
 
-.dashboard-tabs button {
+.home-dashboard-tabs button {
     min-width: 0;
     padding: 0 2px;
     border: none;
@@ -35,13 +34,13 @@
     cursor: pointer;
 }
 
-.dashboard-tabs button.active {
+.home-dashboard-tabs button.active {
     background: #fff;
     color: #222;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
-.dashboard-chart-card {
+.home-dashboard-chart-card {
     margin: 18px 12px 0;
     padding: 16px 14px 10px;
     border: 1px solid #eee;
@@ -50,13 +49,13 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-.dashboard-chart-label {
+.home-dashboard-chart-label {
     margin: 0 0 8px;
     color: #777;
     font-size: 12px;
 }
 
-.dashboard-total {
+.home-dashboard-total {
     display: block;
     margin-bottom: 18px;
     font-size: 25px;
@@ -64,7 +63,7 @@
     color: #252525;
 }
 
-.dashboard-chart {
+.home-dashboard-chart {
     height: 150px;
     display: flex;
     align-items: stretch;
@@ -80,7 +79,7 @@
     );
 }
 
-.dashboard-bar-item {
+.home-dashboard-bar-item {
     flex: 1;
     min-width: 0;
     display: flex;
@@ -90,7 +89,7 @@
     gap: 7px;
 }
 
-.dashboard-bar-area {
+.home-dashboard-bar-area {
     width: 100%;
     max-width: 25px;
     flex: 1;
@@ -98,54 +97,72 @@
     align-items: flex-end;
 }
 
-.dashboard-bar {
+.home-dashboard-bar {
     width: 100%;
     min-height: 4px;
     border-radius: 5px 5px 0 0;
     transition: height 0.25s ease;
 }
 
-.dashboard-bar-item span {
+.home-dashboard-bar-item span {
     flex-shrink: 0;
     padding-bottom: 5px;
     font-size: 10px;
     color: #777;
 }
 
-.dashboard-demo-note {
+.home-dashboard-note {
     margin: 12px 0 0;
     font-size: 10px;
     color: #999;
     text-align: right;
 }
 
-.dashboard-compact .dashboard-chart-card {
+.home-dashboard-message {
+    margin: 12px 0;
+    color: #777;
+    font-size: 13px;
+    text-align: center;
+}
+
+.home-dashboard-message button {
+    margin-top: 8px;
+    padding: 7px 12px;
+    border: 1px solid #d8e8e0;
+    border-radius: 8px;
+    background: #f4fbf7;
+    color: #287b5b;
+    font: inherit;
+    cursor: pointer;
+}
+
+.home-dashboard-compact .home-dashboard-chart-card {
     padding: 14px 12px 10px;
 }
 
+.dashboard-summary-click {
+    cursor: pointer;
+}
+
+.dashboard-summary-click:hover {
+    opacity: 0.95;
+}
+
 @media (max-width: 380px) {
-    .dashboard-tabs {
+    .home-dashboard-tabs {
         margin: 0 6px;
     }
 
-    .dashboard-tabs button {
+    .home-dashboard-tabs button {
         font-size: 11px;
     }
 
-    .dashboard-chart-card {
+    .home-dashboard-chart-card {
         margin-left: 6px;
         margin-right: 6px;
     }
 
-    .dashboard-total {
+    .home-dashboard-total {
         font-size: 22px;
     }
-}
-
-.dashboard-summary-click {
-    curser: pointer;
-}
-
-.dashboard-summary-click:hover{
-    opacity: 0.95;
 }
