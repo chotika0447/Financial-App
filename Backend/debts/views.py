@@ -15,7 +15,7 @@ from django.utils import timezone
 from transactions.models import Transaction
 from users.models import PersonalProfile
 
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from line_bot.messaging import (
     push_new_debt_notification,
     push_debt_payment_reminder,
