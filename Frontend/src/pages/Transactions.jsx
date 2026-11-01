@@ -81,6 +81,7 @@ function Transactions() {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const initialFormRef = useRef(null);
   const [editingId, setEditingId] = useState(null);
+  const [draftId, setDraftId] = useState(null); // Draft ที่เปิดมาจาก LINE OA
 
   const [form, setForm] = useState(emptyForm);
 
@@ -374,6 +375,7 @@ function Transactions() {
 
     clearReceiptPreview();
     setOcrMessage('');
+    setOcrMessage('');
 
     const initialForm = emptyForm();
     initialFormRef.current = initialForm;
@@ -399,6 +401,7 @@ function Transactions() {
     }
 
     setReceiptFile(null);
+    setOcrMessage('');
     setOcrMessage('');
 
     // แสดงรูปเดิมตอนแก้ไข
@@ -444,6 +447,7 @@ function Transactions() {
 
 
   function closeModal() {
+    if (saving || ocrLoading) return;
     if (saving || ocrLoading) return;
 
     // เตือนเฉพาะเมื่อมีการแก้ไขข้อมูลหรือเลือกรูปใหม่
@@ -521,7 +525,7 @@ function Transactions() {
         throw new Error(response.status === 401
           ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'
           : data.error || data.detail ||
-            `อ่านใบเสร็จไม่สำเร็จ (HTTP ${response.status})`);
+          `อ่านใบเสร็จไม่สำเร็จ (HTTP ${response.status})`);
       }
 
       setForm((current) => {
@@ -608,6 +612,7 @@ function Transactions() {
     }
   }
   function removeSelectedReceipt() {
+    setOcrMessage('');
     setOcrMessage('');
     if (
       receiptPreview &&
@@ -1013,8 +1018,8 @@ function Transactions() {
                 type="button"
                 className="see-all-button"
                 onClick={() => {
-                // แสดงรายการทั้งหมดโดยไม่เปลี่ยนวันที่หรือตัวกรอง
-                setShowAll((current) => !current);
+                  // แสดงรายการทั้งหมดโดยไม่เปลี่ยนวันที่หรือตัวกรอง
+                  setShowAll((current) => !current);
                 }}
               >
                 {showAll ? 'แสดงน้อยลง' : 'แสดงทั้งหมด ›'}
@@ -1156,7 +1161,6 @@ function Transactions() {
                         )}
 
                       </div>
-
 
                       {transaction.receipt_url && (
                         <a
@@ -1393,6 +1397,20 @@ function Transactions() {
                   })}
                   {categories.length === 0 && <span>ยังไม่มีหมวดหมู่</span>}
                 </div>
+                <label>หมวดหมู่</label>
+                <div className="category-choice-list">
+                  {categories.map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      className={String(form.category) === String(category.id) ? 'active' : ''}
+                      onClick={() => setForm({ ...form, category: category.id })}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                  {categories.length === 0 && <span>ยังไม่มีหมวดหมู่ให้เลือก</span>}
+                </div>
               </div>
 
               {/* บัญชี */}
@@ -1534,7 +1552,6 @@ function Transactions() {
                   className="receipt-file-input"
                   disabled={ocrLoading}
                 />
-
                 {ocrLoading && (
                   <p role="status">กำลังอ่านข้อมูลจากใบเสร็จ...</p>
                 )}

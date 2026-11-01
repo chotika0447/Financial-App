@@ -42,7 +42,7 @@
 } */
 
 .nav-item:nth-child(1).active {
-  color: var(--color-home);
+  color: #764daf;
 }
 .nav-item:nth-child(2).active {
   color: var(--color-transactions);

@@ -60,25 +60,7 @@ const finHealthCriteria = [
         color: '#dc7650',
         background: '#fff0e9',
     },
-    {
-        id: 'plan',
-        title: 'การวางแผนและการคุ้มครอง',
-        name: 'การวางแผนและการคุ้มครอง (Plan & Protect)',
-        weight: 25,
-        description:
-            'ประเมินความเพียงพอของประกันและการวางแผนทางการเงินล่วงหน้า',
-        indicators: [
-            'ตัวชี้วัดที่ 7: ความเพียงพอของประกัน',
-            'ตัวชี้วัดที่ 8: การวางแผนการเงินล่วงหน้า',
-        ],
-        formula:
-            'คะแนนด้านการวางแผนและการคุ้มครอง = (S7 + S8) ÷ 2',
-        target:
-            'พิจารณาความพร้อมในการรับมือเหตุฉุกเฉินและการวางแผนการเงินในอนาคต',
-        Icon: ShieldCheck,
-        color: '#8a60c9',
-        background: '#f1eaff',
-    },
+
 ];
 
 export default finHealthCriteria;

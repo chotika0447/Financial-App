@@ -1,4 +1,5 @@
 
+
 import { useEffect, useState } from 'react';
 import {
   BrowserRouter,
@@ -11,6 +12,8 @@ import {
 
 import Register from './pages/Register';
 import './App.css';
+
+import LoadingScreen from './components/LoadingScreen';
 
 import Home from './pages/Home';
 import Transactions from './pages/Transactions';
@@ -30,6 +33,8 @@ import CompoundInterest from './pages/CompoundInterest';
 
 import FinHealth from './pages/FinHealth';
 import FinHealthDetail from './pages/FinHealthDetail';
+
+import Dashboard from './pages/Dashboard';
 
 import { initializeLineLiff, liff, readLineIdentity } from './lineAuth';
 
@@ -54,7 +59,12 @@ function EntryRoute() {
         destination = `/edit-transaction/?transaction=${encodeURIComponent(transactionId)}`;
       }
       if (debtId) {
-        destination = `/debts/?debtId=${encodeURIComponent(debtId)}`;
+        const debtParams = new URLSearchParams(queryParams);
+
+        // ไม่จำเป็นต้องส่ง returnTo ต่อไป
+        debtParams.delete('returnTo');
+
+        destination = `/debts/?${debtParams.toString()}`;
       }
       const redirectUri =
         `${window.location.origin}${window.location.pathname}${window.location.search}`;
@@ -67,11 +77,13 @@ function EntryRoute() {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
 
+
           if (response.ok) {
             navigate(destination, { replace: true });
             return;
           }
         } catch {
+
           if (!cancelled) {
             setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
           }
@@ -157,20 +169,25 @@ function EntryRoute() {
   }, [navigate]);
 
   return (
-    <main className="entry-route">
-      <p>{error || 'กำลังตรวจสอบบัญชีของคุณ...'}</p>
+    <>
+      {!error && <LoadingScreen />}
 
       {error && (
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-        >
-          ลองอีกครั้ง
-        </button>
+        <main className="entry-route">
+          <p>{error}</p>
+
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+          >
+            ลองอีกครั้ง
+          </button>
+        </main>
       )}
-    </main>
+    </>
   );
 }
+
 
 function DebtEntryRoute() {
   const location = useLocation();
@@ -184,7 +201,7 @@ function DebtEntryRoute() {
       const accessToken = sessionStorage.getItem('accessToken');
 
       if (!accessToken) {
-        setAuthorizationState('unauthorized');
+        if (!cancelled) setAuthorizationState('unauthorized');
         return;
       }
 
@@ -196,11 +213,16 @@ function DebtEntryRoute() {
         if (!response.ok) {
           sessionStorage.removeItem('accessToken');
           sessionStorage.removeItem('refreshToken');
-          if (!cancelled) setAuthorizationState('unauthorized');
+
+          if (!cancelled) {
+            setAuthorizationState('unauthorized');
+          }
           return;
         }
 
-        if (!cancelled) setAuthorizationState('authorized');
+        if (!cancelled) {
+          setAuthorizationState('authorized');
+        }
       } catch {
         if (!cancelled) {
           setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
@@ -210,6 +232,7 @@ function DebtEntryRoute() {
     }
 
     verifyAccessToken();
+
     return () => {
       cancelled = true;
     };
@@ -218,26 +241,33 @@ function DebtEntryRoute() {
   if (authorizationState === 'unauthorized') {
     const queryParams = new URLSearchParams(location.search);
     queryParams.set('returnTo', '/debts/');
-    const search = '?' + queryParams.toString();
 
     return (
       <Navigate
-        to={{ pathname: '/', search }}
+        to={{
+          pathname: '/',
+          search: `?${queryParams.toString()}`,
+        }}
         replace
       />
     );
   }
 
   if (authorizationState === 'error') {
-    return <main className="entry-route"><p>{error}</p></main>;
+    return (
+      <main className="entry-route">
+        <p>{error}</p>
+      </main>
+    );
   }
 
   if (authorizationState !== 'authorized') {
-    return <main className="entry-route"><p>กำลังตรวจสอบบัญชีของคุณ...</p></main>;
+    return <LoadingScreen />;
   }
 
   return <Debts />;
 }
+
 
 function App() {
   return (
@@ -262,6 +292,11 @@ function App() {
           path="/home/"
           element={<Home />}
         />
+        
+        <Route 
+          path="/dashboard" 
+          element={<Dashboard />} 
+        />
 
         <Route
           path="/transactions/"
@@ -282,6 +317,7 @@ function App() {
           path="/debts/"
           element={<DebtEntryRoute />}
         />
+
 
         <Route
           path="/notifications/"
@@ -317,15 +353,14 @@ function App() {
           path="/compound-interest"
           element={<CompoundInterest />}
         />
-        {<Route
+        <Route
           path="/saving-plan"
           element={<SavingPlan />}
-        />}
-
-        {<Route
+        />
+        <Route
           path="/calculator"
           element={<Retirement />}
-        />}
+        />
 
         <Route
           path="/financial-health"

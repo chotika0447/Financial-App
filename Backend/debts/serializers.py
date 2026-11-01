@@ -150,7 +150,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             'proof_image',
             'note',
             'payment_status',
-            'confirm_status',
+            'approvement_status',
             'created_at',
             'updated_at',
         ]
@@ -158,6 +158,7 @@ class PaymentSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id',
             'debt',
+            'approvement_status',
             'created_at',
             'updated_at',
         ]

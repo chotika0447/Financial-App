@@ -663,7 +663,9 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
             </div>
 
 
+
             <div className="flex items-center gap-2">
+              {/* ช่องชื่อคู่สัญญา */}
               {/* ช่องชื่อคู่สัญญา */}
               <input
                 type="text"
@@ -673,6 +675,11 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                   : "กรอกชื่อลูกหนี้"}
                 readOnly={counterpartyMode === "friend" && !!form.counterpartyId}
                 onChange={(e) => {
+                  // ถ้าเลือกเพื่อนอยู่ จะไม่ให้แก้ไขชื่อ
+                  if (counterpartyMode === "friend" && form.counterpartyId) {
+                    return;
+                  }
+
                   // ถ้าเลือกเพื่อนอยู่ จะไม่ให้แก้ไขชื่อ
                   if (counterpartyMode === "friend" && form.counterpartyId) {
                     return;
@@ -715,6 +722,7 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                 </button>
               )}
             </div>
+
 
 
             {/* แสดงสถานะเมื่อเลือกเพื่อนแล้ว */}

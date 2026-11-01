@@ -46,7 +46,10 @@ function Debts() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [openingLinkedDebt, setOpeningLinkedDebt] = useState(false);
 
-  const [activeStatus, setActiveStatus] = useState("ongoing");
+  const [activeStatus, setActiveStatus] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("tab") === "paid" ? "paid" : "ongoing";
+  });
 
   const [sendingReminderId, setSendingReminderId] = useState(null);
   //useEffect สำหรับดึงข้อมูลหนี้สิน
@@ -91,10 +94,34 @@ function Debts() {
   //useEffect สำหรับเปิดรายการหนี้สินจาก LINE
   useEffect(() => {
     const debtId = searchParams.get("debtId");
+    const requestedTab = searchParams.get("tab");
+    const requestedType = searchParams.get("type");
+    const view = searchParams.get("view");
 
-    if (!debtId || loading) return;
+    console.log("LINE DEBT LINK DEBUG:", {
+      fullUrl: window.location.href,
+      search: window.location.search,
+      debtId,
+      requestedTab,
+      view,
+    });
 
-    // ตรวจสอบว่า ID เป็นจำนวนเต็มบวก
+    if (loading) return;
+
+    // เปิดแท็บให้คนอื่นยืม
+    if (requestedType === "lend") {
+      setActiveTab("lend");
+      setActiveStatus("ongoing");
+      setShowDebtPay(false);
+      setShowDebtHistory(false);
+      setSelectedDebt(null);
+
+      setSearchParams({}, { replace: true });
+      return;
+    }
+
+    if (!debtId) return;
+
     if (!/^[1-9]\d*$/.test(debtId)) {
       setError("ลิงก์รายการหนี้ไม่ถูกต้อง");
       setSearchParams({}, { replace: true });
@@ -111,20 +138,31 @@ function Debts() {
       return;
     }
 
-    // เลือกหนี้ที่ตรงกับ ID จาก LINE
-    setSelectedDebt(targetDebt);
-
-    // เลือกแท็บให้ตรงกับประเภทหนี้
+    // เลือกประเภทรายการให้ตรงกับหนี้
     setActiveTab(
       targetDebt.type === "borrowed" ? "borrow" : "lend"
     );
 
-    // เปิด Modal สำหรับบันทึกการชำระหนี้
-    setShowDebtHistory(false);
-    setShowDebtPay(true);
+    if (requestedTab === "paid") {
+      setActiveStatus("paid");
+      setShowDebtPay(false);
+      setShowDebtHistory(false);
+      setSelectedDebt(null);
 
-    // ลบ query string ออกจาก URL หลังเลือกหนี้แล้ว
+    } else if (view === "payment_history") {
+      setSelectedDebt(targetDebt);
+      setShowDebtPay(false);
+      setShowDebtHistory(true);
+
+    } else {
+      setSelectedDebt(targetDebt);
+      setShowDebtHistory(false);
+      setShowDebtPay(true);
+    }
+
+    // ล้าง query string หลังจัดการลิงก์แล้ว
     setSearchParams({}, { replace: true });
+
   }, [debts, loading, searchParams, setSearchParams]);
 
 
@@ -575,6 +613,7 @@ function Debts() {
   return (
     <div className="debts-page pb-20">
 
+
       <CustomHeader title="หนี้สินและการให้ยืม" color="var(--color-debts)" />
 
       <AddDebt
@@ -598,6 +637,11 @@ function Debts() {
             await refreshDebts();
           } catch (error) {
             console.error("Refresh debts error:", error);
+            try {
+              await refreshDebts();
+            } catch (error) {
+              console.error("Refresh debts error:", error);
+            }
           }
         }}
         onClose={() => {

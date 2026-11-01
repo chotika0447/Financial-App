@@ -44,11 +44,30 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
 
   const isBorrow = debt.type === "borrowed";
 
-  // จำนวนเงินที่ชำระ/ได้รับคืนแล้ว
-  const paidAmount = Number(debt.total_amount) - Number(debt.remaining_amount);
+  // แปลงยอดเงินเป็นตัวเลข
+  const totalAmount = Number(debt.total_amount) || 0;
+  const remainingAmount = Number(debt.remaining_amount) || 0;
 
-  // เปอร์เซ็นต์ความคืบหน้า
-  const progress = Math.round((paidAmount / Number(debt.total_amount)) * 100);
+  // จำนวนเงินที่ชำระ/ได้รับคืนแล้ว
+  const paidAmount = Math.max(
+    0,
+    Math.min(totalAmount - remainingAmount, totalAmount)
+  );
+
+  // คำนวณเปอร์เซ็นต์ความคืบหน้า
+  const progress = totalAmount > 0
+    ? Math.round((paidAmount / totalAmount) * 100)
+    : 0;
+
+  // กำหนดสีตามเปอร์เซ็นต์การชำระ
+  const getProgressColor = (percentage) => {
+    if (percentage <= 25) return "#e32828"; // แดง
+    if (percentage <= 50) return "#F97316"; // ส้ม
+    if (percentage <= 75) return "#e1ea2c"; // เหลือง
+    return "#01c047"; // เขียว
+  };
+
+  const progressColor = getProgressColor(progress);
 
   return (
     <div className="bg-white border border-gray-300 rounded-lg mb-3 px-4 pt-4 pb-2">
@@ -129,29 +148,30 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
 
       {/* Amount */}
       <div className="mt-2">
-
         <div className="flex justify-between items-end">
 
           <span className="text-[10px] text-gray-600">
-            {isBorrow ? `ชำระแล้ว (${progress}%)` : `ได้รับคืนแล้ว (${progress}%)`}
+            {isBorrow
+              ? `ชำระแล้ว (${progress}%)`
+              : `ได้รับคืนแล้ว (${progress}%)`}
           </span>
 
           <span className="text-[10px] text-gray-600">
-            THB {paidAmount.toLocaleString()} / {Number(debt.total_amount).toLocaleString()}
+            THB {paidAmount.toLocaleString()} / {totalAmount.toLocaleString()}
           </span>
 
         </div>
 
         {/* Progress bar */}
         <div className="w-full h-[5px] bg-gray-300 rounded-full mt-1 overflow-hidden">
-
           <div
-            className={`h-full rounded-full ${isBorrow ? "bg-red-500" : "bg-blue-600"}`}
-            style={{ width: `${progress}%` }}
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${progress}%`,
+              backgroundColor: progressColor,
+            }}
           />
-
         </div>
-
       </div>
 
       {/* Buttons */}
@@ -159,6 +179,10 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
 
         {/* Delete */}
         <button
+          type="button"
+          onClick={() => onDelete?.(debt)}
+          aria-label={`ลบรายการ ${debt.name}`}
+          title="ลบรายการหนี้"
           type="button"
           onClick={() => onDelete?.(debt)}
           aria-label={`ลบรายการ ${debt.name}`}
@@ -222,7 +246,18 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
             <button onClick={onViewHistory} className="flex-1 border border-gray-300 rounded-md text-[11px] text-gray-600 bg-white">
               ดูประวัติการได้รับเงินคืน
             </button>
+          <div className="flex flex-1 h-[30px] gap-2">
+            <button onClick={onViewHistory} className="flex-1 border border-gray-300 rounded-md text-[11px] text-gray-600 bg-white">
+              ดูประวัติการได้รับเงินคืน
+            </button>
 
+            <button
+              onClick={onPayment}
+              className="flex-1 rounded-md bg-green-500 text-white text-[11px] font-medium"
+            >
+              บันทึกการได้รับเงินคืน
+            </button>
+          </div>
             <button
               onClick={onPayment}
               className="flex-1 rounded-md bg-green-500 text-white text-[11px] font-medium"

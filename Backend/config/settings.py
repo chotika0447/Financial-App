@@ -1,4 +1,5 @@
 import os
+import logging
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -20,21 +21,59 @@ ALLOWED_HOSTS = [
     "localhost",
     "glimmer-grunt-obstruct.ngrok-free.dev",
     "tammara-semivolcanic-randee.ngrok-free.dev",
+
     "financial-app-xgco.onrender.com",
+
     "debtmodule-backend.onrender.com",
     "financial-app-neverlandtest.onrender.com",
+    "financial-app-gbnw.onrender.com"
 ]
+# =================== LOGGING ===================
+#สำหรับบันทึก Log ของ Django และ App เพื่อใช้ Debug 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
 
-# อ่าน Host เพิ่มเติมจาก Environment Variable
-extra_hosts = os.getenv("ALLOWED_HOSTS", "")
+    "formatters": {
+        "verbose": {
+            "format": (
+                "{asctime} [{levelname}] "
+                "{name}: {message}"
+            ),
+            "style": "{",
+        },
+    },
 
-if extra_hosts:
-    ALLOWED_HOSTS += [
-        host.strip()
-        for host in extra_hosts.split(",")
-        if host.strip()
-    ]
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
 
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "debts": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
 # =================== LINE ===================
 
 # LINE Messaging API / LINE OA
@@ -114,6 +153,8 @@ INSTALLED_APPS = [
     'transactions',
     'categories',
     'news',
+
+    'dashboard',
 
 ]
 # =================== Authentication ===================

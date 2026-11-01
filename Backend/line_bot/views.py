@@ -2,6 +2,10 @@
 """LINE OA: บันทึกด้วยข้อความ รูปสลิป และข้อความพร้อมรูปหลักฐาน"""
 
 import base64
+
+"""LINE OA: บันทึกด้วยข้อความ รูปสลิป และข้อความพร้อมรูปหลักฐาน"""
+
+import base64
 import hashlib
 import hmac
 import json
@@ -41,6 +45,7 @@ from users.models import User
 from friends.models import Friends
 from savings.models import Savings
 
+from .messaging import approve_payment_from_line
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +54,55 @@ PENDING_TIMEOUT_SECONDS = 24 * 60 * 60
 
 # ==================== Pending Draft ====================
 
+def pending_key(line_user_id):
+    return f"line_pending_transaction:{line_user_id}"
+
+
+def get_pending(line_user_id, user):
+    draft_id = cache.get(pending_key(line_user_id))
+
+    if not draft_id:
+        return None
+
+    draft = TransactionDraft.objects.filter(
+        id=draft_id,
+        user=user,
+        status="pending"
+    ).first()
+
+    if draft is None:
+        cache.delete(pending_key(line_user_id))
+
+    return draft
+
+
+def set_pending(line_user_id, draft):
+    cache.set(
+        pending_key(line_user_id),
+        draft.id,
+        timeout=PENDING_TIMEOUT_SECONDS
+    )
+
+
+def clear_pending(line_user_id):
+    cache.delete(pending_key(line_user_id))
+
+
+# ==================== LINE Reply ====================
+
+def reply_to_line(reply_token, message):
+    """ส่งข้อความธรรมดาหรือ Flex Message"""
+
+    if not reply_token:
+        return
+
+    if isinstance(message, dict):
+        line_message = message
+    else:
+        line_message = {
+            "type": "text",
+            "text": str(message)
+        }
 def pending_key(line_user_id):
     return f"line_pending_transaction:{line_user_id}"
 
@@ -456,6 +510,7 @@ def handle_postback(data, line_user_id):
     if user is None:
         return "กรุณาเข้าสู่ระบบและเชื่อมบัญชี LINE ก่อนค่ะ"
 
+    #=============================================================================
      # เปิดการออมจาก Rich Menu
     if action == "select_record" and record_type == "savings":
         clear_savings_state(line_user_id)
@@ -463,8 +518,23 @@ def handle_postback(data, line_user_id):
 
     if action.startswith("savings_"):
         return handle_savings_postback(action, params, user, line_user_id)
+    
+    #=============================================================================
+        # ปุ่มอนุมัติรายการชำระหนี้จาก LINE
+    if action == "payment_approve":
+        try:
+            payment_id = int(
+                params.get("payment_id", [""])[0]
+            )
+        except (TypeError, ValueError):
+            return "รหัสรายการชำระเงินไม่ถูกต้องค่ะ"
 
-    # ปุ่มยอมรับ/ปฏิเสธคำขอเป็นเพื่อนจาก LINE
+        return approve_payment_from_line(
+            payment_id=payment_id,
+            creditor=user,
+        )
+
+     # ปุ่มยอมรับ/ปฏิเสธคำขอเป็นเพื่อนจาก LINE
     if action in ("friend_accept", "friend_reject"):
         try:
             friend_id = int(
