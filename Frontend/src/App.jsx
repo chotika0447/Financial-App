@@ -9,14 +9,6 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-  useLocation,
-  useNavigate,
-} from 'react-router-dom';
 
 import Register from './pages/Register';
 import './App.css';
