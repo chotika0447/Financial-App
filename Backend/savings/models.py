@@ -94,9 +94,9 @@ class SavingsTransaction(models.Model):
 
     # เจ้าของรายการ
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        User,
         on_delete=models.CASCADE,
-        related_name='saving_transactions'
+        related_name="saving_transactions"
     )
 
     # เก็บชื่อกระเป๋า ณ เวลาที่ทำรายการ

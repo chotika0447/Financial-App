@@ -1397,20 +1397,6 @@ function Transactions() {
                   })}
                   {categories.length === 0 && <span>ยังไม่มีหมวดหมู่</span>}
                 </div>
-                <label>หมวดหมู่</label>
-                <div className="category-choice-list">
-                  {categories.map((category) => (
-                    <button
-                      key={category.id}
-                      type="button"
-                      className={String(form.category) === String(category.id) ? 'active' : ''}
-                      onClick={() => setForm({ ...form, category: category.id })}
-                    >
-                      {category.name}
-                    </button>
-                  ))}
-                  {categories.length === 0 && <span>ยังไม่มีหมวดหมู่ให้เลือก</span>}
-                </div>
               </div>
 
               {/* บัญชี */}
