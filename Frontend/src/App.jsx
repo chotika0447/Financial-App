@@ -1,5 +1,3 @@
-
-
 import { useEffect, useState } from 'react';
 import {
   BrowserRouter,
@@ -37,6 +35,14 @@ import FinHealthDetail from './pages/FinHealthDetail';
 import Dashboard from './pages/Dashboard';
 
 import { initializeLineLiff, liff, readLineIdentity } from './lineAuth';
+import {
+  authenticatedFetch as fetch,
+  getAccessToken,
+  getRefreshToken,
+  refreshAccessToken,
+  clearTokens,
+  saveTokens,
+} from './utils/auth';
 
 function EntryRoute() {
   const [error, setError] = useState('');
@@ -69,29 +75,41 @@ function EntryRoute() {
       const redirectUri =
         `${window.location.origin}${window.location.pathname}${window.location.search}`;
 
-      const accessToken = sessionStorage.getItem('accessToken');
+
+      let accessToken = getAccessToken();
+      if (!accessToken && getRefreshToken()) {
+        accessToken = await refreshAccessToken();
+      }
 
       if (accessToken) {
-        try {
-          const response = await fetch('/users/me/', {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
+        let response = await fetch("/users/me/", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
 
+        if (response.status === 401) {
+          accessToken = await refreshAccessToken();
 
-          if (response.ok) {
-            navigate(destination, { replace: true });
-            return;
+          if (accessToken) {
+            response = await fetch("/users/me/", {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            });
           }
-        } catch {
-
-          if (!cancelled) {
-            setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
-          }
-          return;
         }
 
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('refreshToken');
+        if (response.ok) {
+          navigate(destination, { replace: true });
+          return;
+        } else if (response.status === 401) {
+          clearTokens();
+
+          // ให้ทำงานต่อไปยัง LIFF Login ตาม flow เดิม
+        } else {
+          throw new Error("ไม่สามารถตรวจสอบข้อมูลผู้ใช้ได้");
+        }
       }
 
       try {
@@ -149,8 +167,7 @@ function EntryRoute() {
           );
         }
 
-        sessionStorage.setItem('accessToken', data.access);
-        sessionStorage.setItem('refreshToken', data.refresh);
+        saveTokens(data.access, data.refresh);
         navigate(destination, { replace: true });
       } catch (routeError) {
         if (!cancelled) {
@@ -161,7 +178,11 @@ function EntryRoute() {
       }
     }
 
-    routeUser();
+    routeUser().catch((routeError) => {
+      if (!cancelled) {
+        setError(routeError.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -198,34 +219,58 @@ function DebtEntryRoute() {
     let cancelled = false;
 
     async function verifyAccessToken() {
-      const accessToken = sessionStorage.getItem('accessToken');
-
-      if (!accessToken) {
-        if (!cancelled) setAuthorizationState('unauthorized');
-        return;
-      }
-
       try {
-        const response = await fetch('/users/me/', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
+        const checkUser = async () => {
+          let accessToken = getAccessToken();
 
-        if (!response.ok) {
-          sessionStorage.removeItem('accessToken');
-          sessionStorage.removeItem('refreshToken');
-
-          if (!cancelled) {
-            setAuthorizationState('unauthorized');
+          if (!accessToken) {
+            accessToken = await refreshAccessToken();
           }
-          return;
-        }
 
+          if (!accessToken) {
+            clearTokens();
+            setAuthorizationState('unauthorized');
+            return;
+          }
+
+          let response = await fetch("/users/me/", {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+
+          if (response.status === 401) {
+            accessToken = await refreshAccessToken();
+
+            if (!accessToken) {
+              clearTokens();
+              setAuthorizationState('unauthorized');
+              return;
+            }
+
+            response = await fetch("/users/me/", {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            });
+          }
+
+          if (response.ok) {
+            setAuthorizationState('authorized');
+          } else if (response.status === 401) {
+            clearTokens();
+            setAuthorizationState('unauthorized');
+          } else {
+            throw new Error("ไม่สามารถตรวจสอบข้อมูลผู้ใช้ได้");
+          }
+        };
+
+        await checkUser();
+      } catch (error) {
         if (!cancelled) {
-          setAuthorizationState('authorized');
-        }
-      } catch {
-        if (!cancelled) {
-          setError('เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+          setError(
+            error.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ'
+          );
           setAuthorizationState('error');
         }
       }
@@ -268,7 +313,6 @@ function DebtEntryRoute() {
   return <Debts />;
 }
 
-
 function App() {
   return (
     <BrowserRouter>
@@ -292,10 +336,10 @@ function App() {
           path="/home/"
           element={<Home />}
         />
-        
-        <Route 
-          path="/dashboard" 
-          element={<Dashboard />} 
+
+        <Route
+          path="/dashboard"
+          element={<Dashboard />}
         />
 
         <Route

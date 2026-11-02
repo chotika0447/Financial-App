@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { QrCode, ScanLine } from 'lucide-react';
+import { authenticatedFetch as fetch } from '../utils/auth';
 import './AddFriend.css';
 
 function AddFriend() {

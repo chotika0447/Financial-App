@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { authenticatedFetch as fetch } from "../utils/auth";
 import {
   X,
   Upload,

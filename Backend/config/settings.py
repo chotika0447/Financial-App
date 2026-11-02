@@ -2,7 +2,7 @@ import os
 import logging
 from dotenv import load_dotenv
 from pathlib import Path
-
+from datetime import timedelta
 # =================== Base ===================
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -172,8 +172,18 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     'USER_ID_FIELD': 'uid',
     'USER_ID_CLAIM': 'uid',
-}
 
+    # อายุ Access Token
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+
+    # อายุ Refresh Token
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+
+    # ไม่หมุน Refresh Token เพราะ blacklist ของ SimpleJWT ใช้ AUTH_USER_MODEL
+    # ซึ่งไม่ตรงกับ custom users.User ของโปรเจกต์
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+}
 # =========================== Middleware ===========================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

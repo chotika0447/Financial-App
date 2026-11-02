@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
+import { authenticatedFetch as fetch } from '../utils/auth';
 import './MyQRCode.css';
 
 function MyQRCode() {

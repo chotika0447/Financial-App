@@ -6,6 +6,7 @@ import {
   liff,
   readLineIdentity
 } from '../lineAuth';
+import { saveTokens } from '../utils/auth';
 
 function Register() {
   const [lineProfile, setLineProfile] = useState(null);
@@ -48,8 +49,7 @@ function Register() {
       const data = await response.json();
 
       if (response.ok) {
-        sessionStorage.setItem('accessToken', data.access);
-        sessionStorage.setItem('refreshToken', data.refresh);
+        saveTokens(data.access, data.refresh);
 
         navigate('/home/');
         return true;
@@ -178,8 +178,7 @@ function Register() {
         return;
       }
 
-      sessionStorage.setItem('accessToken', data.access);
-      sessionStorage.setItem('refreshToken', data.refresh);
+      saveTokens(data.access, data.refresh);
 
       navigate('/home/');
 

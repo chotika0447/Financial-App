@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
+import { authenticatedFetch as fetch } from '../utils/auth';
 import './DashboardSummary.css';
 
 const API_ENDPOINTS = [

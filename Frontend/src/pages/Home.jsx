@@ -1,6 +1,7 @@
 import './Home.css';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authenticatedFetch as fetch } from '../utils/auth';
 
 import HomeHeader from '../components/HomeHeader';
 import Navbar from '../components/Navbar';

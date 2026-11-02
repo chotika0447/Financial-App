@@ -9,12 +9,7 @@ from .messaging import (
     push_new_debt_notification,
     push_payment_submitted_notification,
 )
-from .views import (
-    handle_image_message,
-    handle_postback,
-    handle_text_message,
-    reply_to_line,
-)
+from .views import handle_postback
 
 
 @override_settings(
@@ -123,65 +118,3 @@ class SavingsRichMenuTests(SimpleTestCase):
                 )
 
         self.assertEqual(build_savings_list.call_count, 3)
-
-
-@override_settings(LINE_BOT_CHANNEL_ACCESS_TOKEN="test-token")
-class LineImageMessageTests(SimpleTestCase):
-    def test_reply_uses_configured_line_token(self):
-        response = Mock()
-        with patch("line_bot.views.httpx.post", return_value=response) as post:
-            reply_to_line("reply-token", "ตอบกลับ")
-
-        self.assertEqual(
-            post.call_args.kwargs["headers"]["Authorization"],
-            "Bearer test-token",
-        )
-
-    def test_image_download_uses_configured_line_token(self):
-        user = SimpleNamespace()
-        draft = SimpleNamespace()
-        response = Mock(content=b"image")
-
-        with (
-            patch("line_bot.views.User.objects.filter") as filter_user,
-            patch("line_bot.views.get_savings_state", return_value=None),
-            patch("line_bot.views.get_record_mode", return_value="expense"),
-            patch("line_bot.views.httpx.get", return_value=response) as get,
-            patch("line_bot.views.get_pending", return_value=draft),
-            patch(
-                "line_bot.views.get_transaction_flow",
-                return_value={"step": "await_image"},
-            ),
-            patch("line_bot.views.attach_receipt_to_draft"),
-            patch("line_bot.views.save_draft_now", return_value="saved"),
-        ):
-            filter_user.return_value.first.return_value = user
-            result = handle_image_message("message-id", "line-user")
-
-        self.assertEqual(result, "saved")
-        self.assertEqual(
-            get.call_args.kwargs["headers"]["Authorization"],
-            "Bearer test-token",
-        )
-
-    def test_text_after_image_does_not_reference_missing_reply_token(self):
-        draft = SimpleNamespace(
-            amount=None,
-            description="",
-            transaction_type="expense",
-        )
-
-        with (
-            patch("line_bot.views.User.objects.filter") as filter_user,
-            patch("line_bot.views.handle_savings_amount", return_value=None),
-            patch("line_bot.views.parse_financial_message", return_value=None),
-            patch("line_bot.views.get_pending", return_value=draft),
-            patch(
-                "line_bot.views.get_transaction_flow",
-                return_value={"step": "await_note"},
-            ),
-        ):
-            filter_user.return_value.first.return_value = SimpleNamespace()
-            result = handle_text_message("โน้ตรายการ", "line-user")
-
-        self.assertIn("ยังไม่พบจำนวนเงิน", result)

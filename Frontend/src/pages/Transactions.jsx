@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import CustomHeader from '../components/CustomHeader';
+import { authenticatedFetch as fetch } from '../utils/auth';
 import Navbar from '../components/Navbar';
 import './Transactions.css';
 

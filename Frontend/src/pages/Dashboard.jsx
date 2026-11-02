@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Bar } from "react-chartjs-2";
 import {Chart as ChartJS,CategoryScale,LinearScale,BarElement,Tooltip,Legend} from "chart.js";
 import {Wallet,ArrowDownCircle,ArrowUpCircle,CalendarDays,RefreshCw,PiggyBank} from "lucide-react";
+import { authenticatedFetch as fetch } from "../utils/auth";
 
 import Navbar from "../components/Navbar";
 import "./Dashboard.css";

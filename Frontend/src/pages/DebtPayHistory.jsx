@@ -6,6 +6,7 @@ import {
     Trash2,
     ImagePlus,
 } from "lucide-react";
+import { authenticatedFetch as fetch } from "../utils/auth";
 
 function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
     const isBorrow = debt.type === "borrowed";

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
+import { authenticatedFetch as fetch } from '../utils/auth';
 
 import Navbar from '../components/Navbar';
 import finHealthCriteria from '../data/finHealthCriteria';

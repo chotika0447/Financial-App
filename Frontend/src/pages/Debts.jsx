@@ -15,6 +15,7 @@ import {
   ArrowUp,
   Plus,
 } from "lucide-react";
+import { authenticatedFetch as fetch } from '../utils/auth';
 
 function Debts() {
   const [activeTab, setActiveTab] = useState("borrow");//แท็บหลักรวมรายการทั้งหมดที่ผู้ใช้เลือกดูอยู่ (ยืม/ให้ยืม)

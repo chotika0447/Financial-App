@@ -5,6 +5,7 @@ import './Wallet.css'
 import Navbar from '../components/Navbar'
 import CustomHeader from '../components/CustomHeader';
 import { Calculator, Plus } from "lucide-react";
+import { authenticatedFetch as fetch } from '../utils/auth';
 
 function Wallet() {
     const navigate = useNavigate()
