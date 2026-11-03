@@ -98,6 +98,12 @@ IGNORE_TEXT = {
     "เพื่อตรวจสอบสถานะการเติมเงิน",
 }
 
+def is_thai_text(value):
+    """ตรวจสอบว่าข้อความมีอักษรไทยหรือไม่"""
+    if not value:
+        return False
+
+    return bool(re.search(r"[ก-๙]", str(value)))
 
 def get_ocr_texts(raw_pages, min_confidence=0.5):
     """ดึงข้อความจาก OCR และกรองข้อความว่างหรือคะแนนต่ำ"""
@@ -253,7 +259,7 @@ def find_people_by_order(lines):
 
 
 def parse_date(lines):
-    """แปลงวันที่ภาษาไทยเป็น YYYY-MM-DD HH:MM"""
+    """แปลงวันที่ภาษาไทยเป็น YYYY-MM-DD"""
 
     months_pattern = "|".join(
         re.escape(month)
@@ -263,8 +269,7 @@ def parse_date(lines):
     date_pattern = re.compile(
         rf"(\d{{1,2}})\s+"
         rf"({months_pattern})\s+"
-        rf"(\d{{4}})\s*[-–]?\s*"
-        rf"(\d{{1,2}}):(\d{{2}})"
+        rf"(\d{{4}})"
     )
 
     for item in lines:
@@ -276,22 +281,36 @@ def parse_date(lines):
         day = int(match.group(1))
         month = THAI_MONTHS[match.group(2)]
         year = int(match.group(3))
-        hour = int(match.group(4))
-        minute = int(match.group(5))
 
-        # แปลง พ.ศ. เป็น ค.ศ.
         if year >= 2400:
             year -= 543
 
         try:
-            parsed = datetime(year, month, day, hour, minute)
-            return parsed.strftime("%Y-%m-%d %H:%M")
+            parsed = datetime(year, month, day)
+            return parsed.strftime("%Y-%m-%d")
         except ValueError:
             return None
 
     return None
 
 
+def parse_time(lines):
+    """ค้นหาเวลาในรูปแบบ HH:MM"""
+
+    time_pattern = re.compile(
+        r"(?<!\d)([01]?\d|2[0-3]):([0-5]\d)(?!\d)"
+    )
+
+    for item in lines:
+        match = time_pattern.search(item["text"])
+
+        if match:
+            hour = int(match.group(1))
+            minute = int(match.group(2))
+
+            return f"{hour:02d}:{minute:02d}"
+
+    return None
 
 def parse_amount(lines):
     """ค้นหาจำนวนเงินโดยใช้ Keyword หลายภาษา"""
@@ -341,10 +360,7 @@ def parse_amount(lines):
 
 
 def find_labeled_value(lines, label_pattern):
-    """
-    หาโน้ตหลัง label
-    รองรับทั้งกรณีที่ค่าอยู่บรรทัดเดียวกันหรือบรรทัดถัดไป
-    """
+    """หาโน้ตหลัง label ทั้งบรรทัดเดียวกันและบรรทัดถัดไป"""
 
     for i, item in enumerate(lines):
         text = item["text"].strip()
@@ -352,23 +368,25 @@ def find_labeled_value(lines, label_pattern):
         match = re.match(
             rf"^\s*(?:{label_pattern})\s*[:：]?\s*(.*?)\s*$",
             text,
-            flags=re.IGNORECASE,
+            flags=re.IGNORECASE
         )
 
         if not match:
             continue
 
-        # กรณีมีค่าอยู่หลัง label ในบรรทัดเดียวกัน
         value = match.group(1).strip()
 
         if value:
-            return value
+            return value if is_thai_text(value) else None
 
-        # กรณีค่าอยู่บรรทัดถัดไป
         if i + 1 < len(lines):
             next_value = lines[i + 1]["text"].strip()
 
-            if next_value and next_value not in IGNORE_TEXT:
+            if (
+                next_value
+                and next_value not in IGNORE_TEXT
+                and is_thai_text(next_value)
+            ):
                 return next_value
 
         return None
@@ -400,12 +418,14 @@ def parse_slip(raw_pages):
     lines = get_ocr_texts(raw_pages)
 
     date = parse_date(lines)
+    time = parse_time(lines)
+
     sender = find_person_near_label(lines, SENDER_KEYWORDS)
     receiver = find_person_near_label(lines, RECEIVER_KEYWORDS)
+
     amount = parse_amount(lines)
     note = parse_notes(lines)
 
-    # ต้องตรวจสอบข้อมูลหลักทั้งหมด
     needs_review = (
         not date
         or not is_valid_name(sender)
@@ -415,6 +435,7 @@ def parse_slip(raw_pages):
 
     return {
         "date": date,
+        "time": time,
         "sender": sender,
         "receiver": receiver,
         "amount": amount,

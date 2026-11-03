@@ -14,19 +14,18 @@ from PIL import UnidentifiedImageError
 
 from .services import confirm_transaction_draft
 from .models import Transaction, TransactionDraft
+from users.models import PersonalProfile
 from .serializers import TransactionSerializer, TransactionDraftSerializer
-from .ocr import (
-    read_receipt_data,
-    get_receipt_amount,
-    extract_datetime,
-)
 
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import date
-from users.models import PersonalProfile
+
+#ocr
+from .ocr_api import run_ocr
+from .slip_parser import parse_slip
+
 
 logger = logging.getLogger(__name__)
-
 
 # ดูรายการรายรับ-รายจ่ายทั้งหมด และเพิ่มรายการใหม่
 class TransactionListCreateView(APIView):
@@ -181,7 +180,7 @@ class TransactionDetailView(APIView):
         )
 
 
-# อ่านยอดเงินและวันที่จากรูปสลิปหรือใบเสร็จ
+# อ่านยอดเงิน วันที่ และข้อมูลจากรูปสลิปหรือใบเสร็จ
 class ReceiptOCRView(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -211,34 +210,45 @@ class ReceiptOCRView(APIView):
         logger.info(
             "Receipt OCR: request received size=%s content_type=%s",
             image.size,
-            image.content_type,
+            image.content_type
         )
 
         try:
-            logger.info("Receipt OCR: starting read_receipt_data")
-            receipt_data = read_receipt_data(image)
-            logger.info("Receipt OCR: read_receipt_data completed")
+            # บันทึกรูปชั่วคราวเพื่อส่งให้ OCR API
+            import tempfile
+            import os
 
-            text = receipt_data["raw_text"]
-            parsed = receipt_data["parsed"]
+            suffix = ".png" if image.content_type == "image/png" else ".jpg"
 
-            amount, amount_status = get_receipt_amount(text)
-            transaction_datetime = (
-                extract_datetime(text) or parsed.get("date")
-            )
+            with tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=suffix
+            ) as temp_file:
+                for chunk in image.chunks():
+                    temp_file.write(chunk)
 
-            note_data = parsed.get("note") or {}
-            memo = note_data.get("memo") if isinstance(note_data, dict) else None
+                temp_path = temp_file.name
+
+            try:
+                # อ่านข้อความจากรูปด้วย PaddleOCR API
+                raw_pages = run_ocr(temp_path)
+
+                # แปลงข้อความ OCR เป็นข้อมูลรายการ
+                parsed = parse_slip(raw_pages)
+
+            finally:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
 
             logger.info("Receipt OCR: parsing completed")
 
             return Response({
-                "amount": amount,
-                "amount_status": amount_status,
-                "transaction_datetime": transaction_datetime,
-                "memo": memo,
-                "raw_text": text,
-                "requires_confirmation": True,
+                "date": parsed.get("date"),
+                "time": parsed.get("time"),
+                "amount": parsed.get("amount"),
+                "note": parsed.get("note") or {},
+                "needs_review": parsed.get("needs_review", True),
+                "ocr_text": parsed.get("ocr_text") or []
             })
 
         except (UnidentifiedImageError, OSError):

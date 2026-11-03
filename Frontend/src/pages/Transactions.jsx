@@ -504,8 +504,13 @@ function Transactions() {
 
   const visibleCategories = categories;
 
-  // OCR reads a receipt but never saves a transaction automatically.
-  async function scanReceipt(file) {
+  // เมื่อผู้ใช้กดปุ่มแสกนใบเสร็จ ค่อยเริ่มทำ OCR 
+  async function scanReceipt() {
+    if (!receiptFile) {
+      setOcrMessage('กรุณาอัปโหลดรูปใบเสร็จก่อน');
+      return;
+    }
+
     setOcrLoading(true);
     setOcrMessage('');
 
@@ -514,45 +519,105 @@ function Transactions() {
       if (!token) throw new Error('กรุณาเข้าสู่ระบบใหม่');
 
       const payload = new FormData();
-      payload.append('image', file);
+      payload.append('image', receiptFile);
 
       const response = await fetch('/transactions/ocr/', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: payload,
       });
+
       const data = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        throw new Error(response.status === 401
-          ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'
-          : data.error || data.detail ||
-          `อ่านใบเสร็จไม่สำเร็จ (HTTP ${response.status})`);
+        throw new Error(
+          response.status === 401
+            ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'
+            : data.error || data.detail ||
+            `อ่านใบเสร็จไม่สำเร็จ (HTTP ${response.status})`
+        );
       }
 
-      setForm((current) => {
-        const updated = {
-          ...current,
-          transaction_type: 'expense',
-          account: '',
-        };
+      const note = data.note || {};
 
-        if (data.amount != null && Number(data.amount) > 0) {
-          updated.amount = String(data.amount);
-        }
-        if (data.transaction_datetime) {
-          const [date, time] = data.transaction_datetime.split(' ');
-          if (date) updated.transaction_date = date;
-          updated.transaction_time = time?.slice(0, 5) || '';
-        }
-        if (data.memo) {
-          updated.description = data.memo;
-        }
-        return updated;
-      });
+      // รับเฉพาะข้อความที่มีอักษรภาษาไทย
+      const getThaiText = (value) => {
+        if (typeof value !== 'string') return '';
+        const text = value.trim();
+        return /[\u0E00-\u0E7F]/.test(text) ? text : '';
+      };
 
-      setOcrMessage(data.amount_status === 'estimated_from_items'
-        ? 'OCR ประมาณยอดจากรายการสินค้า กรุณาตรวจสอบก่อนบันทึก'
-        : 'อ่านใบเสร็จแล้ว กรุณาตรวจสอบยอดเงินและวันที่ก่อนบันทึก');
+      const memo = getThaiText(note.memo);
+      const providerInfo = getThaiText(note.provider_info);
+      const fee = getThaiText(note.fee);
+
+      // ชื่อรายการ: ใช้ MEMO ก่อน ถ้าไม่มีจึงใช้ PROVIDER INFO
+      const itemName = memo || providerInfo;
+
+      // รายละเอียด: MEMO + PROVIDER INFO + FEE + จำนวนเงิน
+      const descriptionParts = [
+        memo,
+        providerInfo,
+        fee,
+      ].filter(Boolean);
+
+      const amount = data.amount != null &&
+        Number.isFinite(Number(data.amount)) &&
+        Number(data.amount) > 0
+        ? String(data.amount)
+        : '';
+
+      if (amount) {
+        descriptionParts.push(
+          Number(amount).toLocaleString('en-US', {
+            maximumFractionDigits: 2,
+          })
+        );
+      }
+
+      // วันที่ต้องเป็น YYYY-MM-DD และเป็นวันที่จริง
+      const isValidDate = (value) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
+
+        const date = new Date(`${value}T00:00:00`);
+        return !Number.isNaN(date.getTime()) &&
+          date.toISOString().slice(0, 10) === value;
+      };
+
+      // ใช้เวลาจาก parse_date ก่อน ถ้าไม่มีให้ดึง HH:mm จาก OCR text
+      const ocrText = Array.isArray(data.ocr_text)
+        ? data.ocr_text.join('\n')
+        : '';
+
+      const timeMatch = ocrText.match(
+        /(?:^|\D)([01]?\d|2[0-3]):([0-5]\d)(?:\D|$)/
+      );
+
+      const scannedTime =
+        /^\d{2}:\d{2}$/.test(data.time || '')
+          ? data.time
+          : timeMatch
+            ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`
+            : '';
+
+      setForm((current) => ({
+        ...current,
+        ...(itemName ? { item_name: itemName } : {}),
+        ...(amount ? { amount } : {}),
+        ...(isValidDate(data.date) ? {
+          transaction_date: data.date,
+        } : {}),
+        ...(scannedTime ? {
+          transaction_time: scannedTime,
+        } : {}),
+        ...(descriptionParts.length ? {
+          description: descriptionParts.join(' ').slice(0, 100),
+        } : {}),
+      }));
+
+      setOcrMessage(
+        'อ่านข้อมูลจากใบเสร็จแล้ว กรุณาตรวจสอบข้อมูลก่อนบันทึก'
+      );
     } catch (err) {
       setOcrMessage(err.message);
     } finally {
@@ -598,11 +663,6 @@ function Transactions() {
 
     setReceiptPreview(URL.createObjectURL(file));
 
-    // OCR เฉพาะตอนเพิ่มรายการใหม่
-    // ถ้าแก้ไขรายการเดิม ให้แนบรูปอย่างเดียว
-    if (!editingId) {
-      scanReceipt(file);
-    }
   }
 
   function removeSelectedReceipt() {
@@ -1513,6 +1573,24 @@ function Transactions() {
                         <Trash2 size={15} />
                         ลบรูป
                       </button>
+
+                      {receiptFile && (
+                        <button
+                          type="button"
+                          className="receipt-scan-button"
+                          onClick={scanReceipt}
+                          disabled={ocrLoading || saving}
+                        >
+                          {ocrLoading ? (
+                            <>
+                              <LoaderCircle size={15} className="transaction-spinner" />
+                              กำลังสแกน...
+                            </>
+                          ) : (
+                            'สแกนข้อความจากใบเสร็จ'
+                          )}
+                        </button>
+                      )}
 
                     </div>
 
