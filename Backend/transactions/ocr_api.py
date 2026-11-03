@@ -181,19 +181,12 @@ def run_ocr(file_url):
             "PADDLEOCR_ACCESS_TOKEN is not configured"
         )
 
-    image_path = str(Path(image_path).resolve())
-
-    if not os.path.isfile(image_path):
-        raise FileNotFoundError(
-            f"OCR image not found: {image_path}"
-        )
-
-    file_size = os.path.getsize(image_path)
+    if not file_url or not file_url.startswith("https://"):
+        raise ValueError("Invalid OCR image URL")
 
     logger.info(
-        "OCR API: starting model=%s file_size=%d bytes",
+        "OCR API: starting model=%s source=Supabase Signed URL",
         OCR_MODEL,
-        file_size,
     )
 
     # ตรวจสอบ TLS ก่อนเรียก PaddleOCR
@@ -282,3 +275,4 @@ def run_ocr(file_url):
     )
 
     return raw_pages
+
