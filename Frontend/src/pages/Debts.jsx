@@ -14,6 +14,7 @@ import {
   ArrowDown,
   ArrowUp,
   Plus,
+  X,
 } from "lucide-react";
 import { authenticatedFetch as fetch } from '../utils/auth';
 
@@ -53,6 +54,7 @@ function Debts() {
   });
 
   const [sendingReminderId, setSendingReminderId] = useState(null);
+  const [completedDebt, setCompletedDebt] = useState(null); //แจ้งเตือนชำระหนี้ครบตามยอดทั้งหมด
   //useEffect สำหรับดึงข้อมูลหนี้สิน
   useEffect(() => {
     const fetchDebts = async () => {
@@ -611,6 +613,17 @@ function Debts() {
     );
   }
 
+  //เมื่อปิดแจ้งเตือนชำระหนี้ครบตามยอดทั้งหมด ให้เปลี่ยนแท็บไปยังหน้ารายการที่ชำระครบแล้ว
+  const closeCompletedDebtNotice = () => {
+    if (completedDebt) {
+      setActiveTab(
+        completedDebt.type === "borrowed" ? "borrow" : "lend"
+      );
+    }
+
+    setActiveStatus("paid");
+    setCompletedDebt(null);
+  };
   return (
     <div className="debts-page pb-20">
 
@@ -635,14 +648,26 @@ function Debts() {
         debt={selectedDebt}
         onSaved={async () => {
           try {
-            await refreshDebts();
+            const previousRemaining = Number(selectedDebt?.remaining_amount || 0);
+
+            const updatedDebts = await refreshDebts();
+
+            const updatedDebt = updatedDebts.find(
+              (item) => String(item.id) === String(selectedDebt?.id)
+            );
+
+            const currentRemaining = Number(updatedDebt?.remaining_amount ?? 0);
+
+            // แจ้งเตือนเมื่อเปลี่ยนจากยังมียอดค้างเป็นชำระครบแล้ว
+            if (
+              previousRemaining > 0 &&
+              updatedDebt &&
+              (updatedDebt.status === "paid" || currentRemaining <= 0)
+            ) {
+              setCompletedDebt(updatedDebt);
+            }
           } catch (error) {
             console.error("Refresh debts error:", error);
-            try {
-              await refreshDebts();
-            } catch (error) {
-              console.error("Refresh debts error:", error);
-            }
           }
         }}
         onClose={() => {
@@ -650,6 +675,49 @@ function Debts() {
           setSelectedDebt(null);
         }}
       />
+
+      {completedDebt && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-5">
+          <div className="relative w-full max-w-[350px] rounded-2xl bg-white px-6 py-7 text-center shadow-xl">
+
+            {/* ปุ่มกากบาท */}
+            <button
+              type="button"
+              onClick={closeCompletedDebtNotice}
+              aria-label="ปิดหน้าต่างแจ้งเตือน"
+              className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
+            >
+              <X size={20} />
+            </button>
+
+            {/* ไอคอนแสดงความยินดี */}
+            <div className="mb-4 text-4xl">🎉</div>
+
+            {/* ข้อความแจ้งเตือน */}
+            <p className="mb-6 text-sm leading-7 text-gray-700">
+              ยินดีด้วย! คุณชำระหนี้{" "}
+              <span className="font-semibold text-gray-900">
+                {completedDebt.name}
+              </span>{" "}
+              ครบ{" "}
+              <span className="font-semibold text-green-600">
+                {Number(completedDebt.total_amount || 0).toLocaleString("th-TH")}
+              </span>{" "}
+              บาทแล้ว สามารถดูรายการได้ในแท็บ ชำระครบแล้ว
+            </p>
+
+            {/* ปุ่มเข้าใจแล้ว */}
+            <button
+              type="button"
+              onClick={closeCompletedDebtNotice}
+              className="w-full rounded-lg bg-green-600 py-2.5 text-sm font-medium text-white transition hover:bg-green-700"
+            >
+              เข้าใจแล้ว
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="content">
         {/* ส่วนหัว */}
         <div className="grid grid-cols-2 gap-2 px-5 py-5">
@@ -709,7 +777,7 @@ function Debts() {
                   : "text-gray-500 hover:text-gray-700"
                   }`}
               >
-                ยังดำเนินการอยู่
+                ยังดำเนินการอยู่ ({ongoingDebts.length})
               </button>
 
               <button
@@ -720,7 +788,7 @@ function Debts() {
                   : "text-gray-500 hover:text-gray-700"
                   }`}
               >
-                ชำระครบแล้ว
+                ชำระครบแล้ว ({paidDebts.length})
               </button>
             </div>
           </div>

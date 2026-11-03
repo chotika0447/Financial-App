@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from users.models import User
 from .models import Debts, Payments
-
+from django.db.models import Sum, Q
 
 class DebtSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(read_only=True)
@@ -11,6 +11,9 @@ class DebtSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True
     )
+    confirmed_amount = serializers.SerializerMethodField()
+    pending_amount = serializers.SerializerMethodField()
+    submitted_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = Debts
@@ -24,6 +27,9 @@ class DebtSerializer(serializers.ModelSerializer):
             'type',
             'total_amount',
             'remaining_amount',
+            'confirmed_amount',
+            'pending_amount',
+            'submitted_amount',
             'payment_type',
             'payment_amount',
             'due_date',
@@ -46,10 +52,61 @@ class DebtSerializer(serializers.ModelSerializer):
             'id',
             'user',
             'remaining_amount',
+            'confirmed_amount',
+            'pending_amount',
+            'submitted_amount',
             'created_at',
             'updated_at',
             'current_due_date',
         ]
+
+    def get_payment_totals(self, obj):
+        # ป้องกันการ Query ซ้ำใน Serializer instance เดียวกัน
+        if hasattr(obj, '_payment_totals_cache'):
+            return obj._payment_totals_cache
+
+        debt_ids = [obj.pk]
+
+        if obj.paired_debt_id:
+            debt_ids.append(obj.paired_debt_id)
+
+        totals = Payments.objects.filter(
+            debt_id__in=debt_ids,
+            approvement_status__in=['approved', 'pending'],
+        ).aggregate(
+            confirmed=Sum(
+                'paid_amount',
+                filter=Q(approvement_status='approved')
+            ),
+            pending=Sum(
+                'paid_amount',
+                filter=Q(approvement_status='pending')
+            ),
+        )
+
+        confirmed = totals['confirmed'] or 0
+        pending = totals['pending'] or 0
+
+        obj._payment_totals_cache = {
+            'confirmed': confirmed,
+            'pending': pending,
+            'submitted': confirmed + pending,
+        }
+
+        return obj._payment_totals_cache
+
+
+    def get_confirmed_amount(self, obj):
+        return self.get_payment_totals(obj)['confirmed']
+
+
+    def get_pending_amount(self, obj):
+        return self.get_payment_totals(obj)['pending']
+
+
+    def get_submitted_amount(self, obj):
+        return self.get_payment_totals(obj)['submitted']
+    
     #ตรวจความถูกต้องของข้อมูล
     def validate(self, data):
         total_amount = data.get(

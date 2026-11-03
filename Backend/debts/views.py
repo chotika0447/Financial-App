@@ -94,39 +94,46 @@ def get_related_debts(debt):
 
 def recalculate_debt_remaining(debt):
     """
-    คำนวณยอดคงเหลือจากรายการที่อนุมัติแล้วเท่านั้น
-    และยังไม่ปิดหนี้หากมีรายการรออนุมัติ
+    remaining_amount = ยอดที่อนุมัติแล้วเท่านั้น
+    status = paid เมื่อยอดอนุมัติแล้ว + ยอดรออนุมัติ ครบยอดหนี้
     """
 
     related_debts = get_related_debts(debt)
     related_debt_ids = [item.pk for item in related_debts]
 
+    payments = Payments.objects.filter(
+        debt_id__in=related_debt_ids,
+        approvement_status__in=["approved", "pending"],
+    )
+
     approved_total = (
-        Payments.objects.filter(
-            debt_id__in=related_debt_ids,
-            approvement_status="approved",
-        ).aggregate(
-            total=Sum("paid_amount")
-        )["total"]
+        payments.filter(
+            approvement_status="approved"
+        ).aggregate(total=Sum("paid_amount"))["total"]
         or Decimal("0.00")
     )
 
-    has_pending_payment = Payments.objects.filter(
-        debt_id__in=related_debt_ids,
-        approvement_status="pending",
-    ).exists()
+    pending_total = (
+        payments.filter(
+            approvement_status="pending"
+        ).aggregate(total=Sum("paid_amount"))["total"]
+        or Decimal("0.00")
+    )
+
+    submitted_total = approved_total + pending_total
 
     for related_debt in related_debts:
+        total_amount = Decimal(related_debt.total_amount)
+
         remaining = max(
             Decimal("0.00"),
-            Decimal(related_debt.total_amount) - approved_total,
+            total_amount - approved_total,
         )
 
         related_debt.remaining_amount = remaining
         related_debt.status = (
             "paid"
-            if remaining == Decimal("0.00")
-            and not has_pending_payment
+            if submitted_total >= total_amount
             else "ongoing"
         )
 
@@ -1146,7 +1153,24 @@ class PaymentDetailView(APIView):
 
         # ยอดชำระใหม่ต้องไม่เกินยอดหนี้ที่ยังมีอยู่
         # ยอดคงเหลือปัจจุบัน + ยอดเดิมของรายการนี้
-        available_amount = debt.remaining_amount + old_paid_amount
+        related_debts = get_related_debts(debt)
+        related_debt_ids = [item.pk for item in related_debts]
+
+        other_submitted_total = (
+            Payments.objects.filter(
+                debt_id__in=related_debt_ids,
+                approvement_status__in=["approved", "pending"],
+            )
+            .exclude(pk=payment.pk)
+            .aggregate(total=Sum("paid_amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        available_amount = max(
+            Decimal("0.00"),
+            Decimal(debt.total_amount) - other_submitted_total,
+        )
+
 
         if new_paid_amount < 0:
             return Response(

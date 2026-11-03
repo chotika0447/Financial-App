@@ -56,6 +56,10 @@ function PayDebt({ open, debt, onClose, onSaved }) {
     description: "",
   });
 
+  const totalAmount = Number(debt?.total_amount || 0);
+  const submittedAmount = Number(debt?.submitted_amount ?? 0 );
+  const availableAmount = Math.max( 0, totalAmount - submittedAmount);
+
   const handleChange = (field, value) => {
     setForm((prev) => ({
       ...prev,
@@ -73,6 +77,19 @@ function PayDebt({ open, debt, onClose, onSaved }) {
 
     if (!form.amount) {
       alert("กรุณาระบุจำนวนเงินที่ชำระ");
+      return;
+    }
+
+    const paymentAmount = Number(form.amount);
+
+    if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+      alert("กรุณาระบุจำนวนเงินที่ถูกต้อง");
+      return;
+    }
+    if (paymentAmount > availableAmount) {
+      alert(
+        `ยอดที่สามารถชำระได้สูงสุดคือ ${availableAmount.toLocaleString("th-TH")} บาท`
+      );
       return;
     }
 
@@ -234,7 +251,7 @@ function PayDebt({ open, debt, onClose, onSaved }) {
             <input
               type="number"
               min="0"
-              max={debt.remaining_amount}
+              max={availableAmount}
               value={form.amount}
               onChange={(e) =>
                 handleChange(
@@ -243,7 +260,12 @@ function PayDebt({ open, debt, onClose, onSaved }) {
                 )
               }
               placeholder="0.00"
-              className="h-[34px] w-full rounded-[9px] border border-gray-300 bg-gray-100 px-3 text-[12px] outline-none" />
+              className="h-[34px] w-full rounded-[9px] border border-gray-300 bg-gray-100 px-3 text-[12px] outline-none"
+            />
+            <p className="mt-1 text-[10px] text-gray-500">
+              ยอดที่สามารถชำระได้อีก {availableAmount.toLocaleString("th-TH")} บาท
+            </p>
+
           </div>
 
 
@@ -364,8 +386,8 @@ function PayDebt({ open, debt, onClose, onSaved }) {
             onClick={handleSubmit}
             disabled={isSubmitting}
             className={`rounded-[9px] px-7 py-2 text-[12px] text-white ${isSubmitting
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-[#2D9CDB]"
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-[#2D9CDB]"
               }`}
           >
             {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}

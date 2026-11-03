@@ -325,7 +325,7 @@ function Transactions() {
         `${transaction.transaction_type}:${transaction.category}` === filterCategory
       );
       const text = [transaction.item_name, transaction.description, transaction.category_name,
-        transaction.account, transaction.amount].filter(Boolean).join(' ').toLowerCase();
+      transaction.account, transaction.amount].filter(Boolean).join(' ').toLowerCase();
       return typeMatched && dateMatched && categoryMatched && (!keyword || text.includes(keyword));
     });
   }, [transactions, filterType, filterCategory, periodRange, search]);
@@ -565,36 +565,30 @@ function Transactions() {
 
     if (!file) return;
 
-    const allowedTypes = [
-      'image/jpeg',
-      'image/png',
-    ];
+    const allowedExtensions = ['jpg', 'jpeg', 'png'];
+    const extension = file.name.split('.').pop().toLowerCase();
 
-    if (!allowedTypes.includes(file.type)) {
-      setError(
-        'กรุณาเลือกไฟล์ JPG หรือ PNG เท่านั้น'
-      );
-
+    if (!allowedExtensions.includes(extension)) {
+      setError('รองรับเฉพาะไฟล์ JPG, JPEG และ PNG เท่านั้น');
       event.target.value = '';
       return;
     }
 
-    const maxSize =
-      5 * 1024 * 1024;
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setError('ประเภทไฟล์ไม่ถูกต้อง กรุณาเลือกไฟล์ JPG, JPEG หรือ PNG');
+      event.target.value = '';
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
 
     if (file.size > maxSize) {
-      setError(
-        'รูปใบเสร็จต้องมีขนาดไม่เกิน 5 MB'
-      );
-
+      setError('รูปใบเสร็จต้องมีขนาดไม่เกิน 5 MB');
       event.target.value = '';
       return;
     }
 
-    if (
-      receiptPreview &&
-      receiptPreview.startsWith('blob:')
-    ) {
+    if (receiptPreview && receiptPreview.startsWith('blob:')) {
       URL.revokeObjectURL(receiptPreview);
     }
 
@@ -602,9 +596,7 @@ function Transactions() {
     setReceiptFile(file);
     setRemoveReceipt(false);
 
-    setReceiptPreview(
-      URL.createObjectURL(file)
-    );
+    setReceiptPreview(URL.createObjectURL(file));
 
     // OCR เฉพาะตอนเพิ่มรายการใหม่
     // ถ้าแก้ไขรายการเดิม ให้แนบรูปอย่างเดียว
@@ -612,6 +604,7 @@ function Transactions() {
       scanReceipt(file);
     }
   }
+
   function removeSelectedReceipt() {
     setOcrMessage('');
     setOcrMessage('');
@@ -626,7 +619,6 @@ function Transactions() {
     setReceiptPreview('');
     setRemoveReceipt(true);
   }
-
 
   async function submit(event) {
     event.preventDefault();
@@ -1532,10 +1524,8 @@ function Transactions() {
                 <input
                   id="receipt"
                   type="file"
-                  accept="image/jpeg,image/png"
-                  onChange={
-                    handleReceiptChange
-                  }
+                  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                  onChange={handleReceiptChange}
                   className="receipt-file-input"
                   disabled={ocrLoading}
                 />
