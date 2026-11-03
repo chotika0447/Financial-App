@@ -24,6 +24,11 @@ from datetime import date
 from .ocr_api import run_ocr
 from .slip_parser import parse_slip
 
+from line_bot.supabase_storage import (
+    upload_receipt,
+    get_receipt_signed_url,
+    delete_receipt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -213,34 +218,49 @@ class ReceiptOCRView(APIView):
             image.content_type
         )
 
+        storage_path = None
+
         try:
-            # บันทึกรูปชั่วคราวเพื่อส่งให้ OCR API
-            import tempfile
-            import os
+            # กำหนดนามสกุลจาก Content-Type
+            filename = (
+                "receipt.png"
+                if image.content_type == "image/png"
+                else "receipt.jpg"
+            )
 
-            suffix = ".png" if image.content_type == "image/png" else ".jpg"
+            # อ่านไฟล์และอัปโหลดไป Supabase Storage
+            image_bytes = image.read()
 
-            with tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=suffix
-            ) as temp_file:
-                for chunk in image.chunks():
-                    temp_file.write(chunk)
+            storage_path = upload_receipt(
+                image_bytes,
+                filename=filename
+            )
 
-                temp_path = temp_file.name
+            logger.info(
+                "Receipt OCR: temporary image uploaded to Supabase"
+            )
 
-            try:
-                # อ่านข้อความจากรูปด้วย PaddleOCR API
-                raw_pages = run_ocr(temp_path)
+            # สร้าง Signed URL สำหรับ PaddleOCR
+            file_url = get_receipt_signed_url(storage_path)
 
-                # แปลงข้อความ OCR เป็นข้อมูลรายการ
-                parsed = parse_slip(raw_pages)
+            if not file_url:
+                raise Exception(
+                    "ไม่สามารถสร้าง Supabase Signed URL ได้"
+                )
 
-            finally:
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
+            logger.info(
+                "Receipt OCR: signed URL created"
+            )
 
-            logger.info("Receipt OCR: parsing completed")
+            # ส่ง URL ให้ PaddleOCR อ่านรูป
+            raw_pages = run_ocr(file_url)
+
+            # แปลงข้อความ OCR เป็นข้อมูลรายการ
+            parsed = parse_slip(raw_pages)
+
+            logger.info(
+                "Receipt OCR: parsing completed"
+            )
 
             return Response({
                 "date": parsed.get("date"),
@@ -252,19 +272,39 @@ class ReceiptOCRView(APIView):
             })
 
         except (UnidentifiedImageError, OSError):
-            logger.exception("Receipt OCR: invalid or unreadable image")
+            logger.exception(
+                "Receipt OCR: invalid or unreadable image"
+            )
+
             return Response(
                 {"error": "ไม่สามารถอ่านไฟล์รูปภาพได้"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         except Exception:
-            logger.exception("Receipt OCR processing failed")
+            logger.exception(
+                "Receipt OCR processing failed"
+            )
+
             return Response(
                 {"error": "เกิดข้อผิดพลาดในการประมวลผล OCR"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+        finally:
+            # ลบรูปชั่วคราวออกจาก Supabase
+            if storage_path:
+                try:
+                    delete_receipt(storage_path)
+
+                    logger.info(
+                        "Receipt OCR: temporary image deleted"
+                    )
+
+                except Exception:
+                    logger.exception(
+                        "Receipt OCR: failed to delete temporary image"
+                    )
 
 
 # ดูและแก้ไขรายการร่างจาก LINE OA

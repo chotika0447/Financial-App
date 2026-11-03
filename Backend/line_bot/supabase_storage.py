@@ -1,3 +1,4 @@
+
 import os
 from uuid import uuid4
 
@@ -7,14 +8,17 @@ from supabase import create_client
 load_dotenv()
 
 
-def upload_receipt(image_bytes, filename="receipt.jpg"):
-    """อัปโหลดรูปใบเสร็จไปยัง Supabase Storage"""
-
-    client = create_client(
+def get_supabase_client():
+    return create_client(
         os.environ["SUPABASE_URL"],
         os.environ["SUPABASE_SECRET_KEY"]
     )
 
+
+def upload_receipt(image_bytes, filename="receipt.jpg"):
+    """อัปโหลดรูปใบเสร็จไปยัง Supabase Storage"""
+
+    client = get_supabase_client()
     bucket = os.environ["SUPABASE_RECEIPTS_BUCKET"]
 
     extension = os.path.splitext(filename)[1].lower()
@@ -36,25 +40,31 @@ def upload_receipt(image_bytes, filename="receipt.jpg"):
 
     return path
 
+
 def get_receipt_signed_url(path):
+    """สร้าง Signed URL สำหรับให้ PaddleOCR อ่านรูป"""
+
     if not path or not path.startswith("receipts/"):
         return None
 
-    try:
-        client = create_client(
-            os.environ["SUPABASE_URL"],
-            os.environ["SUPABASE_SECRET_KEY"]
-        )
+    client = get_supabase_client()
+    bucket = os.environ["SUPABASE_RECEIPTS_BUCKET"]
 
-        bucket = os.environ["SUPABASE_RECEIPTS_BUCKET"]
+    result = client.storage.from_(bucket).create_signed_url(
+        path,
+        3600
+    )
 
-        result = client.storage.from_(bucket).create_signed_url(
-            path,
-            3600
-        )
+    return result.get("signedURL") or result.get("signedUrl")
 
-        return result["signedURL"]
 
-    except Exception as error:
-        print(f"Cannot create receipt signed URL: {error}")
-        return None
+def delete_receipt(path):
+    """ลบรูปชั่วคราวออกจาก Supabase Storage"""
+
+    if not path or not path.startswith("receipts/"):
+        return
+
+    client = get_supabase_client()
+    bucket = os.environ["SUPABASE_RECEIPTS_BUCKET"]
+
+    client.storage.from_(bucket).remove([path])

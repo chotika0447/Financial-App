@@ -171,7 +171,7 @@ def _is_network_error(error):
     return False
 
 
-def run_ocr(image_path):
+def run_ocr(file_url):
     start = time.perf_counter()
 
     token = os.getenv("PADDLEOCR_ACCESS_TOKEN")
@@ -219,7 +219,7 @@ def run_ocr(image_path):
             )
 
             result = client.parse_document(
-                file_path=image_path,
+                file_url=file_url,
                 model=OCR_MODEL,
             )
 
