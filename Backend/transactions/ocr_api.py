@@ -2,6 +2,8 @@
 import logging
 import os
 import time
+import socket
+import ssl
 
 from pathlib import Path
 from dotenv import load_dotenv
@@ -13,11 +15,10 @@ load_dotenv(BASE_DIR / ".env")
 logger = logging.getLogger(__name__)
 
 OCR_MODEL = "PaddleOCR-VL-1.6"
+OCR_HOST = "paddleocr.aistudio-app.com"
 
 
 def _to_dict(value):
-    """แปลงผลลัพธ์ SDK เป็น dict เพื่อให้อ่านข้อมูลได้หลายรูปแบบ"""
-
     if isinstance(value, dict):
         return value
 
@@ -34,14 +35,8 @@ def _to_dict(value):
 
 
 def _extract_page_text(page):
-    """
-    ดึงข้อความจากผลลัพธ์ PaddleOCR-VL-1.6
-    รองรับทั้ง parsing_res_list และ markdown_text
-    """
-
     data = _to_dict(page)
 
-    # ค้นหา parsing_res_list ภายในผลลัพธ์
     def find_blocks(obj):
         if isinstance(obj, dict):
             blocks = obj.get("parsing_res_list")
@@ -51,14 +46,12 @@ def _extract_page_text(page):
 
             for value in obj.values():
                 found = find_blocks(value)
-
                 if found:
                     return found
 
         elif isinstance(obj, list):
             for value in obj:
                 found = find_blocks(value)
-
                 if found:
                     return found
 
@@ -79,7 +72,6 @@ def _extract_page_text(page):
         if texts:
             return texts
 
-    # กรณีผลลัพธ์มี Markdown
     def find_markdown(obj):
         if isinstance(obj, dict):
             for key in ("markdown_text", "text"):
@@ -105,18 +97,81 @@ def _extract_page_text(page):
             if line.strip()
         ]
 
-    raise ValueError(
-        "Cannot extract text from PaddleOCR-VL result"
-    )
+    raise ValueError("Cannot extract text from PaddleOCR-VL result")
+
+
+def _check_tls_connection():
+    """ตรวจสอบว่า Render เชื่อมต่อ HTTPS ไปยัง PaddleOCR ได้หรือไม่"""
+
+    start = time.perf_counter()
+
+    try:
+        context = ssl.create_default_context()
+
+        with socket.create_connection(
+            (OCR_HOST, 443),
+            timeout=15,
+        ) as sock:
+
+            with context.wrap_socket(
+                sock,
+                server_hostname=OCR_HOST,
+            ) as secure_sock:
+
+                logger.info(
+                    "OCR TLS CHECK: SUCCESS host=%s version=%s elapsed=%.2fs",
+                    OCR_HOST,
+                    secure_sock.version(),
+                    time.perf_counter() - start,
+                )
+
+                return True
+
+    except Exception:
+        logger.exception(
+            "OCR TLS CHECK: FAILED host=%s elapsed=%.2fs",
+            OCR_HOST,
+            time.perf_counter() - start,
+        )
+
+        return False
+
+
+def _is_network_error(error):
+    """ตรวจสอบว่า Error เกิดจากการเชื่อมต่อเครือข่ายหรือ SSL หรือไม่"""
+
+    current = error
+
+    while current is not None:
+        error_name = type(current).__name__.lower()
+        error_message = str(current).lower()
+
+        if any(keyword in error_name for keyword in (
+            "networkerror",
+            "sslerror",
+            "connectionerror",
+            "timeout",
+        )):
+            return True
+
+        if any(keyword in error_message for keyword in (
+            "ssl",
+            "connection failed",
+            "connection reset",
+            "connection aborted",
+            "connection refused",
+            "timed out",
+            "eof occurred",
+            "max retries exceeded",
+        )):
+            return True
+
+        current = current.__cause__ or current.__context__
+
+    return False
 
 
 def run_ocr(image_path):
-    """
-    ส่งภาพไปประมวลผลด้วย PaddleOCR Official API
-    ใช้ PaddleOCR-VL-1.6
-    คืนข้อมูลในรูปแบบที่ slip_parser.py เดิมรองรับ
-    """
-
     start = time.perf_counter()
 
     token = os.getenv("PADDLEOCR_ACCESS_TOKEN")
@@ -133,59 +188,97 @@ def run_ocr(image_path):
             f"OCR image not found: {image_path}"
         )
 
-    client = None
+    file_size = os.path.getsize(image_path)
 
-    try:
-        logger.info(
-            "OCR API: submitting image model=%s",
-            OCR_MODEL,
-        )
+    logger.info(
+        "OCR API: starting model=%s file_size=%d bytes",
+        OCR_MODEL,
+        file_size,
+    )
 
-        client = PaddleOCRClient(
-            token=token,
-            request_timeout=300,
-            poll_timeout=600,
-        )
+    # ตรวจสอบ TLS ก่อนเรียก PaddleOCR
+    _check_tls_connection()
 
-        result = client.parse_document(
-            file_path=image_path,
-            model=OCR_MODEL,
-        )
+    result = None
 
-        raw_pages = []
+    # ลองส่งรูปสูงสุด 2 ครั้ง
+    for attempt in range(1, 3):
+        client = None
+        attempt_start = time.perf_counter()
 
-        for page in result.pages:
-            texts = _extract_page_text(page)
-
-            raw_pages.append({
-                "res": {
-                    "rec_texts": texts,
-                    "rec_scores": [],
-                }
-            })
-
-        if not raw_pages:
-            raise ValueError(
-                "PaddleOCR API returned no pages"
+        try:
+            logger.info(
+                "OCR API: submitting image attempt=%d/2",
+                attempt,
             )
 
-        logger.info(
-            "OCR API: completed model=%s pages=%d "
-            "total=%.2fs",
-            OCR_MODEL,
-            len(raw_pages),
-            time.perf_counter() - start,
-        )
+            client = PaddleOCRClient(
+                token=token,
+                request_timeout=300,
+                poll_timeout=600,
+            )
 
-        return raw_pages
+            result = client.parse_document(
+                file_path=image_path,
+                model=OCR_MODEL,
+            )
 
-    except Exception:
-        logger.exception(
-            "OCR API: failed after %.2fs",
-            time.perf_counter() - start,
-        )
-        raise
+            logger.info(
+                "OCR API: submission successful attempt=%d elapsed=%.2fs",
+                attempt,
+                time.perf_counter() - attempt_start,
+            )
 
-    finally:
-        if client is not None:
-            client.close()
+            break
+
+        except Exception as error:
+            logger.exception(
+                "OCR API: submission failed attempt=%d/2 elapsed=%.2fs",
+                attempt,
+                time.perf_counter() - attempt_start,
+            )
+
+            if attempt == 1 and _is_network_error(error):
+                logger.warning(
+                    "OCR API: network error detected, retrying with a new client"
+                )
+                continue
+
+            raise
+
+        finally:
+            if client is not None:
+                try:
+                    client.close()
+                except Exception:
+                    logger.warning(
+                        "OCR API: failed to close client",
+                        exc_info=True,
+                    )
+
+    if result is None:
+        raise RuntimeError("PaddleOCR API returned no result")
+
+    raw_pages = []
+
+    for page in result.pages:
+        texts = _extract_page_text(page)
+
+        raw_pages.append({
+            "res": {
+                "rec_texts": texts,
+                "rec_scores": [],
+            }
+        })
+
+    if not raw_pages:
+        raise ValueError("PaddleOCR API returned no pages")
+
+    logger.info(
+        "OCR API: completed model=%s pages=%d total=%.2fs",
+        OCR_MODEL,
+        len(raw_pages),
+        time.perf_counter() - start,
+    )
+
+    return raw_pages
