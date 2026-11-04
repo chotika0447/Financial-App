@@ -31,7 +31,7 @@ function CompoundInterestChart({ presentValue, rate, numberOfPeriods, frequency 
             label: 'เงินในอนาคต', 
             data: moneyData, 
             tension: 0.3,
-            backgroundColor: 'rgb(255, 157, 216)',
+            backgroundColor: '#b7f1f1',
         } 
         ] 
     }; 

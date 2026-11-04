@@ -26,7 +26,7 @@ function RetirementChart({ monthlyExpenses, yearsInRetirement }) {
         label: 'เงินที่ต้องใช้สะสม', 
         data: moneyData, 
         tension: 0.3,
-        backgroundColor: 'rgb(183, 241, 241)',
+        backgroundColor: '#b7f1f1',
       } 
     ] 
   }; 
