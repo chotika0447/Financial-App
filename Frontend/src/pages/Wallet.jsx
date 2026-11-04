@@ -1,322 +1,597 @@
-
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import WalletCard from '../components/WalletCard'
 import './Wallet.css'
 import Navbar from '../components/Navbar'
+import CustomHeader from '../components/CustomHeader';
+import { Calculator, Plus } from "lucide-react";
+import { authenticatedFetch as fetch } from '../utils/auth';
+import CompletedWallets from '../components/CompletedWallets';
 
 function Wallet() {
-  const [wallets, setWallets] = useState([])
-  const [showForm, setShowForm] = useState(false)
-  const [name, setName] = useState('')
-  const [target, setTarget] = useState('')
-  const [targetDate, setTargetDate] = useState('')
-  const [editingWalletId, setEditingWalletId] = useState(null)
+    const navigate = useNavigate()
 
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+    const [wallets, setWallets] = useState([])
+    const activeWallets = wallets.filter((wallet) => wallet.status === 'active')
+    const completedWallets = wallets.filter((wallet) => wallet.status === 'completed')
+    const [showForm, setShowForm] = useState(false)
+    const [name, setName] = useState('')
+    const [target, setTarget] = useState('')
+    const [targetDate, setTargetDate] = useState('')
+    const [editingWalletId, setEditingWalletId] = useState(null)
 
-  const today = new Date().toISOString().split('T')[0]
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+    const [error, setError] = useState('')
 
-  const accessToken = () => sessionStorage.getItem('accessToken')
+    const [transactions, setTransactions] = useState([])
+    const [transactionLoading, setTransactionLoading] = useState(true)
+    const [transactionError, setTransactionError] = useState('')
 
-  // แปลงชื่อ field จาก Django ให้ตรงกับ WalletCard เดิม
-  const normalizeWallet = (item) => ({
-    id: item.saving_id,
-    name: item.saving_name,
-    target: Number(item.target || 0),
-    date: item.target_date || '',
-    balance: Number(item.balance || 0),
-    status: item.status || 'active',
-  })
+    const today = new Date().toISOString().split('T')[0]
 
-  // เรียก API และจัดการ error
-  const apiRequest = async (url, options = {}) => {
-    const token = sessionStorage.getItem('accessToken')
+    const accessToken = () => sessionStorage.getItem('accessToken')
 
-    if (!token) {
-      throw new Error('ไม่พบ Token กรุณาเข้าสู่ระบบใหม่')
-    }
+    //กำหนดจำนวนกระเป๋าเงินสูงสุด
+    const maxWallets = 15;
+    const isWalletLimitReached = activeWallets.length >= maxWallets;
 
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...options.headers,
-      },
+    //แปลงชื่อ field จาก Django ให้ตรงกับ WalletCard เดิม
+    const normalizeWallet = (item) => ({
+        id: item.saving_id,
+        name: item.saving_name,
+        target: Number(item.target || 0),
+        date: item.target_date || '',
+        balance: Number(item.balance || 0),
+        status: item.status || 'active',
     })
 
-    if (response.status === 204) {
-      return null
+    // เรียก API และจัดการ error
+    const apiRequest = async (url, options = {}) => {
+        const token = sessionStorage.getItem('accessToken')
+
+        if (!token) {
+            throw new Error('ไม่พบ Token กรุณาเข้าสู่ระบบใหม่')
+        }
+
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+                ...options.headers,
+            },
+        })
+
+        if (response.status === 204) {
+            return null
+        }
+
+        const data = await response.json().catch(() => ({}))
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                throw new Error('Session หมดอายุหรือ Token ไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่')
+            }
+
+            throw new Error(
+                data.detail ||
+                data.error ||
+                JSON.stringify(data) ||
+                `เกิดข้อผิดพลาด (${response.status})`
+            )
+        }
+
+        return data
     }
 
-    const data = await response.json().catch(() => ({}))
+    const fetchTransactions = async () => {
+        setTransactionLoading(true)
+        setTransactionError('')
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Session หมดอายุหรือ Token ไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่')
-      }
-
-      throw new Error(
-        data.detail ||
-        data.error ||
-        JSON.stringify(data) ||
-        `เกิดข้อผิดพลาด (${response.status})`
-      )
+        try {
+            const data = await apiRequest('/savings/transactions/')
+            setTransactions(Array.isArray(data) ? data : [])
+        } catch (error) {
+            console.error('ไม่สามารถดึงประวัติการออมได้:', error)
+            setTransactionError(error.message)
+        } finally {
+            setTransactionLoading(false)
+        }
     }
 
-    return data
-  }
+    //โหลดรายการจากฐานข้อมูลเมื่อเปิดหน้า
+    const fetchWallets = async () => {
+        setLoading(true)
+        setError('')
 
-  // โหลดรายการจากฐานข้อมูลเมื่อเปิดหน้า
-  const fetchWallets = async () => {
-    setLoading(true)
-    setError('')
-
-    try {
-      const data = await apiRequest('/savings/')
-      setWallets(data.map(normalizeWallet))
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchWallets()
-  }, [])
-
-  const fromTitle =
-    editingWalletId !== null
-      ? 'แก้ไขกระเป๋าเงินออม'
-      : 'เพิ่มกระเป๋าเงินออม'
-
-  // เพิ่มหรือแก้ไขกระเป๋าในฐานข้อมูล
-  const addWallet = async () => {
-    if (!name.trim()) {
-      alert('กรุณากรอกชื่อกระเป๋า')
-      return
+        try {
+            const data = await apiRequest('/savings/')
+            setWallets(data.map(normalizeWallet))
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
     }
 
-    if (target.trim() === '' || !Number.isFinite(Number(target)) || Number(target) < 0) {
-      alert('กรุณากรอกเป้าหมายเงินออมตั้งแต่ 0 บาทขึ้นไป')
-      return
+    useEffect(() => {
+        fetchWallets()
+        fetchTransactions()
+    }, [])
+
+    const fromTitle =
+        editingWalletId !== null
+            ? 'แก้ไขกระเป๋าเงินออม'
+            : 'เพิ่มกระเป๋าเงินออม'
+
+    //ตรวจสอบชื่อกระเป๋าซ้ำและเพิ่มเลขเลย
+    const getUniqueWalletName = (walletName) => {
+        const baseName = walletName.trim()
+
+        //ดึงชื่อกระเป๋าที่มีอยู่ โดยไม่รวมกระเป๋าที่กำลังแก้ไข
+        const existingNames = wallets
+            .filter((wallet) => wallet.id !== editingWalletId)
+            .map((wallet) => wallet.name.trim().toLowerCase())
+
+        //ถ้าชื่อไม่ซ้ำให้ใช้ชื่อเดิม
+        if (!existingNames.includes(baseName.toLowerCase())) {
+            return baseName
+        }
+
+        //ถ้าชื่อซ้ำเพิ่มเลขต่อท้าย
+        let number = 1
+        let newName = `${baseName} (${number})`
+
+        while (existingNames.includes(newName.toLowerCase())) {
+            number++
+            newName = `${baseName} (${number})`
+        }
+
+        return newName
     }
 
-    if (targetDate && targetDate < today) {
-      alert('วันที่เป้าหมายต้องไม่เป็นวันในอดีต')
-      return
+    //เพิ่มหรือแก้ไขกระเป๋าในฐานข้อมูล
+    const addWallet = async () => {
+        if (!name.trim()) {
+            alert('กรุณากรอกชื่อกระเป๋า')
+            return
+        }
+
+        if (editingWalletId === null && isWalletLimitReached) {
+            alert(`คุณสามารถสร้างกระเป๋าเงินออมได้สูงสุด ${maxWallets} กระเป๋า`)
+            return
+        }
+
+        if (target.trim() === '' || !Number.isFinite(Number(target)) || Number(target) < 0) {
+            alert('กรุณากรอกเป้าหมายเงินออมตั้งแต่ 0 บาทขึ้นไป')
+            return
+        }
+
+        if (targetDate && targetDate < today) {
+            alert('วันที่เป้าหมายต้องไม่เป็นวันในอดีต')
+            return
+        }
+
+        setSaving(true)
+        setError('')
+
+        const existingWallet = wallets.find(
+            (wallet) => wallet.id === editingWalletId
+        )
+
+        //ตรวจชื่อซ้ำก่อนบันทึก
+        const uniqueName = getUniqueWalletName(name)
+
+        const payload = {
+            saving_name: uniqueName,
+            target: Number(target),
+            target_date: targetDate || null,
+            status: existingWallet?.status || 'active',
+            start_date: null,
+            end_date: null,
+        }
+
+        try {
+            if (editingWalletId !== null) {
+                //Backend ปัจจุบันรองรับ PUT
+                await apiRequest(`/savings/${editingWalletId}/`, {
+                    method: 'PUT',
+                    body: JSON.stringify(payload),
+                })
+            } else {
+                await apiRequest('/savings/', {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                })
+            }
+
+            await fetchWallets()
+
+            setName('')
+            setTarget('')
+            setTargetDate('')
+            setEditingWalletId(null)
+            setShowForm(false)
+        } catch (err) {
+            setError(err.message)
+            alert(`บันทึกไม่สำเร็จ: ${err.message}`)
+        } finally {
+            setSaving(false)
+        }
     }
 
-    setSaving(true)
-    setError('')
+    //เตรียมข้อมูลสำหรับแก้ไข
+    const editWallet = (wallet) => {
+        setEditingWalletId(wallet.id)
+        setName(wallet.name)
+        setTarget(String(wallet.target))
+        setTargetDate(wallet.date)
+        setShowForm(true)
+    }
 
-    const existingWallet = wallets.find(
-      (wallet) => wallet.id === editingWalletId
+    //ลบกระเป๋าจากฐานข้อมูล
+    const deleteWallet = async (id) => {
+        const confirmDelete = window.confirm(
+            'คุณแน่ใจหรือไม่ว่าต้องการลบกระเป๋าเงินนี้?'
+        )
+
+        if (!confirmDelete) return
+
+        setError('')
+
+        try {
+            await apiRequest(`/savings/${id}/`, {
+                method: 'DELETE',
+            })
+
+            await fetchWallets()
+        } catch (err) {
+            setError(err.message)
+            alert(`ลบไม่สำเร็จ: ${err.message}`)
+        }
+    }
+
+    //ฝากเงินและอัปเดต state จากข้อมูลที่ backend ส่งกลับ
+    const deposit = async (id, amount) => {
+        try {
+            const updatedWallet = await apiRequest(
+                `/savings/${id}/deposit/`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({ amount }),
+                }
+            )
+
+            const normalized = normalizeWallet(updatedWallet)
+
+            setWallets((prev) =>
+                prev.map((wallet) =>
+                    wallet.id === id ? normalized : wallet
+                )
+            )
+
+            //ดึงประวัติใหม่หลังฝากเงินสำเร็จ
+            await fetchTransactions()
+
+            return true
+        } catch (error) {
+            alert(error.message)
+            return false
+        }
+    }
+
+    //ถอนเงินและรับยอดล่าสุดจาก backend
+    const withdraw = async (id, amount) => {
+        try {
+            const updatedWallet = await apiRequest(
+                `/savings/${id}/withdraw/`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({ amount }),
+                }
+            )
+
+            const normalized = normalizeWallet(updatedWallet)
+
+            setWallets((prev) =>
+                prev.map((wallet) =>
+                    wallet.id === id ? normalized : wallet
+                )
+            )
+
+            //ดึงประวัติใหม่หลังถอนเงินสำเร็จ
+            await fetchTransactions()
+
+            return true
+        } catch (error) {
+            alert(error.message)
+            return false
+        }
+    }
+    //ฟังก์ชันจัดรูปแบบวันที่และจำนวนเงิน
+    const formatTransactionDate = (date) => {
+        if (!date) return '-'
+
+        return new Date(`${date}T00:00:00`).toLocaleDateString('th-TH', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+        })
+    }
+    const formatMoney = (amount) => {
+        return Number(amount || 0).toLocaleString('th-TH', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        })
+    }
+
+    const totalSaving = wallets.reduce(
+        (total, wallet) => total + wallet.balance,
+        0
     )
 
-    const payload = {
-      saving_name: name.trim(),
-      target: Number(target),
-      target_date: targetDate || null,
-      status: existingWallet?.status || 'active',
-      start_date: null,
-      end_date: null,
-    }
-
-    try {
-      if (editingWalletId !== null) {
-        // Backend ปัจจุบันรองรับ PUT
-        await apiRequest(`/savings/${editingWalletId}/`, {
-          method: 'PUT',
-          body: JSON.stringify(payload),
-        })
-      } else {
-        await apiRequest('/savings/', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        })
-      }
-
-      await fetchWallets()
-
-      setName('')
-      setTarget('')
-      setTargetDate('')
-      setEditingWalletId(null)
-      setShowForm(false)
-    } catch (err) {
-      setError(err.message)
-      alert(`บันทึกไม่สำเร็จ: ${err.message}`)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // เตรียมข้อมูลสำหรับแก้ไข
-  const editWallet = (wallet) => {
-    setEditingWalletId(wallet.id)
-    setName(wallet.name)
-    setTarget(String(wallet.target))
-    setTargetDate(wallet.date)
-    setShowForm(true)
-  }
-
-  // ลบกระเป๋าจากฐานข้อมูล
-  const deleteWallet = async (id) => {
-    const confirmDelete = window.confirm(
-      'คุณแน่ใจหรือไม่ว่าต้องการลบกระเป๋าเงินนี้?'
+    const totalTarget = wallets.reduce(
+        (total, wallet) => total + wallet.target,
+        0
     )
 
-    if (!confirmDelete) return
+    return (
+        <div className="wallet-page">
+            {/* Header */}
+            <CustomHeader title="กระเป๋าเงินออม" color="#e66f6f" />
+            <main className="wallet-content">
+                {/* Summary */}
+                <section className="wallet-summary">
+                    <div className="wallet-summary-icon">
+                        🐷
+                    </div>
 
-    setError('')
+                    <div className="wallet-summary-info">
+                        <p className="wallet-summary-caption">ยอดเงินออมทั้งหมด</p>
 
-    try {
-      await apiRequest(`/savings/${id}/`, {
-        method: 'DELETE',
-      })
+                        <h2 className="wallet-summary-balance">
+                            {totalSaving.toLocaleString()} บาท
+                        </h2>
 
-      await fetchWallets()
-    } catch (err) {
-      setError(err.message)
-      alert(`ลบไม่สำเร็จ: ${err.message}`)
-    }
-  }
+                        <p className="wallet-summary-target">
+                            จากเป้าหมายทั้งหมด {totalTarget.toLocaleString()} บาท
+                        </p>
 
-  // ฝาก–ถอนยังไม่เปิดใช้จนกว่า Backend จะมี API บันทึก balance
-  const deposit = () => {
-    alert('ระบบฝากเงินยังต้องเชื่อม API บันทึกยอดเงินใน Backend ก่อน')
-  }
+                        <div className="wallet-summary-progress">
+                            <div
+                                className="wallet-summary-progress-fill"
+                                style={{
+                                    width: `${totalTarget > 0
+                                        ? Math.min((totalSaving / totalTarget) * 100, 100)
+                                        : 0
+                                        }%`,
+                                }}
+                            />
+                        </div>
 
-  const withdraw = () => {
-    alert('ระบบถอนเงินยังต้องเชื่อม API บันทึกยอดเงินใน Backend ก่อน')
-  }
+                        <p className="wallet-summary-percent">
+                            {totalTarget > 0
+                                ? Math.round((totalSaving / totalTarget) * 100)
+                                : 0}
+                            % ของเป้าหมายทั้งหมด
+                        </p>
+                    </div>
+                </section>
 
-  const totalSaving = wallets.reduce(
-    (total, wallet) => total + wallet.balance,
-    0
-  )
+                {error && (
+                    <p role="alert" className="wallet-error">
+                        {error}
+                    </p>
+                )}
 
-  const totalTarget = wallets.reduce(
-    (total, wallet) => total + wallet.target,
-    0
-  )
+                {/* ปุ่มลอยด้านขวา */}
+                <div className="wallet-calculator-control">
+                    <span className="wallet-calculator-label">
+                        เครื่องมือคำนวณ
+                    </span>
 
-  return (
-    <div className="wallet-page">
-      <div className="wallet-header">
-        <h1 className="wallet-title">กระเป๋าเงินออม</h1>
-      </div>
+                    <button
+                        type="button"
+                        className="wallet-calculator-button"
+                        onClick={() => navigate('/calculator')}
+                        aria-label="เครื่องมือคำนวณ"
+                        title="เครื่องมือคำนวณ"
+                    >
+                        <Calculator size={27} strokeWidth={2.3} />
+                    </button>
+                </div>
 
-      <div>
-        <h2 className="wallet-total">
-          <p>ยอดเงินออมทั้งหมด {totalSaving.toLocaleString()} บาท</p>
-          <p>เป้าหมายเงินออมทั้งหมด {totalTarget.toLocaleString()} บาท</p>
-        </h2>
-      </div>
+                <div className="wallet-add-control">
+                    <span className="wallet-add-label">เพิ่มรายการ</span>
 
-      {error && (
-        <p role="alert" className="wallet-error">
-          {error}
-        </p>
-      )}
+                    <button
+                        type="button"
+                        className="wallet-add-button"
+                        onClick={() => {
+                            if (wallets.filter((wallet) => wallet.status === 'active').length >= maxWallets) {
+                                alert(`คุณสามารถสร้างกระเป๋าเงินออมได้สูงสุด ${maxWallets} กระเป๋า`)
+                                return
+                            }
 
-      <button
-        className="wallet-add-button"
-        onClick={() => {
-          setEditingWalletId(null)
-          setName('')
-          setTarget('')
-          setTargetDate('')
-          setShowForm(true)
-        }}
-      >
-        + เพิ่มรายการ
-      </button>
+                            setEditingWalletId(null)
+                            setName('')
+                            setTarget('')
+                            setTargetDate('')
+                            setShowForm(true)
+                        }}
+                        aria-label="เพิ่มรายการ"
+                        title="เพิ่มรายการ"
+                    >
+                        <Plus size={27} strokeWidth={2.5} />
+                    </button>
+                </div>
 
-      {showForm && (
-        <div className="modal-overlay">
-          <div className="wallet-form-card">
-            <h2>{fromTitle}</h2>
+                {/* Wallet Form */}
+                {showForm && (
+                    <div className="modal-overlay">
+                        <div className="wallet-form-card">
+                            <h2>{fromTitle}</h2>
 
-            <h1>ชื่อกระเป๋า</h1>
-            <input
-              type="text"
-              placeholder="ชื่อกระเป๋า"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={30}
-            />
+                            <h1>ชื่อกระเป๋า</h1>
+                            <input
+                                type="text"
+                                placeholder="ชื่อกระเป๋า"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                maxLength={30}
+                            />
 
-            <h1>เป้าหมายเงินออม (บาท)</h1>
-            <input
-              type="number"
-              placeholder="0.00"
-              value={target}
-              min="0"
-              onChange={(e) => setTarget(e.target.value)}
-            />
+                            <h1>เป้าหมายเงินออม (บาท)</h1>
+                            <input
+                                type="number"
+                                placeholder="0.00"
+                                value={target}
+                                min="0"
+                                onChange={(e) => setTarget(e.target.value)}
+                            />
 
-            <h1>วันที่สิ้นสุดเป้าหมาย</h1>
-            <input
-              type="date"
-              value={targetDate}
-              min={today}
-              onChange={(e) => setTargetDate(e.target.value)}
-            />
+                            <h1>วันที่สิ้นสุดเป้าหมาย</h1>
+                            <input
+                                type="date"
+                                value={targetDate}
+                                min={today}
+                                onChange={(e) => setTargetDate(e.target.value)}
+                            />
 
-            <div className="form-buttons">
-              <button
-                className="cancel-button"
-                disabled={saving}
-                onClick={() => {
-                  setShowForm(false)
-                  setEditingWalletId(null)
-                }}
-              >
-                ยกเลิก
-              </button>
+                            <div className="form-buttons">
+                                <button
+                                    className="cancel-button"
+                                    disabled={saving}
+                                    onClick={() => {
+                                        setShowForm(false)
+                                        setEditingWalletId(null)
+                                    }}
+                                >
+                                    ยกเลิก
+                                </button>
 
-              <button
-                className="save-button"
-                disabled={saving}
-                onClick={addWallet}
-              >
-                {saving ? 'กำลังบันทึก...' : 'ตกลง'}
-              </button>
-            </div>
-          </div>
+                                <button
+                                    className="save-button"
+                                    disabled={saving}
+                                    onClick={addWallet}
+                                >
+                                    {saving ? 'กำลังบันทึก...' : 'ตกลง'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Wallet Cards */}
+                <section className="wallet-section">
+                    <h2 className="wallet-section-title">กระเป๋าเงินออมของฉัน</h2>
+
+                    <div className="wallet-list">
+                        {loading ? (
+                            <p>กำลังโหลดกระเป๋าเงิน...</p>
+                        ) : activeWallets.length === 0 ? (
+                            <p>ยังไม่มีกระเป๋าเงินออม</p>
+                        ) : (
+                            activeWallets.map((wallet) => (
+                                <WalletCard
+                                    key={wallet.id}
+                                    name={wallet.name}
+                                    target={wallet.target}
+                                    date={wallet.date}
+                                    balance={wallet.balance}
+                                    onDeposit={(amount) => deposit(wallet.id, amount)}
+                                    onWithdraw={(amount) => withdraw(wallet.id, amount)}
+                                    onEdit={() => editWallet(wallet)}
+                                    onDelete={() => deleteWallet(wallet.id)}
+                                    isCompleted={false}
+                                />
+                            ))
+                        )}
+                    </div>
+                </section>
+
+                <CompletedWallets wallets={completedWallets} />
+
+
+                {/*ส่วนต่อท้ายพื้นที่แสดงกระเป๋า ประวัติการฝาก-ถอน */}
+                {/* <section className="wallet-history-section">
+                    <h2 className="wallet-section-title">
+                        ประวัติการฝาก–ถอน
+                    </h2>
+
+                    {transactionLoading ? (
+                        <p className="wallet-history-empty">
+                            กำลังโหลดประวัติ...
+                        </p>
+                    ) : transactionError ? (
+                        <p className="wallet-error" role="alert">
+                            โหลดประวัติไม่สำเร็จ: {transactionError}
+                        </p>
+                    ) : transactions.length === 0 ? (
+                        <p className="wallet-history-empty">
+                            ยังไม่มีประวัติการฝาก–ถอน
+                        </p>
+                    ) : (
+                        <div className="wallet-history-list">
+                            {transactions.map((item) => {
+                                const isDeposit =
+                                    item.transaction_type === 'deposit'
+
+                                return (
+                                    <div
+                                        className="wallet-history-card"
+                                        key={item.transaction_id}
+                                    >
+                                        <div className="wallet-history-icon">
+                                            {isDeposit ? '💰' : '💸'}
+                                        </div>
+
+                                        <div className="wallet-history-info">
+                                            <h3>
+                                                {isDeposit ? 'ฝากเงิน' : 'ถอนเงิน'}
+                                            </h3>
+
+                                            <p>
+                                                {item.saving_name || 'กระเป๋าที่ถูกลบ'}
+                                            </p>
+
+                                            <span>
+                                                {formatTransactionDate(
+                                                    item.transaction_date
+                                                )}
+                                            </span>
+                                        </div>
+
+                                        <div className="wallet-history-amount">
+                                            <strong
+                                                className={
+                                                    isDeposit
+                                                        ? 'deposit-text'
+                                                        : 'withdraw-text'
+                                                }
+                                            >
+                                                {isDeposit ? '+' : '-'}
+                                                {formatMoney(item.amount)} บาท
+                                            </strong>
+
+                                            <span>
+                                                คงเหลือ {formatMoney(
+                                                    item.balance_after
+                                                )} บาท
+                                            </span>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+                </section> */}
+
+            </main>
+
+            <Navbar />
         </div>
-      )}
-
-      <div className="wallet-list">
-        {loading ? (
-          <p>กำลังโหลดกระเป๋าเงิน...</p>
-        ) : wallets.length === 0 ? (
-          <p>ยังไม่มีกระเป๋าเงินออม</p>
-        ) : (
-          wallets.map((wallet) => (
-            <WalletCard
-              key={wallet.id}
-              name={wallet.name}
-              target={wallet.target}
-              date={wallet.date}
-              balance={wallet.balance}
-              onDeposit={(amount) => deposit(wallet.id, amount)}
-              onWithdraw={(amount) => withdraw(wallet.id, amount)}
-              onEdit={() => editWallet(wallet)}
-              onDelete={() => deleteWallet(wallet.id)}
-            />
-          ))
-        )}
-      </div>
-
-      <Navbar />
-    </div>
-  )
+    )
 }
-
 export default Wallet

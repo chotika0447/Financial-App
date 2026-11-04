@@ -1,7 +1,8 @@
 import os
+import logging
 from dotenv import load_dotenv
 from pathlib import Path
-
+from datetime import timedelta
 # =================== Base ===================
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -14,17 +15,65 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 #กำหนดว่า Host ไหนเข้าถึง Django ได้
+# กำหนด Host ที่อนุญาตให้เข้าถึง Django
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
-    
-    'glimmer-grunt-obstruct.ngrok-free.dev',
+    "glimmer-grunt-obstruct.ngrok-free.dev",
     "tammara-semivolcanic-randee.ngrok-free.dev",
 
     "financial-app-xgc0.onrender.com",
+
+    "debtmodule-backend.onrender.com",
+    "financial-app-neverlandtest.onrender.com",
     "financial-app-gbnw.onrender.com"
 ]
+# =================== LOGGING ===================
+#สำหรับบันทึก Log ของ Django และ App เพื่อใช้ Debug 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
 
+    "formatters": {
+        "verbose": {
+            "format": (
+                "{asctime} [{levelname}] "
+                "{name}: {message}"
+            ),
+            "style": "{",
+        },
+    },
+
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "debts": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
 # =================== LINE ===================
 
 # LINE Messaging API / LINE OA
@@ -61,6 +110,7 @@ CORS_ALLOWED_ORIGINS = [
     'https://tammara-semivolcanic-randee.ngrok-free.dev',
 
     'https://financial-app-delta-taupe.vercel.app',
+    'https://financial-ogk0nhlmw-project-teb-zaaa007.vercel.app'
 
 ]
 #URL ที่ Django ยอมให้ส่ง POST/CSRF
@@ -70,6 +120,7 @@ CSRF_TRUSTED_ORIGINS = [
     'https://tammara-semivolcanic-randee.ngrok-free.dev',
 
     'https://financial-app-delta-taupe.vercel.app',
+    'https://financial-ogk0nhlmw-project-teb-zaaa007.vercel.app'
 ]
 
 # =================== Frontend URL ===================
@@ -101,6 +152,7 @@ INSTALLED_APPS = [
     'savings',
     'transactions',
     'categories',
+    'news',
 
     'dashboard',
 
@@ -120,8 +172,18 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     'USER_ID_FIELD': 'uid',
     'USER_ID_CLAIM': 'uid',
-}
 
+    # อายุ Access Token
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+
+    # อายุ Refresh Token
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+
+    # ไม่หมุน Refresh Token เพราะ blacklist ของ SimpleJWT ใช้ AUTH_USER_MODEL
+    # ซึ่งไม่ตรงกับ custom users.User ของโปรเจกต์
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+}
 # =========================== Middleware ===========================
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -224,3 +286,23 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+# =================== Cache ===================
+REDIS_URL = os.getenv("REDIS_URL")
+
+if REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }

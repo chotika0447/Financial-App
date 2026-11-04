@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { authenticatedFetch as fetch } from "../utils/auth";
 import {
   X,
   Upload,
@@ -45,6 +46,9 @@ const colorMap = {
 
 function PayDebt({ open, debt, onClose, onSaved }) {
 
+  const isSubmittingRef = useRef(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [form, setForm] = useState({
     amount: "",
     paymentDate: "",
@@ -60,7 +64,6 @@ function PayDebt({ open, debt, onClose, onSaved }) {
   };
 
   const handleSubmit = async () => {
-    
     const accessToken = sessionStorage.getItem("accessToken");
 
     if (!accessToken) {
@@ -77,6 +80,12 @@ function PayDebt({ open, debt, onClose, onSaved }) {
       alert("กรุณาระบุวันที่ชำระ");
       return;
     }
+
+    // ป้องกันการส่ง POST ซ้ำ
+    if (isSubmittingRef.current) return;
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
 
     const formData = new FormData();
 
@@ -100,24 +109,43 @@ function PayDebt({ open, debt, onClose, onSaved }) {
         }
       );
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data = null;
 
-      console.log("Payment response:", data);
+      if (responseText) {
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          if (response.ok) {
+            throw new Error("เซิร์ฟเวอร์ตอบกลับข้อมูลไม่ถูกต้อง");
+          }
+        }
+      }
 
       if (!response.ok) {
-        console.error("Payment error:", data);
+        const validationMessages =
+          data && typeof data === "object"
+            ? Object.values(data)
+              .flat()
+              .filter((message) => typeof message === "string")
+            : [];
 
         throw new Error(
-          data.detail || "ไม่สามารถบันทึกการชำระหนี้ได้"
+          data?.detail ||
+          validationMessages.join("\n") ||
+          `เซิร์ฟเวอร์บันทึกไม่สำเร็จ (HTTP ${response.status})`
         );
+      }
+
+      if (!data || typeof data !== "object") {
+        throw new Error("เซิร์ฟเวอร์ตอบกลับข้อมูลไม่ถูกต้อง");
       }
 
       // แจ้ง Debts.jsx ว่าบันทึกสำเร็จ
       if (onSaved) {
-        onSaved(data);
+        await onSaved(data);
       }
 
-      // ล้างฟอร์ม
       setForm({
         amount: "",
         paymentDate: "",
@@ -126,15 +154,15 @@ function PayDebt({ open, debt, onClose, onSaved }) {
       });
 
       setShowProofPreview(false);
-
       onClose();
 
     } catch (error) {
       console.error("Save payment error:", error);
+      alert(error.message || "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
 
-      alert(
-        error.message || "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้"
-      );
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -181,7 +209,7 @@ function PayDebt({ open, debt, onClose, onSaved }) {
               ${colorMap[debt?.color] || "bg-gray-300"} `}
           >
             {debt?.image ? (
-              <img src={debt.image} alt={debt.name} className="w-full h-full object-cover"/>
+              <img src={debt.image} alt={debt.name} className="w-full h-full object-cover" />
             ) : (
               (() => {
                 const Icon = iconMap[debt?.icon] || GraduationCap;
@@ -332,11 +360,16 @@ function PayDebt({ open, debt, onClose, onSaved }) {
           </div>
 
           {/* ปุ่มบันทึก */}
-          <div className="flex justify-center">
-            <button onClick={handleSubmit} className="rounded-[9px] bg-[#2D9CDB] px-7 py-2 text-[12px] text-white">
-              บันทึก
-            </button>
-          </div>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className={`rounded-[9px] px-7 py-2 text-[12px] text-white ${isSubmitting
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-[#2D9CDB]"
+              }`}
+          >
+            {isSubmitting ? "กำลังบันทึก..." : "บันทึก"}
+          </button>
 
         </div>
 

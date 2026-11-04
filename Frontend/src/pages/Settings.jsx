@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Settings.css';
+import { clearTokens } from '../utils/auth';
 
 function Settings() {
 
@@ -37,7 +38,7 @@ function Settings() {
 
     const handleLogout = () => {
 
-        sessionStorage.removeItem('accessToken');
+        clearTokens();
 
         navigate('/login');
     };

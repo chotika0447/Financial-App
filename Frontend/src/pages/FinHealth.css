@@ -1,0 +1,786 @@
+/* =========================
+   FINANCIAL HEALTH DASHBOARD
+========================= */
+
+.financial-health-page {
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-bottom: calc(70px + env(safe-area-inset-bottom));
+    overflow-x: clip;
+    background: #f6f8fa;
+    color: #25352f;
+    font-family: inherit;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+.fh-header {
+    width: 100%;
+    box-sizing: border-box;
+    padding: calc(25px + env(safe-area-inset-top)) 20px 25px;
+    background: linear-gradient(145deg, #16b98b 0%, #48cda2 100%);
+}
+
+.fh-header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.fh-eyebrow {
+    display: block;
+    margin-bottom: 7px;
+    color: #e2fff3;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+}
+
+.fh-header h1 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(21px, 5vw, 30px);
+    font-weight: 800;
+    line-height: 1.4;
+}
+
+.fh-header-top p {
+    margin: 7px 0 0;
+    color: #effff8;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.fh-criteria-button {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 8px 11px;
+    border: 1px solid rgb(255 255 255 / 55%);
+    border-radius: 9px;
+    background: #f1fff9;
+    color: #176c53;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.fh-criteria-button:active {
+    transform: scale(0.97);
+}
+
+.fh-update-info {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 22px;
+    color: #effff8;
+    font-size: 11px;
+}
+
+.fh-update-dot {
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #d9ff9e;
+}
+
+/* =========================
+   MAIN CONTENT
+========================= */
+
+.fh-main {
+    width: 100%;
+    max-width: 1440px;
+    box-sizing: border-box;
+    margin: 0 auto;
+    padding: 25px 18px 35px;
+}
+
+.fh-section {
+    margin-bottom: 30px;
+}
+
+.fh-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+.fh-section-heading h2 {
+    margin: 0;
+    color: #263a31;
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.5;
+}
+
+.fh-section-heading p {
+    margin: 4px 0 0;
+    color: #87948d;
+    font-size: 11px;
+    line-height: 1.7;
+}
+
+/* =========================
+   SCORE CARDS
+========================= */
+
+.fh-score-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.fh-score-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+    padding: 17px;
+    border: 1px solid #e8eeeb;
+    border-radius: 17px;
+    background: #fff;
+    box-shadow: 0 3px 12px rgb(33 61 48 / 4%);
+    color: #293a32;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+    transition:
+        transform 0.18s ease,
+        border-color 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.fh-score-card:active {
+    transform: scale(0.99);
+    border-color: var(--category-color);
+}
+
+.fh-score-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.fh-score-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 43px;
+    height: 43px;
+    border-radius: 13px;
+    background: var(--category-bg);
+    color: var(--category-color);
+}
+
+.fh-score-arrow {
+    color: #a5b2aa;
+}
+
+.fh-score-card-title {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 13px;
+}
+
+.fh-score-card-title strong {
+    color: #2b3b33;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.fh-score-card-title span {
+    color: #87948d;
+    font-size: 11px;
+}
+
+.fh-score-number {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    margin-top: 12px;
+}
+
+.fh-score-number strong {
+    color: var(--category-color);
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.fh-score-number span {
+    color: #9aa69f;
+    font-size: 12px;
+}
+
+.fh-score-card > p {
+    min-height: 35px;
+    margin: 8px 0 12px;
+    color: #7d8a83;
+    font-size: 10px;
+    line-height: 1.7;
+}
+
+.fh-score-progress {
+    width: 100%;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 10px;
+    background: #edf1ef;
+}
+
+.fh-score-progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--category-color);
+    transition: width 0.3s ease;
+}
+
+.fh-score-card-status {
+    margin-top: 9px;
+    color: #87948d;
+    font-size: 10px;
+}
+
+/* =========================
+   COMMON PANEL
+========================= */
+
+.fh-panel {
+    padding: 17px;
+    border: 1px solid #e8eeeb;
+    border-radius: 17px;
+    background: #fff;
+    box-shadow: 0 3px 12px rgb(33 61 48 / 4%);
+}
+
+.fh-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.fh-panel-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: #e8f7f0;
+    color: #159b76;
+}
+
+.fh-panel-title h3 {
+    margin: 0;
+    color: #34483c;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.fh-panel-title span {
+    display: block;
+    margin-top: 3px;
+    color: #9aa69f;
+    font-size: 10px;
+}
+
+/* =========================
+   TREND CHART
+========================= */
+
+.fh-trend-panel {
+    min-height: 250px;
+}
+
+.fh-chart-empty {
+    min-height: 190px;
+}
+
+.fh-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 25px 15px;
+    text-align: center;
+}
+
+.fh-empty-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    margin-bottom: 12px;
+    border-radius: 16px;
+    background: #eff7f3;
+    color: #65a98d;
+}
+
+.fh-empty-state strong {
+    color: #53665b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.fh-empty-state p {
+    max-width: 330px;
+    margin: 7px 0 0;
+    color: #98a39c;
+    font-size: 10px;
+    line-height: 1.8;
+}
+
+.fh-chart-placeholder {
+    min-height: 190px;
+}
+
+.fh-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f3f1;
+}
+
+.fh-chart-legend > div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #7d8a83;
+    font-size: 10px;
+}
+
+.fh-chart-legend > div > span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+/* =========================
+   MONTHLY REPORTS
+========================= */
+
+.fh-report-panel {
+    min-height: 180px;
+}
+
+.fh-report-empty {
+    min-height: 145px;
+}
+
+.fh-report-list {
+    display: flex;
+    flex-direction: column;
+    margin-top: 14px;
+}
+
+.fh-report-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 13px 2px;
+    border: none;
+    border-bottom: 1px solid #edf1ee;
+    background: transparent;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.fh-report-item:last-child {
+    border-bottom: none;
+}
+
+.fh-report-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: #e8f7f0;
+    color: #159b76;
+}
+
+.fh-report-info {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.fh-report-info strong {
+    color: #34483c;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.fh-report-info span {
+    color: #98a39c;
+    font-size: 10px;
+}
+
+.fh-report-arrow {
+    flex-shrink: 0;
+    color: #a5b2aa;
+}
+
+/* =========================
+   CRITERIA MODAL
+========================= */
+
+.fh-modal-overlay {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    background: rgb(18 35 27 / 52%);
+    backdrop-filter: blur(3px);
+}
+
+.fh-modal {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 500px;
+    max-height: 100%;
+    min-height: 0;
+    padding: 20px 18px 18px;
+    overflow: hidden;
+    border-radius: 21px;
+    background: #fff;
+    box-shadow: 0 15px 45px rgb(0 0 0 / 18%);
+}
+
+.fh-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #edf0ee;
+}
+
+.fh-modal-eyebrow {
+    color: #159b76;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 1.3px;
+}
+
+.fh-modal-header h2 {
+    margin: 4px 0 0;
+    color: #263a31;
+    font-size: 17px;
+    line-height: 1.5;
+}
+
+.fh-modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 12px;
+    background: #f1f5f2;
+    color: #65736a;
+    cursor: pointer;
+}
+
+.fh-modal-content {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.fh-modal-intro {
+    margin: 14px 0;
+    color: #728078;
+    font-size: 11px;
+    line-height: 1.8;
+}
+
+.fh-modal-category-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.fh-modal-category {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    padding: 13px;
+    border: 1px solid #e8eeea;
+    border-radius: 13px;
+    background: #fbfdfb;
+}
+
+.fh-modal-category-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 39px;
+    height: 39px;
+    border-radius: 12px;
+    background: var(--category-bg);
+    color: var(--category-color);
+}
+
+.fh-modal-category > div:last-child {
+    flex: 1;
+    min-width: 0;
+}
+
+.fh-modal-category strong {
+    display: block;
+    color: #34483c;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.fh-modal-category p {
+    margin: 4px 0;
+    color: #728078;
+    font-size: 10px;
+    line-height: 1.7;
+}
+
+.fh-modal-category span {
+    color: var(--category-color);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.fh-modal-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    margin-top: 13px;
+    padding: 11px;
+    border-radius: 11px;
+    background: #f0f7f3;
+    color: #4e7862;
+}
+
+.fh-modal-note svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.fh-modal-note p {
+    margin: 0;
+    font-size: 10px;
+    line-height: 1.8;
+}
+
+.fh-modal-done {
+    flex-shrink: 0;
+    width: 100%;
+    min-height: 44px;
+    margin-top: 14px;
+    border: none;
+    border-radius: 13px;
+    background: #159b76;
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* =========================
+   TABLET
+========================= */
+
+@media (min-width: 600px) {
+    .fh-header {
+        padding: calc(30px + env(safe-area-inset-top)) 32px 27px;
+    }
+
+    .fh-header h1 {
+        font-size: 30px;
+    }
+
+    .fh-header-top p {
+        font-size: 13px;
+    }
+
+    .fh-criteria-button {
+        min-height: 39px;
+        padding: 9px 13px;
+        font-size: 12px;
+    }
+
+    .fh-main {
+        padding: 32px;
+    }
+
+    .fh-score-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 15px;
+    }
+
+    .fh-score-card {
+        min-height: 260px;
+        padding: 19px;
+    }
+
+    .fh-score-card-title strong {
+        font-size: 15px;
+    }
+
+    .fh-score-number strong {
+        font-size: 39px;
+    }
+
+    .fh-score-card > p {
+        font-size: 11px;
+    }
+
+    .fh-section-heading h2 {
+        font-size: 19px;
+    }
+
+    .fh-section-heading p {
+        font-size: 12px;
+    }
+
+    .fh-panel {
+        padding: 21px;
+    }
+
+    .fh-trend-panel {
+        min-height: 300px;
+    }
+
+    .fh-chart-empty {
+        min-height: 225px;
+    }
+}
+
+/* =========================
+   DESKTOP
+========================= */
+
+@media (min-width: 1024px) {
+    .fh-header {
+        padding-right: max(48px, calc((100vw - 1360px) / 2));
+        padding-left: max(48px, calc((100vw - 1360px) / 2));
+    }
+
+    .fh-main {
+        padding: 36px 48px 45px;
+    }
+
+    .fh-section {
+        margin-bottom: 36px;
+    }
+
+    .fh-score-card {
+        min-height: 275px;
+        padding: 22px;
+    }
+
+    .fh-score-card:hover {
+        transform: translateY(-3px);
+        border-color: #c9e9da;
+        box-shadow: 0 8px 22px rgb(33 61 48 / 8%);
+    }
+
+    .fh-report-item:hover {
+        background: #f8fbf9;
+    }
+}
+
+@media (min-width: 1440px) {
+    .fh-header {
+        padding-right: max(64px, calc((100vw - 1440px) / 2));
+        padding-left: max(64px, calc((100vw - 1440px) / 2));
+    }
+
+    .fh-main {
+        padding-right: 64px;
+        padding-left: 64px;
+    }
+}
+
+/* =========================
+   SMALL SCREENS
+========================= */
+
+@media (max-width: 360px) {
+    .fh-header {
+        padding-right: 13px;
+        padding-left: 13px;
+    }
+
+    .fh-header-top {
+        gap: 8px;
+    }
+
+    .fh-header h1 {
+        font-size: 19px;
+    }
+
+    .fh-criteria-button {
+        gap: 4px;
+        padding: 7px 8px;
+        font-size: 10px;
+    }
+
+    .fh-main {
+        padding-right: 13px;
+        padding-left: 13px;
+    }
+
+    .fh-score-card {
+        padding: 14px;
+    }
+
+    .fh-panel {
+        padding: 14px;
+    }
+}
+
+/* =========================
+   REDUCED MOTION
+========================= */
+
+@media (prefers-reduced-motion: reduce) {
+    .fh-score-card,
+    .fh-score-progress-fill {
+        transition: none;
+    }
+}

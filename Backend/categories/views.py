@@ -1,7 +1,3 @@
-from django.shortcuts import render
-
-# Create your views here.
-
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 
@@ -14,8 +10,12 @@ class CategoryListView(ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        queryset = Category.objects.all().order_by("name")
+        # แสดงเฉพาะหมวดหมู่ส่วนกลาง
+        queryset = Category.objects.filter(
+            user__isnull=True
+        ).order_by("name")
 
+        # กรองประเภทรายรับหรือรายจ่าย
         transaction_type = self.request.query_params.get(
             "transaction_type"
         )

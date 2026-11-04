@@ -28,6 +28,11 @@ class DebtSerializer(serializers.ModelSerializer):
             'payment_amount',
             'due_date',
             'payment_date',
+            'current_due_date',
+            'reminder_enabled',
+            'reminder_days_before',
+            'reminder_time',
+            'reminder_repeat',
             'status',
             'note',
             'icon',
@@ -43,6 +48,7 @@ class DebtSerializer(serializers.ModelSerializer):
             'remaining_amount',
             'created_at',
             'updated_at',
+            'current_due_date',
         ]
     #ตรวจความถูกต้องของข้อมูล
     def validate(self, data):
@@ -119,6 +125,13 @@ class DebtSerializer(serializers.ModelSerializer):
 
         return debt
 
+    def validate_reminder_days_before(self, value):
+        if value < 0 or value > 28:
+            raise serializers.ValidationError(
+                "จำนวนวันแจ้งเตือนต้องอยู่ระหว่าง 0-28 วัน"
+            )
+        return value
+
 
 class PaymentSerializer(serializers.ModelSerializer):
     debt = serializers.PrimaryKeyRelatedField(
@@ -137,7 +150,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             'proof_image',
             'note',
             'payment_status',
-            'confirm_status',
+            'approvement_status',
             'created_at',
             'updated_at',
         ]
@@ -145,6 +158,7 @@ class PaymentSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id',
             'debt',
+            'approvement_status',
             'created_at',
             'updated_at',
         ]

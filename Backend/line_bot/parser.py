@@ -1,33 +1,4 @@
-import csv
 import re
-from pathlib import Path
-from django.conf import settings
-
-
-CSV_FILE = Path(settings.BASE_DIR) / "financial_data.csv"
-
-
-# ==================================================
-# อ่าน Brand Database จาก Excel
-# ==================================================
-
-def load_brand_database():
-    """Read UTF-8 CSV using Python standard library (no openpyxl)."""
-    brands = {}
-    try:
-        with CSV_FILE.open("r", encoding="utf-8-sig", newline="") as file:
-            for row in csv.DictReader(file):
-                keyword = (row.get("Keyword") or "").strip().lower()
-                if not keyword:
-                    continue
-                brands[keyword] = {
-                    "type": (row.get("Type") or "").strip().lower(),
-                    "category": (row.get("Category") or "").strip(),
-                    "sub_category": (row.get("Sub_Category") or "").strip(),
-                }
-    except (OSError, csv.Error) as error:
-        print("Cannot read Brand_Database CSV:", error)
-    return brands
 
 
 # ==================================================
@@ -56,12 +27,9 @@ def parse_financial_message(text, transaction_type):
 
     text_lower = text.lower()
 
-    description = (
-        text
-        .replace("บาท", "")
-        .replace("บ.", "")
-        .strip()
-    )
+    # หมายเหตุเป็นข้อมูลเสริม
+    # ผู้ใช้สามารถเพิ่มหรือแก้ไขภายหลังบนเว็บไซต์
+    description = ""
 
 
     # -------------------------
@@ -71,6 +39,7 @@ def parse_financial_message(text, transaction_type):
     # ถ้าไม่ได้ระบุช่องทางชำระ
     # ให้เป็นค่าว่าง ไม่เดาว่าเป็นเงินสด
     account = ""
+    matched_account = ""
 
 
     account_keywords = {
@@ -154,16 +123,61 @@ def parse_financial_message(text, transaction_type):
         if keyword in text_lower:
 
             account = account_name
+            matched_account = keyword
 
             break
 
+
+    # ชื่อรายการ: ตัดจำนวนเงินและช่องทางออกก่อน
+    item_name = text.strip()
+    if match:
+        item_name = item_name[:match.start()] + item_name[match.end():]
+    if matched_account:
+        item_name = re.sub(re.escape(matched_account), "", item_name, flags=re.IGNORECASE)
+
+    # ตัดชื่อร้านที่ระบุท้ายข้อความออกจากชื่อรายการเท่านั้น
+    # ยังคงใช้ข้อความต้นฉบับสำหรับจับหมวดหมู่ เช่น เซเว่น -> ซูเปอร์มาร์เก็ต
+    if transaction_type == "expense":
+        stores = ("7-eleven", "เซเว่น", "โลตัส", "บิ๊กซี", "แม็คโคร")
+        for store in stores:
+            if item_name.lower().endswith(store) and len(item_name) > len(store):
+                item_name = item_name[:-len(store)].strip()
+                break
+
+    # ลบหน่วยเงินที่เหลืออยู่ และเว้นวรรคส่วนเกิน
+    item_name = re.sub(r"^(?:บาท|บ\.|฿)", "", item_name.strip())
+    item_name = re.sub(r"(?:บาท|บ\.|฿)$", "", item_name.strip())
+    item_name = item_name.strip(" -,:\t")
+
+    # ตัดเฉพาะคำขึ้นต้นที่ไม่ใช่ส่วนหนึ่งของชื่อรายการ
+    # เช่น 'จ่ายค่าไฟ' ต้องเหลือ 'ค่าไฟ' ไม่ใช่ 'ไฟ'
+    if item_name.startswith("ได้เงินเดือน"):
+        item_name = item_name[len("ได้"):]
+    elif item_name.startswith("ได้รับ"):
+        item_name = item_name[len("ได้รับ"):]
+    elif item_name.startswith("รับเงินจาก"):
+        item_name = item_name[len("รับเงินจาก"):]
+    elif item_name.startswith("ซื้อของ"):
+        pass  # คง 'ซื้อของ' ไว้ เพราะยังไม่ทราบชื่อสิ่งของ
+    elif item_name.startswith("ซื้อ"):
+        item_name = item_name[len("ซื้อ"):]
+    elif item_name.startswith("กิน"):
+        item_name = item_name[len("กิน"):]
+    elif item_name.startswith("จ่ายค่า"):
+        item_name = item_name[len("จ่าย"):]
+    elif item_name.startswith("จ่าย"):
+        item_name = item_name[len("จ่าย"):]
+
+    item_name = item_name.strip(" -,:\t")
+    if not item_name:
+        item_name = "ไม่ระบุ"
 
     # หมวดหมู่หลักตรงกับ Supabase; คำจาก Excel ใช้ช่วยจับแบรนด์เท่านั้น
     expense_categories = {
         "อาหาร": ["ข้าว", "อาหาร", "ก๋วยเตี๋ยว", "ขนม", "มื้อ", "หมูกระทะ"],
         "เครื่องดื่ม": ["ชา", "กาแฟ", "น้ำดื่ม", "น้ำอัดลม", "เครื่องดื่ม", "ชานม", "ลาเต้"],
         "ของใช้": ["สบู่", "ยาสีฟัน", "ทิชชู่", "ผงซักฟอก", "ของใช้"],
-        "ชอปปิ้ง": ["ช้อปปิ้ง", "ชอปปิ้ง", "เสื้อ", "รองเท้า", "กระเป๋า", "shopee", "lazada"],
+        "ช้อปปิ้ง": ["ช้อปปิ้ง", "ชอปปิ้ง", "เสื้อ", "รองเท้า", "กระเป๋า", "shopee", "lazada"],
         "ค่าเดินทาง": ["แท็กซี่", "รถเมล์", "รถไฟ", "bts", "mrt", "น้ำมันรถ", "ค่าเดินทาง", "ค่ารถ", "grab"],
         "ซูเปอร์มาร์เก็ต": ["เซเว่น", "7-eleven", "โลตัส", "บิ๊กซี", "แม็คโคร", "supermarket"],
         "ความบันเทิง": ["ดูหนัง", "โรงหนัง", "เกม", "netflix", "spotify", "disney"],
@@ -184,30 +198,13 @@ def parse_financial_message(text, transaction_type):
     category = "อื่นๆ"
     sub_category = ""
     is_known_brand = False
-    brands = load_brand_database()
     mapping = income_categories if transaction_type == "income" else expense_categories
-
-    # จับแบรนด์ที่ตรงกับโหมดปัจจุบันก่อน
-    for keyword in sorted(brands, key=len, reverse=True):
-        if keyword and keyword in text_lower:
-            brand = brands[keyword]
-            if brand.get("type") != transaction_type:
-                continue
-            candidate = brand.get("category", "").strip()
-            aliases = {"ช้อปปิ้ง": "ชอปปิ้ง", "การเดินทาง": "ค่าเดินทาง"}
-            candidate = aliases.get(candidate, candidate)
-            if candidate in mapping:
-                category = candidate
-            sub_category = brand.get("sub_category", "")
-            is_known_brand = True
+    # Brand and personal-category matching happen in category_matching.py
+    # with the authenticated LINE user. Keep this parser focused on parsing.
+    for name, keywords in mapping.items():
+        if any(word in text_lower for word in keywords):
+            category = name
             break
-
-    # ถ้า CSV ไม่รู้จักหมวด ให้ใช้คำสำคัญแบบ Rule-Based
-    if category == "อื่นๆ":
-        for name, keywords in mapping.items():
-            if any(word in text_lower for word in keywords):
-                category = name
-                break
 
     return {
         "success": True,
@@ -216,6 +213,7 @@ def parse_financial_message(text, transaction_type):
         "category": category,
         "sub_category": sub_category,
         "account": account,
+        "item_name": item_name,
         "description": description,
         "is_known_brand": is_known_brand,
     }

@@ -3,12 +3,13 @@ from rest_framework.response import Response #ใช้ส่งข้อมู�
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
 from django.db import transaction
 import requests
 
 from .models import User, PersonalProfile
-from .serializers import PersonalProfileSerializer
+from .serializers import LineTokenRefreshSerializer, PersonalProfileSerializer
 
 
 def create_line_tokens(user):
@@ -18,6 +19,10 @@ def create_line_tokens(user):
         'access': str(refresh.access_token),
         'refresh': str(refresh),
     }
+
+
+class LineTokenRefreshView(TokenRefreshView):
+    serializer_class = LineTokenRefreshSerializer
 
 
 def verify_line_id_token(id_token):

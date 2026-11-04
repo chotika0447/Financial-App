@@ -2,29 +2,27 @@
 import { useEffect, useState } from "react";
 import {
     ArrowLeft,
-    CalendarDays,
     X,
     Trash2,
     ImagePlus,
 } from "lucide-react";
+import { authenticatedFetch as fetch } from "../utils/auth";
 
 function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
     const isBorrow = debt.type === "borrowed";
     const [payments, setPayments] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(true);//
+    const [error, setError] = useState("");//
     const [editingId, setEditingId] = useState(null);
     const [previewImage, setPreviewImage] = useState(null);
     const [savingId, setSavingId] = useState(null); //state ป้องกันการกดบันทึกซ้ำ
 
-    const [showAddReceived, setShowAddReceived] = useState(false);
     const [newReceived, setNewReceived] = useState({
         paid_amount: "",
         paid_date: "",
         note: "",
         proof_image: null,
     });
-    const [savingReceived, setSavingReceived] = useState(false);
 
     useEffect(() => {
         const fetchPayments = async () => {
@@ -96,16 +94,39 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
         });
     };
 
+    //สถานะการชำระหนี้ตามเวลา
+    const getPaymentTimingStatus = (payment) => {
+        if (!payment.paid_date || !payment.due_date) {
+            return null;
+        }
+
+        // เปรียบเทียบวันที่ในรูปแบบ YYYY-MM-DD
+        // วันที่ชำระตรงกับวันครบกำหนดถือว่าชำระภายในกำหนด
+        const paidDate = payment.paid_date.slice(0, 10);
+        const dueDate = payment.due_date.slice(0, 10);
+
+        if (paidDate <= dueDate) {
+            return {
+                label: "ชำระภายในกำหนด",
+                className: "border-green-500 text-green-600",
+            };
+        }
+
+        return {
+            label: "ชำระเกินกำหนด",
+            className: "border-red-500 text-red-600",
+        };
+    };
+
+
     const statusText = {
-        pending: "กำลังรอยืนยัน",
-        confirmed: "ยืนยันแล้ว",
-        rejected: "ไม่อนุมัติ",
+        pending: "กำลังรอการอนุมัติ",
+        approved: "อนุมัติแล้ว",
     };
 
     const statusClass = {
         pending: "bg-yellow-100 text-black",
-        confirmed: "bg-green-500 text-white",
-        rejected: "bg-red-500 text-white",
+        approved: "bg-green-500 text-white",
     };
 
     const handleEvidence = (id, file) => {
@@ -212,7 +233,8 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
         );
     };
 
-    const updateConfirmStatus = async (payment, confirm_status) => {
+
+    const updateApprovementStatus = async (payment, action) => {
         const accessToken = sessionStorage.getItem("accessToken");
 
         if (!accessToken) {
@@ -226,12 +248,12 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
             const response = await fetch(
                 `/debts/payments/${payment.id}/`,
                 {
-                    method: "PUT",
+                    method: "PATCH",
                     headers: {
                         Authorization: `Bearer ${accessToken}`,
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({ confirm_status }),
+                    body: JSON.stringify({ action }),
                 }
             );
 
@@ -256,15 +278,15 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
             if (onDebtUpdated) {
                 await onDebtUpdated();
             }
+
         } catch (error) {
-            console.error("Update confirmation error:", error);
-            alert(error.message || "ไม่สามารถเปลี่ยนสถานะได้");
+            console.error("Update approvement error:", error);
+            alert(error.message || "ไม่สามารถเปลี่ยนสถานะการอนุมัติได้");
         } finally {
             setSavingId(null);
         }
     };
-
-
+    
     return (
         <div className="min-h-screen bg-[#f4f4f4] pb-24">
             {/* Header */}
@@ -293,6 +315,7 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
 
 
 
+
                 {payments.map((payment, index) => {
                     const isEditing = editingId === payment.id;
 
@@ -301,49 +324,73 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                             key={payment.id}
                             className="bg-white border border-[#c5c5c5] rounded-lg mb-3 p-[14px] relative"
                         >
-                            {/* ชื่อและวันที่ */}
+                            {/* ชื่อและสถานะการชำระตามเวลา */}
                             <div className="flex items-center gap-2 mb-3">
                                 <div className="bg-[#252525] text-white text-xs px-2 py-2 -ml-[14px]">
                                     งวดที่ {payments.length - index}
                                 </div>
 
-                                <label className="flex items-center gap-1 border border-gray-400 rounded-full px-2 py-1 text-[10px] text-gray-500">
-                                    <CalendarDays size={13} />
+                                {/* สถานะการชำระ*/}
+                                {(() => {
+                                    const timingStatus = getPaymentTimingStatus(payment);
 
-                                    {isEditing ? (
-                                        <input
-                                            type="date"
-                                            value={payment.paid_date || ""}
-                                            onChange={(e) =>
-                                                updatePayment(payment.id, {
-                                                    paid_date: e.target.value,
-                                                })
-                                            }
-                                            className="w-[120px] outline-none bg-transparent"
-                                        />
-                                    ) : (
-                                        <span>วันที่ชำระ : {formatDate(payment.paid_date)}</span>
-                                    )}
-                                </label>
+                                    if (!timingStatus) return null;
+
+                                    return (
+                                        <span
+                                            className={`inline-flex items-center whitespace-nowrap rounded-full border px-2 py-1 text-[10px] font-medium ${timingStatus.className}`}
+                                        >
+                                            {timingStatus.label}
+                                        </span>
+                                    );
+                                })()}
+
                             </div>
 
                             {/* ข้อมูลและหลักฐาน */}
                             <div className="grid grid-cols-[1fr_120px] gap-3">
                                 <div className="min-w-0">
+
+                                    {/* ถ้ามีการผูกบัญชีเพื่อนจะแสดงสถานะการอนุมัติชำระ */}
                                     {isBorrow && debt.counterparty && (
                                         <div className="mb-2">
                                             <p className="text-[10px] mb-1">
-                                                สถานะการยืนยันจากเจ้าหนี้ :
+                                                สถานะการอนุมัติจากเจ้าหนี้ :
                                             </p>
 
                                             <span
-                                                className={`inline-block rounded-full px-3 py-1 text-[10px] ${statusClass[payment.confirm_status] || "bg-gray-200 text-gray-700"
+                                                className={`inline-block rounded-full px-3 py-1 text-[10px] ${statusClass[payment.approvement_status] || "bg-gray-200 text-gray-700"
                                                     }`}
                                             >
-                                                {statusText[payment.confirm_status] || "ไม่ระบุสถานะ"}
+                                                {statusText[payment.approvement_status] || "ไม่ระบุสถานะ"}
                                             </span>
                                         </div>
                                     )}
+
+                                    <div className="flex flex-wrap items-center gap-2 mb-2 text-xs">
+                                        <label className="flex items-center gap-1 border border-gray-400 rounded-full px-2 py-1 text-[10px] text-gray-500">
+                                            {isEditing ? (
+                                                <input
+                                                    type="date"
+                                                    value={payment.paid_date || ""}
+                                                    onChange={(e) =>
+                                                        updatePayment(payment.id, {
+                                                            paid_date: e.target.value,
+                                                        })
+                                                    }
+                                                    className="w-[120px] outline-none bg-transparent"
+                                                />
+                                            ) : (
+                                                <span>วันที่ชำระ : {formatDate(payment.paid_date)}</span>
+                                            )}
+                                        </label>
+
+                                        <span className="flex items-center gap-1 border border-gray-400 rounded-full px-2 py-1 text-[10px] text-gray-500">
+                                            วันที่ครบกำหนด: {payment.due_date
+                                                ? formatDate(payment.due_date)
+                                                : "-"}
+                                        </span>
+                                    </div>
 
                                     <div className="mb-2">
                                         <label className="text-[10px] block mb-1">
@@ -407,12 +454,12 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                             className={`mt-2 w-[72px] h-[24px] rounded-md text-[10px] 
                                                 ${isEditing
                                                     ? "bg-green-500 text-white"
-                                                    : isBorrow && payment.confirm_status !== "pending"
+                                                    : isBorrow && payment.approvement_status !== "pending"
                                                         ? "bg-gray-300 text-gray-500"
                                                         : "bg-[#252525] text-white"
                                                 }`}
                                             disabled={
-                                                savingId === payment.id || (isBorrow && !isEditing && payment.confirm_status !== "pending")
+                                                savingId === payment.id || (isBorrow && !isEditing && payment.approvement_status !== "pending")
                                             }
                                         >
                                             {isEditing
@@ -424,64 +471,34 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
 
                                     )}
 
-                                    {/* ปุ่มตรวจสอบสำหรับหนี้ที่เราให้ยืม */}
-                                    {/* ถ้าเป็นการยืมและมีการเชื่อมบัญชีเพื่อน ให้แสดงปุ่มยืนยัน/ไม่อนุมัติ */}
-                                    {!isBorrow && debt.counterparty && (
-                                        <div className="flex gap-1 mt-2">
-                                            {payment.confirm_status === "pending" ? (
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        disabled={savingId === payment.id}
-                                                        onClick={() =>
-                                                            updateConfirmStatus(payment, "confirmed")
-                                                        }
-                                                        className="flex-1 rounded-md bg-green-500 text-white text-[10px] py-2 disabled:opacity-50"
-                                                    >
-                                                        {savingId === payment.id
-                                                            ? "กำลังบันทึก..."
-                                                            : "ยืนยันรับทราบ"}
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
-                                                        disabled={savingId === payment.id}
-                                                        onClick={() =>
-                                                            updateConfirmStatus(payment, "rejected")
-                                                        }
-                                                        className="flex-1 rounded-md bg-red-500 text-white text-[10px] py-2 disabled:opacity-50"
-                                                    >
-                                                        ไม่อนุมัติ
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        disabled
-                                                        className="flex-1 rounded-md bg-gray-300 text-gray-600 text-[10px] py-2 cursor-not-allowed"
-                                                    >
-                                                        {payment.confirm_status === "confirmed"
-                                                            ? "ยืนยันรับทราบแล้ว"
-                                                            : "ไม่อนุมัติแล้ว"}
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
-                                                        disabled={savingId === payment.id}
-                                                        onClick={() =>
-                                                            updateConfirmStatus(payment, "pending")
-                                                        }
-                                                        className="flex-1 rounded-md bg-[#252525] text-white text-[10px] py-2 disabled:opacity-50"
-                                                    >
-                                                        {savingId === payment.id
-                                                            ? "กำลังบันทึก..."
-                                                            : "ยกเลิก"}
-                                                    </button>
-                                                </>
-                                            )}
+                                    {/* ถ้าเป็นการยืมและมีการเชื่อมบัญชีเพื่อน จะมีปุ่มให้อนุมัติการชำระหนี้*/}
+                                    {!isBorrow && debt.counterparty && String(payment.debt) === String(debt.paired_debt) && (
+                                        <div className="mt-2">
+                                            <button
+                                                type="button"
+                                                disabled={savingId === payment.id}
+                                                onClick={() =>
+                                                    updateApprovementStatus(
+                                                        payment,
+                                                        payment.approvement_status === "approved"
+                                                                ? "revoke"
+                                                                : "approve"
+                                                    )
+                                                }
+                                                className={`w-full rounded-md text-[10px] py-2 text-white disabled:opacity-50 ${payment.approvement_status === "approved"
+                                                    ? "bg-[#252525]"
+                                                    : "bg-green-500"
+                                                    }`}
+                                            >
+                                                {savingId === payment.id
+                                                    ? "กำลังบันทึก..."
+                                                    : payment.approvement_status === "approved"
+                                                        ? "ยกเลิก"
+                                                        : "อนุมัติการชำระหนี้"}
+                                            </button>
                                         </div>
                                     )}
+
 
                                 </div>
 
@@ -530,24 +547,18 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                             </>
                                         )}
 
-                                        {/* รูปที่แสดง: รูปใหม่มาก่อนรูปเดิม */}
+                                        {/* รูปที่แสดง*/}
                                         {(payment.evidencePreview ||
                                             (payment.proof_image && !payment.removeProofImage)) ? (
                                             <button
                                                 type="button"
                                                 className="h-full w-full"
                                                 onClick={() => {
-                                                    if (isEditing) {
-                                                        document.getElementById(`evidence-${payment.id}`)?.click();
-                                                    } else {
-                                                        setPreviewImage(
-                                                            payment.evidencePreview || payment.proof_image
-                                                        );
-                                                    }
+                                                    setPreviewImage(
+                                                        payment.evidencePreview || payment.proof_image
+                                                    );
                                                 }}
-                                                aria-label={
-                                                    isEditing ? "เปลี่ยนรูปหลักฐาน" : "ขยายรูปหลักฐาน"
-                                                }
+                                                aria-label="ดูรูปหลักฐานขนาดใหญ่"
                                             >
                                                 <img
                                                     src={payment.evidencePreview || payment.proof_image}

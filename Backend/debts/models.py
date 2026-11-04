@@ -1,6 +1,6 @@
 from django.db import models
 from users.models import User
-
+from django.core.validators import MaxValueValidator
 
 class Debts(models.Model):
 
@@ -95,6 +95,26 @@ class Debts(models.Model):
         null=True,
         blank=True
     )
+    # วันครบกำหนดของงวดปัจจุบัน สำหรับ monthly เท่านั้น ส่วน flexible ปล่อยเป็น NULL
+    current_due_date = models.DateField(
+        null=True,
+        blank=True
+    )
+    #เปิด-ปิดการแจ้งเตือน
+    reminder_enabled = models.BooleanField(default=False)
+
+    # จำนวนวันแจ้งเตือนก่อนถึงกำหนดชำระ
+    reminder_days_before = models.PositiveSmallIntegerField(
+        default=3,
+        validators=[MaxValueValidator(28)],
+    )
+
+    # เวลาแจ้งเตือนตามเวลาไทย
+    reminder_time = models.TimeField( default="09:00")
+
+    # True = แจ้งทุกวัน, False = แจ้งครั้งเดียวในวันเริ่มเตือน
+    reminder_repeat = models.BooleanField(default=False)
+
     #สถานะว่าปิดหนี้ก้อนนี้ไปรึยัง
     status = models.CharField(
         max_length=20,
@@ -145,10 +165,9 @@ class Payments(models.Model):
         ('overdue', 'เกินกำหนด'),
     ]
     #สถานะการยืนยันการชำระเงินของเจ้าหนี้
-    CONFIRM_STATUS = [
+    APPROVEMENT_STATUS = [
         ('pending', 'รอตรวจสอบ'),
-        ('confirmed', 'ยืนยันแล้ว'),
-        ('rejected', 'ไม่ผ่านการตรวจสอบ'),
+        ('approved', 'ยืนยันแล้ว'),
     ]
     #รหัสหนี้สิน
     debt = models.ForeignKey(
@@ -194,14 +213,65 @@ class Payments(models.Model):
         choices=PAYMENT_STATUS,
         default='pending'
     )
-    confirm_status = models.CharField(
+    approvement_status = models.CharField(
         max_length=20,
-        choices=CONFIRM_STATUS,
+        choices=APPROVEMENT_STATUS,
         default='pending'
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
     
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.debt.name} - {self.paid_amount} บาท - {self.payment_date}"
+        return (
+            f"{self.debt.name} - "
+            f"{self.paid_amount} บาท - "
+            f"{self.paid_date or self.due_date}"
+        )
+
+
+# Model บันทึกประวัติการแจ้งเตือน เอาไว้ป้องกันไม่ให้ระบบส่งข้อความซ้ำจากการตรวจสอบรอบเดิมหลายครั้ง
+class DebtReminderLog(models.Model):
+    debt = models.ForeignKey(
+        "debts.Debts",
+        on_delete=models.CASCADE,
+        related_name="reminder_logs",
+    )
+
+    # ระบุว่างวดที่แจ้งเตือนเป็นงวดไหน
+    due_date = models.DateField()
+
+    # วันที่ส่งแจ้งเตือน เพื่อป้องกันการส่งซ้ำในวันเดียวกัน
+    reminder_date = models.DateField()
+
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("sent", "ส่งสำเร็จ"),
+            ("failed", "ส่งไม่สำเร็จ"),
+        ],
+        default="sent",
+    )
+
+    error_message = models.TextField(
+        blank=True,
+        default="",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["debt", "due_date", "reminder_date"],
+                name="unique_debt_reminder_due_date",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"Debt {self.debt_id} - "
+            f"Due {self.due_date} - "
+            f"Reminder {self.reminder_date}"
+        )

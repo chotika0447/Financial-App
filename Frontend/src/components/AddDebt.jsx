@@ -31,6 +31,10 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
     note: "",
     icon: "school",
     color: "purple",
+    reminderEnabled: false,
+    reminderDaysBefore: "3",
+    reminderTime: "09:00",
+    reminderRepeat: false,
     image: null,
   };
 
@@ -70,6 +74,10 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
         note: editingDebt.note || "",
         icon: editingDebt.icon || "school",
         color: editingDebt.color || "purple",
+        reminderEnabled: editingDebt.reminder_enabled ?? false,
+        reminderDaysBefore: String(editingDebt.reminder_days_before ?? 3),
+        reminderTime: String(editingDebt.reminder_time ?? "09:00").slice(0, 5),
+        reminderRepeat: editingDebt.reminder_repeat ?? false,
         image: editingDebt.image || null,
       });
 
@@ -113,7 +121,11 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
       form.paymentDate ||
       form.dueDate ||
       form.note ||
-      form.image
+      form.image ||
+      form.reminderEnabled ||
+      form.reminderRepeat ||
+      form.reminderDaysBefore !== "3" ||
+      form.reminderTime !== "09:00"
     );
   };
   const iconOptions = [
@@ -248,6 +260,34 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
           "payment_date",
           form.paymentDate
         );
+      }
+
+      // ตั้งค่าการแจ้งเตือนชำระหนี้
+      if (form.reminderEnabled) {
+        const days = Number(form.reminderDaysBefore);
+
+        if (!Number.isInteger(days) || days < 0 || days > 28) {
+          alert("กรุณาระบุจำนวนวันแจ้งเตือนระหว่าง 0-28 วัน");
+          return;
+        }
+
+        if (!form.reminderTime) {
+          alert("กรุณาเลือกเวลาแจ้งเตือน");
+          return;
+        }
+
+        formData.append("reminder_enabled", "true");
+        formData.append("reminder_days_before", String(days));
+        formData.append("reminder_time", form.reminderTime);
+        formData.append(
+          "reminder_repeat",
+          String(form.reminderRepeat)
+        );
+      } else {
+        formData.append("reminder_enabled", "false");
+        formData.append("reminder_days_before", "3");
+        formData.append("reminder_time", "09:00");
+        formData.append("reminder_repeat", "false");
       }
 
       // วันสิ้นสุด
@@ -623,7 +663,9 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
             </div>
 
 
+
             <div className="flex items-center gap-2">
+              {/* ช่องชื่อคู่สัญญา */}
               {/* ช่องชื่อคู่สัญญา */}
               <input
                 type="text"
@@ -638,11 +680,16 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                     return;
                   }
 
+                  // ถ้าเลือกเพื่อนอยู่ จะไม่ให้แก้ไขชื่อ
+                  if (counterpartyMode === "friend" && form.counterpartyId) {
+                    return;
+                  }
+
                   handleChange("counterparty", e.target.value);
                 }}
                 className={`h-[30px] w-full rounded-[9px] border border-gray-300 px-2 text-[12px] outline-none ${counterpartyMode === "friend" && form.counterpartyId
-                    ? "cursor-not-allowed bg-gray-200 text-gray-600"
-                    : "bg-gray-100"
+                  ? "cursor-not-allowed bg-gray-200 text-gray-600"
+                  : "bg-gray-100"
                   }`}
               />
 
@@ -675,6 +722,7 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                 </button>
               )}
             </div>
+
 
 
             {/* แสดงสถานะเมื่อเลือกเพื่อนแล้ว */}
@@ -838,9 +886,110 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                 <input type="number" min="1" max="31" value={form.paymentDate} onChange={(e) => handleChange("paymentDate", e.target.value)}
                   className="h-[30px] w-full rounded-[8px] border border-gray-300 bg-white px-2 text-[12px]" />
               </div>
-
             </div>
           )}
+
+
+          {/* การแจ้งเตือนชำระหนี้ */}
+          <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-800">
+                  แจ้งเตือนชำระหนี้ผ่าน LINE OA
+                </p>
+              </div>
+
+              {/* สวิตช์เปิด/ปิดหลัก */}
+              <button
+                type="button"
+                role="switch"
+                aria-label="เปิดหรือปิดการแจ้งเตือนชำระหนี้"
+                aria-checked={form.reminderEnabled}
+                onClick={() =>
+                  handleChange("reminderEnabled", !form.reminderEnabled)
+                }
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${form.reminderEnabled ? "bg-green-500" : "bg-gray-300"
+                  }`}
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.reminderEnabled
+                    ? "translate-x-[22px]"
+                    : "translate-x-0.5"
+                    }`}
+                />
+              </button>
+            </div>
+
+            {/* เปิดสวิตช์แล้วจึงแสดงรายละเอียด */}
+            {form.reminderEnabled && (
+              <div className="mt-4 space-y-4 border-t border-gray-100 pt-4">
+                <div>
+                  <label className="mb-1 block text-xs text-gray-700">
+                    แจ้งเตือนล่วงหน้า(วัน)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="28"
+                    step="1"
+                    value={form.reminderDaysBefore}
+                    onChange={(e) =>
+                      handleChange("reminderDaysBefore", e.target.value)
+                    }
+                    className="h-9 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm"
+                  />
+                  <p className="mt-1 text-[10px] text-gray-500">
+                    0 = แจ้งเตือนในวันครบกำหนด
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs text-gray-700">
+                    เวลาแจ้งเตือน
+                  </label>
+                  <input
+                    type="time"
+                    value={form.reminderTime}
+                    onChange={(e) =>
+                      handleChange("reminderTime", e.target.value)
+                    }
+                    className="h-9 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm"
+                  />
+                  
+                </div>
+
+                <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
+                  <div>
+                    <p className="text-xs font-medium text-gray-800">
+                      แจ้งเตือนซ้ำ
+                    </p>
+                    <p className="mt-1 text-[10px] text-gray-500">
+                      แจ้งเตือนทุกวันตามเวลาที่ตั้งจนถึงวันครบกำหนด
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-label="เปิดหรือปิดการแจ้งเตือนซ้ำ"
+                    aria-checked={form.reminderRepeat}
+                    onClick={() =>
+                      handleChange("reminderRepeat", !form.reminderRepeat)
+                    }
+                    className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${form.reminderRepeat ? "bg-green-500" : "bg-gray-300"
+                      }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.reminderRepeat
+                        ? "translate-x-[22px]"
+                        : "translate-x-0.5"
+                        }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
 
           {/* =========================

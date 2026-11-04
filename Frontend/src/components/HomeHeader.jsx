@@ -1,36 +1,60 @@
+import { useEffect, useState } from 'react';
 import './Header.css';
 import { NavLink } from 'react-router-dom';
 import profileIcon from '../assets/icons/profile.svg';
 
+function getThaiDate() {
+    return new Intl.DateTimeFormat('th-TH', {
+        timeZone: 'Asia/Bangkok',
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        calendar: 'buddhist',
+    }).format(new Date());
+}
+
 function HomeHeader({ user }) {
-  return (
-    <header className="home-header">
-      <div className="welcome">
-        <div>
-          สวัสดีคุณ <strong>{user?.username || '....'}</strong>
-        </div>
+    const [today, setToday] = useState(getThaiDate);
 
-        <span>วันอังคารที่ 21 กรกฎาคม 2569</span>
-      </div>
+    useEffect(() => {
+        // อัปเดตวันที่เมื่อเปิดหน้า และตรวจสอบวันที่ใหม่เป็นระยะ
+        const updateDate = () => setToday(getThaiDate());
 
-      <div className="header-icons">
+        updateDate();
 
-        {/* Profile */}
-        {/* <button className="profile-button">
-          <svg viewBox="0 0 24 24">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4 21c0-4 3.5-6 8-6s8 2 8 6" />
-          </svg>
-        </button> */}
+        const intervalId = setInterval(updateDate, 60 * 1000);
 
-        <NavLink to="/profile/" className="profile-button">
-          <circle cx="12" cy="8" r="4" />
-          <img className="profile-icon" src={profileIcon} alt="โปรไฟล์" />
+        return () => clearInterval(intervalId);
+    }, []);
 
-        </NavLink>
-      </div>
-    </header>
-  );
+    return (
+        <header className="home-header">
+            <div className="welcome">
+                <div className="home-header-greeting">
+                    สวัสดีคุณ <strong>{user?.username || '....'}</strong>
+                </div>
+
+                <span className="home-header-date">
+                    {today}
+                </span>
+            </div>
+
+            <div className="header-icons">
+                <NavLink
+                    to="/profile/"
+                    className="profile-button"
+                    aria-label="ไปยังหน้าโปรไฟล์"
+                >
+                    <img
+                        className="profile-icon"
+                        src={profileIcon}
+                        alt=""
+                    />
+                </NavLink>
+            </div>
+        </header>
+    );
 }
 
 export default HomeHeader;

@@ -6,41 +6,36 @@ import transactionIcon from '../assets/icons/transac.svg';
 import savingIcon from '../assets/icons/saving.svg';
 import debtIcon from '../assets/icons/debt.svg';
 import notificationIcon from '../assets/icons/bell.svg';
-import calculatorIcon from '../assets/icons/calculator.svg';
 
+import { House, NotebookPen, PiggyBank, HandCoins, SquareActivity } from 'lucide-react';
 
 function Navbar() {
   return (
     <nav className="nav">
 
       <NavLink to="/home/" className="nav-item">
-        <img className="nav-icon" src={homeIcon} alt="หน้าแรก" />
+        <House className="nav-icon" aria-hidden="true" />
         <span>หน้าแรก</span>
       </NavLink>
 
       <NavLink to="/transactions/" className="nav-item">
-        <img className="nav-icon" src={transactionIcon} alt="รายรับ-รายจ่าย" />
+        <NotebookPen className="nav-icon" aria-hidden="true" />
         <span>รายรับ-รายจ่าย</span>
       </NavLink>
 
       <NavLink to="/saving/" className="nav-item">
-        <img className="nav-icon" src={savingIcon} alt="ออมเงิน" />
+        <PiggyBank className="nav-icon" aria-hidden="true" />
         <span>ออมเงิน</span>
       </NavLink>
 
       <NavLink to="/debts/" className="nav-item">
-        <img className="nav-icon" src={debtIcon} alt="หนี้สิน" />
+        <HandCoins className="nav-icon" aria-hidden="true" />
         <span>หนี้สิน</span>
       </NavLink>
 
-      <NavLink to="/notifications/" className="nav-item">
-        <img className="nav-icon" src={notificationIcon} alt="แจ้งเตือน" />
-        <span>แจ้งเตือน</span>
-      </NavLink>
-
-      <NavLink to="/calculator/" className="nav-item">
-        <img className="nav-icon" src={calculatorIcon} alt="เครื่องมือคำนวณ" />
-        <span >เครื่องมือคำนวณ</span>
+      <NavLink to="/financial-health/" className="nav-item">
+        <SquareActivity className="nav-icon" aria-hidden="true" />
+        <span>สุขภาพการเงิน</span>
       </NavLink>
 
     </nav>

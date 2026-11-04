@@ -43,6 +43,7 @@ def confirm_transaction_draft(draft_id, user):
             user=user,
             amount=draft.amount,
             transaction_type=draft.transaction_type,
+            item_name=draft.item_name,
             description=draft.description,
             category=draft.category,
             sub_category=draft.sub_category,

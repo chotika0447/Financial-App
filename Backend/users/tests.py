@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch
 
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import PersonalProfile, User
 
@@ -32,8 +33,8 @@ class LineRegisterTests(TestCase):
 		self.assertEqual(response.status_code, 201)
 		user = User.objects.get(line_uid='line-user-123')
 		self.assertEqual(user.username, 'LINE Member')
-		self.assertIsNone(user.email)
-		self.assertFalse(user.has_usable_password())
+		self.assertFalse(hasattr(user, 'email'))
+		self.assertFalse(hasattr(user, 'password'))
 		self.assertEqual(
 			PersonalProfile.objects.get(user=user).profile_img,
 			'https://example.com/avatar.png',
@@ -90,8 +91,7 @@ class LineRegisterTests(TestCase):
 		verification = Mock(status_code=200)
 		verification.json.return_value = {'sub': 'line-user-123'}
 		post.return_value = verification
-		User.objects.create_user(
-			email=None,
+		User.objects.create(
 			username='LINE Member',
 			line_uid='line-user-123',
 		)
@@ -103,6 +103,23 @@ class LineRegisterTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertIn('access', response.data)
 		self.assertIn('refresh', response.data)
+
+	def test_refresh_returns_access_token_without_rotating_refresh(self):
+		user = User.objects.create(
+			username='LINE Member',
+			line_uid='line-user-refresh',
+		)
+		refresh = str(RefreshToken.for_user(user))
+
+		response = self.client.post(
+			'/users/token/refresh/',
+			{'refresh': refresh},
+			format='json',
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIn('access', response.data)
+		self.assertNotIn('refresh', response.data)
 
 	@patch('users.views.requests.post')
 	def test_line_login_sends_unregistered_user_to_register(self, post):
