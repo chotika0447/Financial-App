@@ -5,6 +5,7 @@ from .views import (
     PaymentListCreateView,
     PaymentDetailView,
     SendDebtReminderView,
+    SendPaymentApprovalRequestView,
     FinHealthBorrowView
 )
 urlpatterns = [
@@ -19,6 +20,9 @@ urlpatterns = [
     # การแจ้งเตือนชำระหนี้
     path("<int:debt_id>/send-reminder/", SendDebtReminderView.as_view(), name="debt-send-reminder"),
 
-    path('financial-health/borrow/', FinHealthBorrowView.as_view(), name='financial-health-borrow',),
+    path('financial-health/borrow/', FinHealthBorrowView.as_view(), name='financial-health-borrow'),
+
+    # ส่งคำขออนุมัติการชำระหนี้ไปหาเจ้าหนี้
+    path('payments/<int:payment_id>/send-request/', SendPaymentApprovalRequestView.as_view(), name='send-payment-approval-request'),
 ]
 

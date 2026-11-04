@@ -1241,6 +1241,72 @@ class PaymentDetailView(APIView):
         )
 
 
+class SendPaymentApprovalRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, payment_id):
+        # ค้นหาเฉพาะรายการที่เป็นของผู้ใช้ที่ล็อกอิน
+        payment = get_object_or_404(
+            Payments.objects.select_related(
+                "debt",
+                "debt__user",
+                "debt__paired_debt",
+                "debt__paired_debt__user",
+            ),
+            pk=payment_id,
+            debt__user=request.user,
+        )
+
+        debt = payment.debt
+
+        # ต้องเป็นรายการหนี้ฝั่งผู้ยืมที่เชื่อมบัญชีเจ้าหนี้
+        if (
+            debt.type != "borrowed"
+            or not debt.paired_debt_id
+            or not debt.paired_debt
+            or debt.paired_debt.type != "lent"
+            or debt.paired_debt.paired_debt_id != debt.pk
+        ):
+            return Response(
+                {"detail": "ไม่พบรายการหนี้ที่เชื่อมกับเจ้าหนี้"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ป้องกันการส่งคำขอหลังได้รับอนุมัติแล้ว
+        if payment.approvement_status != "pending":
+            return Response(
+                {"detail": "รายการนี้ไม่ได้อยู่ในสถานะรออนุมัติ"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ตรวจสอบ LINE User ID ของเจ้าหนี้
+        creditor = debt.paired_debt.user
+
+        if not creditor.line_uid:
+            return Response(
+                {
+                    "detail": (
+                        "เจ้าหนี้ยังไม่มี LINE User ID "
+                        "กรุณาให้เจ้าหนี้เข้าสู่ระบบผ่าน LINE ก่อน"
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ส่ง Flex Message ด้วยรูปแบบเดียวกับตอนสร้างรายการชำระ
+        sent = push_payment_submitted_notification(payment)
+
+        if not sent:
+            return Response(
+                {"detail": "ส่งคำขอผ่าน LINE ไม่สำเร็จ กรุณาลองใหม่"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response(
+            {"detail": "ส่งคำขออนุมัติการชำระหนี้สำเร็จแล้ว"},
+            status=status.HTTP_200_OK,
+        )
+
 # คำนวณอัตราส่วนภาระหนี้และการชำระหนี้ตรงเวลา
 class FinHealthBorrowView(APIView):
     permission_classes = [IsAuthenticated]

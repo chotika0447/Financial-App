@@ -16,6 +16,8 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
     const [editingId, setEditingId] = useState(null);
     const [previewImage, setPreviewImage] = useState(null);
     const [savingId, setSavingId] = useState(null); //state ป้องกันการกดบันทึกซ้ำ
+    const [sendingRequestId, setSendingRequestId] = useState(null);
+    const [approvingAll, setApprovingAll] = useState(false);
 
     const [newReceived, setNewReceived] = useState({
         paid_amount: "",
@@ -153,6 +155,40 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
         });
     };
 
+    const sendApprovalRequest = async (payment) => {
+        const accessToken = sessionStorage.getItem("accessToken");
+        if (!accessToken) {
+            alert("ไม่พบข้อมูลการเข้าสู่ระบบ");
+            return;
+        }
+
+        setSendingRequestId(payment.id);
+
+        try {
+            const response = await fetch(
+                `/debts/payments/${payment.id}/send-request/`,
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.detail || "ไม่สามารถส่งคำขอได้");
+            }
+
+            alert(data.detail || "ส่งคำขออนุมัติสำเร็จแล้ว");
+        } catch (error) {
+            console.error("Send approval request error:", error);
+            alert(error.message || "ไม่สามารถส่งคำขอได้");
+        } finally {
+            setSendingRequestId(null);
+        }
+    };
     //ฟังก์ชันบันทึกการชำระหนี้
     const savePayment = async (payment) => {
         const accessToken = sessionStorage.getItem("accessToken");
@@ -286,7 +322,83 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
             setSavingId(null);
         }
     };
-    
+
+    const approveAllPayments = async () => {
+        const accessToken = sessionStorage.getItem("accessToken");
+
+        if (!accessToken) {
+            alert("ไม่พบข้อมูลการเข้าสู่ระบบ");
+            return;
+        }
+
+        const pendingPayments = payments.filter(
+            (payment) =>
+                payment.approvement_status === "pending" &&
+                String(payment.debt) === String(debt.paired_debt)
+        );
+
+        if (pendingPayments.length === 0) {
+            alert("ไม่มีรายการที่รออนุมัติ");
+            return;
+        }
+
+        if (!window.confirm(`ยืนยันอนุมัติการชำระหนี้ทั้งหมด ${pendingPayments.length} รายการหรือไม่?`)) {
+            return;
+        }
+
+        setApprovingAll(true);
+        let approvedCount = 0;
+
+        try {
+            for (const payment of pendingPayments) {
+                const response = await fetch(
+                    `/debts/payments/${payment.id}/`,
+                    {
+                        method: "PATCH",
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ action: "approve" }),
+                    }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.detail || `ไม่สามารถอนุมัติรายการที่ ${payment.id} ได้`
+                    );
+                }
+
+                setPayments((previous) =>
+                    previous.map((item) =>
+                        item.id === payment.id
+                            ? { ...item, ...data }
+                            : item
+                    )
+                );
+
+                approvedCount++;
+            }
+
+            alert(`อนุมัติสำเร็จ ${approvedCount} รายการ`);
+
+        } catch (error) {
+            console.error("Approve all payments error:", error);
+
+            alert(
+                `อนุมัติสำเร็จ ${approvedCount} จาก ${pendingPayments.length} รายการ\n${error.message}`
+            );
+        } finally {
+            if (approvedCount > 0 && onDebtUpdated) {
+                await onDebtUpdated();
+            }
+
+            setApprovingAll(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-[#f4f4f4] pb-24">
             {/* Header */}
@@ -313,8 +425,25 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                     <span className="text-sm">{debt.name}</span>
                 </div>
 
-
-
+                {/* ปุ่มอนุมัติทั้งหมด (สำหรับเจ้าหนี้เท่านั้น) */}
+                {!isBorrow &&
+                    debt.counterparty &&
+                    payments.some(
+                        (payment) =>
+                            payment.approvement_status === "pending" &&
+                            String(payment.debt) === String(debt.paired_debt)
+                    ) && (
+                        <div className="flex justify-end mb-3">
+                            <button
+                                type="button"
+                                onClick={approveAllPayments}
+                                disabled={approvingAll}
+                                className="rounded-md bg-green-500 px-4 py-2 text-xs text-white hover:bg-green-600 disabled:opacity-50"
+                            >
+                                {approvingAll ? "กำลังอนุมัติ..." : "อนุมัติทั้งหมด"}
+                            </button>
+                        </div>
+                    )}
 
                 {payments.map((payment, index) => {
                     const isEditing = editingId === payment.id;
@@ -365,6 +494,7 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                                 {statusText[payment.approvement_status] || "ไม่ระบุสถานะ"}
                                             </span>
                                         </div>
+
                                     )}
 
                                     <div className="flex flex-wrap items-center gap-2 mb-2 text-xs">
@@ -438,38 +568,53 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                     </p>
 
 
-                                    {/* ปุ่มแก้ไขรายการชำระหนี้/คืนเงิน */}
-                                    {(isBorrow || (!isBorrow && !debt.counterparty)) && (
-                                        <button
-                                            onClick={() => {
-                                                //console.log("กดปุ่มแล้ว:", { paymentId: payment.id, isEditing});
-                                                if (isEditing) {
-                                                    //console.log("กำลังเรียก savePayment");
-                                                    savePayment(payment);
-                                                } else {
-                                                    //console.log("เข้าสู่โหมดแก้ไข");
-                                                    setEditingId(payment.id);
+                                    {/* ปุ่มแก้ไขและส่งคำขอ */}
+                                    <div className="flex items-center gap-2 mt-2">
+                                        {(isBorrow || (!isBorrow && !debt.counterparty)) && (
+                                            <button
+                                                onClick={() => {
+                                                    if (isEditing) {
+                                                        savePayment(payment);
+                                                    } else {
+                                                        setEditingId(payment.id);
+                                                    }
+                                                }}
+                                                className={`w-[72px] h-[24px] rounded-md text-[10px]
+                                                    ${isEditing
+                                                        ? "bg-green-500 text-white"
+                                                        : isBorrow && payment.approvement_status !== "pending"
+                                                            ? "bg-gray-300 text-gray-500"
+                                                            : "bg-[#252525] text-white"
+                                                    }`
                                                 }
-                                            }}
-                                            className={`mt-2 w-[72px] h-[24px] rounded-md text-[10px] 
-                                                ${isEditing
-                                                    ? "bg-green-500 text-white"
-                                                    : isBorrow && payment.approvement_status !== "pending"
-                                                        ? "bg-gray-300 text-gray-500"
-                                                        : "bg-[#252525] text-white"
-                                                }`}
-                                            disabled={
-                                                savingId === payment.id || (isBorrow && !isEditing && payment.approvement_status !== "pending")
-                                            }
-                                        >
-                                            {isEditing
-                                                ? savingId === payment.id
-                                                    ? "กำลังบันทึก..."
-                                                    : "บันทึก"
-                                                : "แก้ไข"}
-                                        </button>
+                                                disabled={
+                                                    savingId === payment.id ||
+                                                    (isBorrow && !isEditing && payment.approvement_status !== "pending")
+                                                }
+                                            >
+                                                {isEditing
+                                                    ? savingId === payment.id
+                                                        ? "กำลังบันทึก..."
+                                                        : "บันทึก"
+                                                    : "แก้ไข"}
+                                            </button>
+                                        )}
 
-                                    )}
+                                        {isBorrow &&
+                                            debt.counterparty &&
+                                            payment.approvement_status === "pending" && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => sendApprovalRequest(payment)}
+                                                    disabled={sendingRequestId === payment.id}
+                                                    className="w-[72px] h-[24px] rounded-md text-[10px] text-white bg-[#06C755] disabled:opacity-50"
+                                                >
+                                                    {sendingRequestId === payment.id
+                                                        ? "กำลังส่ง..."
+                                                        : "ส่งคำขอ"}
+                                                </button>
+                                            )}
+                                    </div>
 
                                     {/* ถ้าเป็นการยืมและมีการเชื่อมบัญชีเพื่อน จะมีปุ่มให้อนุมัติการชำระหนี้*/}
                                     {!isBorrow && debt.counterparty && String(payment.debt) === String(debt.paired_debt) && (
@@ -481,8 +626,8 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                                     updateApprovementStatus(
                                                         payment,
                                                         payment.approvement_status === "approved"
-                                                                ? "revoke"
-                                                                : "approve"
+                                                            ? "revoke"
+                                                            : "approve"
                                                     )
                                                 }
                                                 className={`w-full rounded-md text-[10px] py-2 text-white disabled:opacity-50 ${payment.approvement_status === "approved"
@@ -498,7 +643,6 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
                                             </button>
                                         </div>
                                     )}
-
 
                                 </div>
 
