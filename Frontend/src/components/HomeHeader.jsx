@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import './Header.css';
 import { NavLink } from 'react-router-dom';
-import { Settings } from 'lucide-react'; 
+import { User } from 'lucide-react'; 
 function getThaiDate() {
     return new Intl.DateTimeFormat('th-TH', {
         timeZone: 'Asia/Bangkok',
@@ -45,7 +45,7 @@ function HomeHeader({ user }) {
                     className="profile-button"
                     aria-label="ไปยังหน้าโปรไฟล์"
                 >
-                    <Settings />
+                    <User />
                 </NavLink>
             </div>
         </header>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Copy } from 'lucide-react';
+import { Settings, Copy, Trash2 } from 'lucide-react';
 import { authenticatedFetch as fetch } from '../utils/auth';
 import './Profile.css';
 
