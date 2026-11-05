@@ -1,4 +1,3 @@
-
 {% extends "admin/base_site.html" %}
 {% load humanize %}
 
@@ -95,8 +94,7 @@
 <div class="dashboard-container">
 
     <div class="dashboard-actions">
-        <a href="{% url 'admin:users_personalprofile_changelist' %}"
-           class="button">
+        <a href="{% url 'admin:users_personalprofile_changelist' %}" class="button">
             กลับไปหน้ารายการ PersonalProfile
         </a>
     </div>
@@ -160,79 +158,97 @@
 {{ occupation_chart_data|json_script:"occupation-data" }}
 {{ income_chart_data|json_script:"income-data" }}
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
 
 <script>
-    const ageData = JSON.parse(
-        document.getElementById('age-data').textContent
-    );
+    document.addEventListener('DOMContentLoaded', function () {
 
-    const occupationData = JSON.parse(
-        document.getElementById('occupation-data').textContent
-    );
+        // ตรวจสอบว่า Chart.js โหลดสำเร็จหรือไม่
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js โหลดไม่สำเร็จ');
+            return;
+        }
 
-    const incomeData = JSON.parse(
-        document.getElementById('income-data').textContent
-    );
+        // อ่านข้อมูลจาก Django
+        const ageData = JSON.parse(
+            document.getElementById('age-data').textContent
+        );
 
-    const chartColors = [
-        '#6366f1',
-        '#06b6d4',
-        '#10b981',
-        '#f59e0b',
-        '#ef4444',
-        '#a855f7',
-        '#ec4899',
-        '#64748b',
-        '#84cc16'
-    ];
+        const occupationData = JSON.parse(
+            document.getElementById('occupation-data').textContent
+        );
 
-    function createPieChart(elementId, data, labelField) {
-        const labels = data.map(item => item[labelField]);
-        const values = data.map(item => item.total);
+        const incomeData = JSON.parse(
+            document.getElementById('income-data').textContent
+        );
 
-        new Chart(document.getElementById(elementId), {
-            type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: values,
-                    backgroundColor: chartColors,
-                    borderWidth: 2,
-                    borderColor: '#ffffff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return `${context.label}: ${context.raw} คน`;
+        console.log('Age Data:', ageData);
+        console.log('Occupation Data:', occupationData);
+        console.log('Income Data:', incomeData);
+
+        const chartColors = [
+            '#6366f1',
+            '#06b6d4',
+            '#10b981',
+            '#f59e0b',
+            '#ef4444',
+            '#a855f7',
+            '#ec4899',
+            '#64748b',
+            '#84cc16'
+        ];
+
+        function createPieChart(elementId, data, labelField) {
+
+            const canvas = document.getElementById(elementId);
+
+            if (!canvas) {
+                console.error('ไม่พบ Canvas:', elementId);
+                return;
+            }
+
+            if (!Array.isArray(data)) {
+                console.error('ข้อมูลไม่ใช่ Array:', elementId, data);
+                return;
+            }
+
+            const labels = data.map(item => item[labelField]);
+            const values = data.map(item => Number(item.total));
+
+            new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: chartColors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return `${context.label}: ${context.raw} คน`;
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
-    }
+            });
+        }
 
-    createPieChart('ageChart', ageData, 'age_group');
+        createPieChart('ageChart', ageData, 'age_group');
+        createPieChart('occupationChart', occupationData, 'occupation_group');
+        createPieChart('incomeChart', incomeData, 'income_group');
 
-    createPieChart(
-        'occupationChart',
-        occupationData,
-        'occupation_group'
-    );
-
-    createPieChart(
-        'incomeChart',
-        incomeData,
-        'income_group'
-    );
+    });
 </script>
 {% endblock %}

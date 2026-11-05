@@ -1,5 +1,3 @@
-import json
-
 from django.contrib import admin
 from django.db.models import Count, Avg, Case, When, Value, CharField, F
 from django.urls import path, reverse
@@ -166,13 +164,9 @@ class PersonalProfileAdmin(admin.ModelAdmin):
             'missing_profiles': missing_profiles,
             'average_income': float(average_income),
 
-            'age_chart_data': json.dumps(list(age_data), ensure_ascii=False),
-            'occupation_chart_data': json.dumps(
-                list(occupation_data), ensure_ascii=False
-            ),
-            'income_chart_data': json.dumps(
-                list(income_data), ensure_ascii=False
-            ),
+            'age_chart_data': list(age_data),
+            'occupation_chart_data': list(occupation_data),
+            'income_chart_data': list(income_data),
 
             'opts': self.model._meta,
         }
