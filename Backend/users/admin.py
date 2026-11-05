@@ -1,4 +1,3 @@
-
 import json
 
 from django.contrib import admin
@@ -7,6 +6,24 @@ from django.urls import path, reverse
 from django.shortcuts import render
 
 from .models import User, PersonalProfile
+
+
+@admin.register(User)
+class UserAdmin(admin.ModelAdmin):
+    list_display = (
+        'uid',
+        'username',
+        'line_uid',
+        'is_active',
+        'created_at',
+        'updated_at',
+    )
+    search_fields = (
+        'uid',
+        'username',
+        'line_uid',
+    )
+    ordering = ('uid',)
 
 
 @admin.register(PersonalProfile)

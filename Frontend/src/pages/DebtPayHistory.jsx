@@ -615,7 +615,7 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated, onPreviewChange }) {
                                                 >
                                                     {sendingRequestId === payment.id
                                                         ? "กำลังส่ง..."
-                                                        : "ส่งคำขอ"}
+                                                        : "ส่งคำขออีกครั้ง"}
                                                 </button>
                                             )}
                                     </div>
