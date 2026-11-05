@@ -1,0 +1,238 @@
+
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .dashboard-container {
+        padding: 20px 0;
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .summary-card {
+        background: var(--body-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 20px;
+        min-width: 0;
+    }
+
+    .summary-card h3 {
+        color: var(--body-quiet-color);
+        font-size: 14px;
+        margin: 0 0 12px;
+    }
+
+    .summary-card .number {
+        font-size: 27px;
+        font-weight: 700;
+        color: var(--body-fg);
+    }
+
+    .chart-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+    }
+
+    .chart-card {
+        background: var(--body-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 20px;
+        min-width: 0;
+    }
+
+    .chart-card h2 {
+        font-size: 17px;
+        margin: 0 0 20px;
+    }
+
+    .chart-wrapper {
+        position: relative;
+        height: 300px;
+        max-width: 100%;
+    }
+
+    .chart-card:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .dashboard-actions {
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 900px) {
+        .summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .chart-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .chart-card:last-child {
+            grid-column: auto;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .summary-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <div class="dashboard-actions">
+        <a href="{% url 'admin:users_personalprofile_changelist' %}"
+           class="button">
+            กลับไปหน้ารายการ PersonalProfile
+        </a>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-grid">
+
+        <div class="summary-card">
+            <h3>ผู้ใช้ทั้งหมด</h3>
+            <div class="number">{{ total_users|intcomma }}</div>
+        </div>
+
+        <div class="summary-card">
+            <h3>ผู้ใช้ที่มีข้อมูลโปรไฟล์</h3>
+            <div class="number">{{ total_profiles|intcomma }}</div>
+        </div>
+
+        <div class="summary-card">
+            <h3>ผู้ใช้ที่ยังไม่มีโปรไฟล์</h3>
+            <div class="number">{{ missing_profiles|intcomma }}</div>
+        </div>
+
+        <div class="summary-card">
+            <h3>รายได้เฉลี่ยต่อเดือน</h3>
+            <div class="number">
+                {{ average_income|floatformat:2|intcomma }}
+                <small style="font-size: 13px;">บาท</small>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Pie Charts -->
+    <div class="chart-grid">
+
+        <div class="chart-card">
+            <h2>สัดส่วนช่วงอายุผู้ใช้งาน</h2>
+            <div class="chart-wrapper">
+                <canvas id="ageChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h2>สัดส่วนอาชีพผู้ใช้งาน</h2>
+            <div class="chart-wrapper">
+                <canvas id="occupationChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h2>สัดส่วนรายได้ต่อเดือน</h2>
+            <div class="chart-wrapper">
+                <canvas id="incomeChart"></canvas>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{{ age_chart_data|json_script:"age-data" }}
+{{ occupation_chart_data|json_script:"occupation-data" }}
+{{ income_chart_data|json_script:"income-data" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    const ageData = JSON.parse(
+        document.getElementById('age-data').textContent
+    );
+
+    const occupationData = JSON.parse(
+        document.getElementById('occupation-data').textContent
+    );
+
+    const incomeData = JSON.parse(
+        document.getElementById('income-data').textContent
+    );
+
+    const chartColors = [
+        '#6366f1',
+        '#06b6d4',
+        '#10b981',
+        '#f59e0b',
+        '#ef4444',
+        '#a855f7',
+        '#ec4899',
+        '#64748b',
+        '#84cc16'
+    ];
+
+    function createPieChart(elementId, data, labelField) {
+        const labels = data.map(item => item[labelField]);
+        const values = data.map(item => item.total);
+
+        new Chart(document.getElementById(elementId), {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: chartColors,
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.label}: ${context.raw} คน`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    createPieChart('ageChart', ageData, 'age_group');
+
+    createPieChart(
+        'occupationChart',
+        occupationData,
+        'occupation_group'
+    );
+
+    createPieChart(
+        'incomeChart',
+        incomeData,
+        'income_group'
+    );
+</script>
+{% endblock %}
