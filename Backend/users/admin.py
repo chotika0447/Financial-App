@@ -2,7 +2,7 @@
 import json
 
 from django.contrib import admin
-from django.db.models import Count, Avg, Case, When, Value, CharField
+from django.db.models import Count, Avg, Case, When, Value, CharField, F
 from django.urls import path, reverse
 from django.shortcuts import render
 
@@ -90,7 +90,7 @@ class PersonalProfileAdmin(admin.ModelAdmin):
                         occupation='',
                         then=Value('ไม่ระบุ')
                     ),
-                    default='occupation',
+                    default=F('occupation'),
                     output_field=CharField(),
                 )
             )
