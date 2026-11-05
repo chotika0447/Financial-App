@@ -1,4 +1,79 @@
-import re
+# ใช้ Python พื้นฐาน ไม่ใช้ Regular Expression
+
+
+def find_numbers(text):
+    """คืนค่า (จำนวนเงิน, จุดเริ่ม, จุดสิ้นสุด) จากข้อความ"""
+    found = []
+    start = -1
+    allowed = "0123456789,."
+    for index, char in enumerate(text + " "):
+        if char in allowed:
+            if start == -1:
+                start = index
+        elif start != -1:
+            raw = text[start:index]
+            cleaned = raw.replace(",", "")
+            try:
+                value = float(cleaned)
+                if cleaned.count(".") <= 1 and value >= 0:
+                    found.append((value, start, index))
+            except ValueError:
+                pass
+            start = -1
+    return found
+
+
+def contains_date(text):
+    """ตรวจวันที่รูปแบบ 12/11/2026 หรือ 12-11-2026"""
+    for separator in ("/", "-"):
+        if separator not in text:
+            continue
+        for word in text.split():
+            parts = word.strip(" ,:()[]").split(separator)
+            if len(parts) == 3 and all(part.isdigit() for part in parts):
+                if len(parts[2]) in (2, 4):
+                    return True
+    return False
+
+
+def get_amount_and_ranges(text):
+    """แยกยอดเงินอย่างระมัดระวัง หากกำกวมให้ผู้ใช้ระบุยอดสุทธิ"""
+    numbers = find_numbers(text)
+    if not numbers:
+        return None, [], "ไม่พบจำนวนเงินที่ถูกต้อง"
+
+    if len(numbers) == 1:
+        amount = numbers[0][0]
+        if amount <= 0:
+            return None, [], "จำนวนเงินต้องมากกว่า 0 บาท"
+        return amount, [(numbers[0][1], numbers[0][2])], ""
+
+    # รองรับเฉพาะ 'ราคา 200 ลด 50 บาท' หรือ 'ซื้อของ 200 ลด 50 บาท'
+    if len(numbers) == 2:
+        first, second = numbers
+        between = text[first[2]:second[1]].strip()
+        if between in ("ลด", "ลดราคา", "ส่วนลด"):
+            amount = first[0] - second[0]
+            if amount <= 0:
+                return None, [], "ส่วนลดต้องน้อยกว่าราคาสินค้า"
+            return amount, [(first[1], second[2])], ""
+
+    return None, [], "พบตัวเลขหลายจำนวน กรุณาระบุยอดสุทธิเป็นจำนวนเงินเดียว เช่น ซื้อข้าวและน้ำ 70 บาท"
+
+
+def remove_keyword(text, keyword):
+    """ลบคำที่พบแบบไม่สนใจตัวพิมพ์เล็กใหญ่"""
+    position = text.lower().find(keyword.lower())
+    if position < 0:
+        return text
+    return text[:position] + text[position + len(keyword):]
+
+
+def remove_ranges(text, ranges):
+    for start, end in sorted(ranges, reverse=True):
+        text = text[:start] + text[end:]
+    return text
+
 
 
 # ==================================================
@@ -10,16 +85,13 @@ def parse_financial_message(text, transaction_type):
     if transaction_type not in ("income", "expense"):
         return {"success": False, "message": "กรุณาเลือกโหมดรายรับหรือรายจ่ายก่อน"}
 
-    # -------------------------
-    # 1. หาจำนวนเงิน
-    # -------------------------
+    # วันที่ในข้อความยังไม่รองรับการบันทึกย้อนหลังผ่าน LINE
+    if contains_date(text):
+        return {"success": False, "message": "ยังไม่รองรับการระบุวันที่ในข้อความ กรุณาบันทึกรายการแล้วแก้วันที่บนเว็บไซต์"}
 
-    match = re.search(r"(?<![\d])([\d,]+(?:\.\d{1,2})?)\s*(?:บาท|บ\.|฿)(?!\w)", text)
-    if not match:
-        match = re.search(r"(?<![\d])([\d,]+(?:\.\d{1,2})?)(?![\d])", text)
-    amount = float(match.group(1).replace(",", "")) if match else 0
-    if amount <= 0:
-        return {"success": False, "message": "ไม่พบจำนวนเงินที่ถูกต้อง"}
+    amount, amount_ranges, error = get_amount_and_ranges(text)
+    if error:
+        return {"success": False, "message": error}
 
     # -------------------------
     # 2. เตรียมข้อความ
@@ -128,12 +200,10 @@ def parse_financial_message(text, transaction_type):
             break
 
 
-    # ชื่อรายการ: ตัดจำนวนเงินและช่องทางออกก่อน
-    item_name = text.strip()
-    if match:
-        item_name = item_name[:match.start()] + item_name[match.end():]
+    # ชื่อรายการ: ตัดยอดเงินและช่องทางออกก่อน
+    item_name = remove_ranges(text.strip(), amount_ranges)
     if matched_account:
-        item_name = re.sub(re.escape(matched_account), "", item_name, flags=re.IGNORECASE)
+        item_name = remove_keyword(item_name, matched_account)
 
     # ตัดชื่อร้านที่ระบุท้ายข้อความออกจากชื่อรายการเท่านั้น
     # ยังคงใช้ข้อความต้นฉบับสำหรับจับหมวดหมู่ เช่น เซเว่น -> ซูเปอร์มาร์เก็ต
@@ -145,8 +215,12 @@ def parse_financial_message(text, transaction_type):
                 break
 
     # ลบหน่วยเงินที่เหลืออยู่ และเว้นวรรคส่วนเกิน
-    item_name = re.sub(r"^(?:บาท|บ\.|฿)", "", item_name.strip())
-    item_name = re.sub(r"(?:บาท|บ\.|฿)$", "", item_name.strip())
+    item_name = item_name.strip()
+    for unit in ("บาท", "บ.", "฿"):
+        if item_name.startswith(unit):
+            item_name = item_name[len(unit):].strip()
+        if item_name.endswith(unit):
+            item_name = item_name[:-len(unit)].strip()
     item_name = item_name.strip(" -,:\t")
 
     # ตัดเฉพาะคำขึ้นต้นที่ไม่ใช่ส่วนหนึ่งของชื่อรายการ

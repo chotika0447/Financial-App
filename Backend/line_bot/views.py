@@ -1325,8 +1325,18 @@ def handle_text_message(text, line_user_id):
                 draft.account = result["account"]
 
         else:
-            # กรณี OCR อ่านจำนวนเงินได้ แต่ข้อความที่ส่งมาเป็นเพียงโน้ต
+            # ถ้าข้อความมีตัวเลขหรือวันที่ แต่ Parser วิเคราะห์ไม่ได้
+            # อย่าบันทึกยอด OCR เดิมแทนโดยอัตโนมัติ
+            if any(char.isdigit() for char in command):
+                return (result.get("message", "กรุณาระบุจำนวนเงินให้ชัดเจนค่ะ")
+                        if result else "กรุณาระบุจำนวนเงินให้ชัดเจนค่ะ")
+
+            # ข้อความไม่มีตัวเลข: เป็นโน้ตได้เฉพาะเมื่อมีจำนวนเงินจาก OCR แล้ว
+            if not draft.amount or draft.amount <= 0:
+                return "ยังไม่พบจำนวนเงินค่ะ กรุณาพิมพ์ชื่อรายการพร้อมจำนวนเงิน เช่น กาแฟ 80 บาท"
             draft.description = command
+            if not draft.item_name:
+                draft.item_name = command
 
         # หากยังไม่มีจำนวนเงิน ให้ขอข้อมูลเพิ่มเติม
         if not draft.amount or draft.amount <= 0:
@@ -1357,7 +1367,8 @@ def handle_text_message(text, line_user_id):
         )
 
         if not result or not result.get("success"):
-            return "ไม่พบจำนวนเงินค่ะ ลองพิมพ์ เช่น 80 บาท"
+            return (result.get("message", "ไม่สามารถวิเคราะห์จำนวนเงินได้ค่ะ")
+                    if result else "ไม่สามารถวิเคราะห์จำนวนเงินได้ค่ะ")
 
         draft.amount = result["amount"]
 
@@ -1415,10 +1426,8 @@ def handle_text_message(text, line_user_id):
     )
 
     if not result or not result.get("success"):
-        return (
-            "ไม่พบจำนวนเงินค่ะ "
-            "ลองพิมพ์ เช่น ชา 80 บาท"
-        )
+        return (result.get("message", "ไม่สามารถวิเคราะห์ข้อความได้ค่ะ")
+                if result else "ไม่สามารถวิเคราะห์ข้อความได้ค่ะ")
 
     parsed_category = (
         result.get("category") or "อื่นๆ"
