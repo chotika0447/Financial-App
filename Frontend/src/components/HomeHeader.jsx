@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import './Header.css';
 import { NavLink } from 'react-router-dom';
-import profileIcon from '../assets/icons/profile.svg';
-
+import { Settings } from 'lucide-react'; 
 function getThaiDate() {
     return new Intl.DateTimeFormat('th-TH', {
         timeZone: 'Asia/Bangkok',
@@ -46,11 +45,7 @@ function HomeHeader({ user }) {
                     className="profile-button"
                     aria-label="ไปยังหน้าโปรไฟล์"
                 >
-                    <img
-                        className="profile-icon"
-                        src={profileIcon}
-                        alt=""
-                    />
+                    <Settings />
                 </NavLink>
             </div>
         </header>

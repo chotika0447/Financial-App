@@ -313,6 +313,24 @@ function DebtEntryRoute() {
   return <Debts />;
 }
 
+function LoggedOut() {
+  const navigate = useNavigate();
+
+  return (
+    <main className="entry-route">
+      <h2>ออกจากระบบสำเร็จแล้ว</h2>
+      <p>คุณได้ออกจากระบบเรียบร้อยแล้ว</p>
+
+      <button
+        type="button"
+        onClick={() => navigate('/', { replace: true })}
+      >
+        เข้าสู่ระบบอีกครั้ง
+      </button>
+    </main>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -325,6 +343,11 @@ function App() {
         <Route
           path="/register/"
           element={<Register />}
+        />
+
+        <Route
+          path="/logged-out"
+          element={<LoggedOut />}
         />
 
         <Route

@@ -8,16 +8,16 @@ import {
 } from "lucide-react";
 import { authenticatedFetch as fetch } from "../utils/auth";
 
-function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
+function DebtPaymentHistory({ debt, onBack, onDebtUpdated, onPreviewChange }) {
     const isBorrow = debt.type === "borrowed";
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);//
     const [error, setError] = useState("");//
     const [editingId, setEditingId] = useState(null);
-    const [previewImage, setPreviewImage] = useState(null);
     const [savingId, setSavingId] = useState(null); //state ป้องกันการกดบันทึกซ้ำ
     const [sendingRequestId, setSendingRequestId] = useState(null);
     const [approvingAll, setApprovingAll] = useState(false);
+    const [previewImage, setPreviewImage] = useState(null);
 
     const [newReceived, setNewReceived] = useState({
         paid_amount: "",
@@ -25,6 +25,10 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated }) {
         note: "",
         proof_image: null,
     });
+
+    useEffect(() => {
+        onPreviewChange?.(Boolean(previewImage));
+    }, [previewImage, onPreviewChange]);
 
     useEffect(() => {
         const fetchPayments = async () => {

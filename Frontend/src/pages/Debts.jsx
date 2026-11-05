@@ -25,6 +25,7 @@ function Debts() {
   const [showDebtPay, setShowDebtPay] = useState(false);//แสดง/ซ่อน ป็อปอัพ หน้าชำระหนี้
   const [selectedDebt, setSelectedDebt] = useState(null);//สถานะของหนี้สินที่ผู้ใช้เลือก (สำหรับการชำระหนี้หรือดูประวัติการชำระ)
   const [showDebtHistory, setShowDebtHistory] = useState(false);
+  const [showPaymentPreview, setShowPaymentPreview] = useState(false);//สถานะการแสดงป็อปอัพดูตัวอย่างหลักฐานการชำระหนี้
   const [editingDebt, setEditingDebt] = useState(null);//สถานะแก้ไขรายการหนี้สินที่เลือก
 
   const isPopupOpen = showAddDebt || showDebtPay || editingDebt;//สถานะการเปิดป็อปอัพทั้งหมด เพื่อซ่อน Navbar ไม่ให้บัง
@@ -605,10 +606,13 @@ function Debts() {
             }
 
             setShowDebtHistory(false);
+            setShowPaymentPreview(false);
           }}
           onDebtUpdated={refreshDebts}
+          onPreviewChange={setShowPaymentPreview}
         />
-        <Navbar />
+
+        {!showPaymentPreview && <Navbar />}
       </>
     );
   }
@@ -997,27 +1001,27 @@ function Debts() {
 
 
         {/* ปุ่มเพิ่มรายการ */}
+        {!isPopupOpen && (
+          <div className="fixed right-[30px] bottom-[85px] z-[99] flex items-center gap-[10px]">
+            <span className="whitespace-nowrap text-sm font-bold text-black">
+              เพิ่มรายการ
+            </span>
 
-        <div className="fixed right-[30px] bottom-[85px] z-[99] flex items-center gap-[10px]">
-          <span className="whitespace-nowrap text-sm font-bold text-black">
-            เพิ่มรายการ
-          </span>
+            <button
+              onClick={() => {
+                setEditingDebt(null);
+                setShowAddDebt(true);
+                setCurrentDebtType(activeTab); //เซ็ตประเภทหนี้สินเริ่มต้นตามแท็บที่ผู้ใช้เลือกอยู่
+              }}
 
-          <button
-            onClick={() => {
-              setEditingDebt(null);
-              setShowAddDebt(true);
-              setCurrentDebtType(activeTab); //เซ็ตประเภทหนี้สินเริ่มต้นตามแท็บที่ผู้ใช้เลือกอยู่
-            }}
-
-            className="flex h-12 w-12 items-center justify-center rounded-full
+              className="flex h-12 w-12 items-center justify-center rounded-full
                       bg-[#ffbd3d] text-white shadow-md transition-all duration-200
                       hover:scale-105 hover:bg-[#f57f8b] active:scale-95"
-          >
-            <Plus size={27} strokeWidth={2.5} />
-          </button>
-        </div>
-
+            >
+              <Plus size={27} strokeWidth={2.5} />
+            </button>
+          </div>
+        )}
       </main >
 
       {!isPopupOpen && <Navbar />}

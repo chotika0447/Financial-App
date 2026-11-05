@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Settings.css';
 import { clearTokens } from '../utils/auth';
+import { liff } from '../lineAuth';
 
 function Settings() {
 
@@ -35,14 +36,15 @@ function Settings() {
         );
     };
 
-
     const handleLogout = () => {
-
         clearTokens();
 
-        navigate('/login');
-    };
+        if (liff.isLoggedIn()) {
+            liff.logout();
+        }
 
+        navigate('/logged-out', { replace: true });
+    };
 
     return (
         <div className="settings-page">
@@ -64,62 +66,6 @@ function Settings() {
 
 
             <main className="settings-content">
-
-
-                {/* ================= NOTIFICATION ================= */}
-
-                <section className="settings-section">
-
-                    <h3>การแจ้งเตือน</h3>
-
-                    <div className="settings-card">
-
-                        <div className="settings-row">
-
-                            <span>
-                                การอนุญาตแจ้งเตือน
-                            </span>
-
-                            <button
-                                className={`switch ${notification ? 'active' : ''
-                                    }`}
-                                onClick={() =>
-                                    handleNotification(!notification)
-                                }
-                            >
-                                <span></span>
-                            </button>
-
-                        </div>
-
-
-                        <div className="settings-row">
-
-                            <span>
-                                การแจ้งเตือนชำระหนี้
-                            </span>
-
-                            <button
-                                className={`switch ${paymentNotification
-                                    ? 'active'
-                                    : ''
-                                    }`}
-                                onClick={() =>
-                                    handlePaymentNotification(
-                                        !paymentNotification
-                                    )
-                                }
-                            >
-                                <span></span>
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                </section>
-
-
                 {/* ================= ACCOUNT ================= */}
 
                 <section className="settings-section">

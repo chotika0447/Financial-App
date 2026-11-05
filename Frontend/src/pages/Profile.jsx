@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trash2 } from 'lucide-react';
+import { Settings, Copy } from 'lucide-react';
 import { authenticatedFetch as fetch } from '../utils/auth';
 import './Profile.css';
 
@@ -24,6 +24,16 @@ function Profile() {
   });
 
   const accessToken = sessionStorage.getItem('accessToken');
+
+  const handleCopyUID = async () => {
+    try {
+      await navigator.clipboard.writeText(String(user.uid));
+      alert('คัดลอก UID สำเร็จแล้ว');
+    } catch (error) {
+      console.error('Copy UID error:', error);
+      alert('ไม่สามารถคัดลอก UID ได้');
+    }
+  };
 
   //โหลดข้อมูล Profile
   useEffect(() => {
@@ -230,7 +240,7 @@ function Profile() {
           onClick={() => navigate('/settings')}
           aria-label="ตั้งค่า"
         >
-          ⚙
+          <Settings size={20} />
         </button>
 
       </header>
@@ -262,10 +272,19 @@ function Profile() {
           {user.username || 'ผู้ใช้งาน'}
         </h2>
 
-        <div className="profile-uid">
+        <div className="profile-uid flex items-center justify-center gap-2">
           UID: {user.uid}
-        </div>
 
+          <button
+            type="button"
+            onClick={handleCopyUID}
+            title="คัดลอก UID"
+            aria-label="คัดลอก UID"
+            className="text-gray-500 hover:text-green-600 transition-colors"
+          >
+            <Copy size={15} />
+          </button>
+        </div>
 
         {error && (
           <p className="profile-error">
