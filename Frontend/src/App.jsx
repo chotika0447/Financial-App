@@ -56,11 +56,17 @@ function EntryRoute() {
       const debtId = queryParams.get('debtId');
       const returnTo = queryParams.get('returnTo');
       const transactionId = queryParams.get('transaction');
+
       let destination = '/home/';
 
       if (returnTo === '/debts/') {
         destination = '/debts/';
       }
+
+      if (returnTo === '/saving/') {
+        destination = '/saving/';
+      }
+      
       if (returnTo === '/edit-transaction/' && transactionId) {
         destination = `/edit-transaction/?transaction=${encodeURIComponent(transactionId)}`;
       }

@@ -863,6 +863,94 @@ def build_savings_confirm_flex(saving, operation, amount, token):
         }
     }
 
+def build_savings_success_flex(saving, operation, amount):
+    label = "ฝากเงิน" if operation == "deposit" else "ถอนเงิน"
+
+    frontend_url = settings.FRONTEND_URL.rstrip("/")
+    saving_url = f"{frontend_url}/?returnTo=/saving/"
+
+    return {
+        "type": "flex",
+        "altText": f"{label}สำเร็จ จำนวน {amount:,.2f} บาท",
+        "contents": {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#FFF9EE",
+                "spacing": "md",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "KaneCho | ทำรายการสำเร็จ ✓",
+                        "weight": "bold",
+                        "size": "md",
+                        "color": "#805035",
+                        "wrap": True
+                    },
+                    {
+                        "type": "text",
+                        "text": f"{label}สำเร็จค่ะ",
+                        "weight": "bold",
+                        "size": "xl",
+                        "color": "#805035"
+                    },
+                    {
+                        "type": "text",
+                        "text": f"฿{amount:,.2f}",
+                        "weight": "bold",
+                        "size": "xxl",
+                        "color": "#805035"
+                    },
+                    {
+                        "type": "separator",
+                        "margin": "md",
+                        "color": "#E8DCC8"
+                    },
+                    {
+                        "type": "text",
+                        "text": f"กระเป๋า: {saving.saving_name or 'กระเป๋าออม'}",
+                        "size": "sm",
+                        "color": "#594A3D",
+                        "wrap": True
+                    },
+                    {
+                        "type": "text",
+                        "text": f"ยอดคงเหลือ: {saving.balance:,.2f} บาท",
+                        "size": "sm",
+                        "weight": "bold",
+                        "color": "#805035",
+                        "wrap": True
+                    },
+                    {
+                        "type": "text",
+                        "text": "ตรวจสอบยอดเงินและรายละเอียดการออมเพิ่มเติมได้ที่เว็บไซต์ค่ะ",
+                        "size": "xs",
+                        "color": "#8B7A68",
+                        "wrap": True
+                    }
+                ]
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#FFF9EE",
+                "contents": [
+                    {
+                        "type": "button",
+                        "style": "primary",
+                        "color": "#B8D95A",
+                        "action": {
+                            "type": "uri",
+                            "label": "ตรวจสอบ",
+                            "uri": saving_url
+                        }
+                    }
+                ]
+            }
+        }
+    }
 
 def handle_savings_postback(action, params, user, line_user_id):
     if action == "savings_select":
@@ -939,10 +1027,12 @@ def handle_savings_postback(action, params, user, line_user_id):
                     return "ประเภทการทำรายการไม่ถูกต้องค่ะ"
                 saving.save(update_fields=["balance", "updated_at"])
             clear_savings_state(line_user_id)
-            return (f"{label}เงินสำเร็จค่ะ\n"
-                    f"กระเป๋า: {saving.saving_name or 'กระเป๋าออม'}\n"
-                    f"จำนวน: {amount:,.2f} บาท\n"
-                    f"ยอดคงเหลือ: {saving.balance:,.2f} บาท")
+            
+            return build_savings_success_flex(
+                saving,
+                operation,
+                amount
+            )
         finally:
             cache.delete(lock_key)
 
