@@ -13,6 +13,8 @@ import './App.css';
 
 import LoadingScreen from './components/LoadingScreen';
 
+import LoadingScreen from './components/LoadingScreen';
+
 import Home from './pages/Home';
 import Transactions from './pages/Transactions';
 import Debts from './pages/Debts';
@@ -32,9 +34,20 @@ import CompoundInterest from './pages/CompoundInterest';
 import FinHealth from './pages/FinHealth';
 import FinHealthDetail from './pages/FinHealthDetail';
 
+import FinHealth from './pages/FinHealth';
+import FinHealthDetail from './pages/FinHealthDetail';
+
 import Dashboard from './pages/Dashboard';
 
 import { initializeLineLiff, liff, readLineIdentity } from './lineAuth';
+import {
+  authenticatedFetch as fetch,
+  getAccessToken,
+  getRefreshToken,
+  refreshAccessToken,
+  clearTokens,
+  saveTokens,
+} from './utils/auth';
 import {
   authenticatedFetch as fetch,
   getAccessToken,
@@ -59,6 +72,7 @@ function EntryRoute() {
 
       let destination = '/home/';
 
+
       if (returnTo === '/debts/') {
         destination = '/debts/';
       }
@@ -77,9 +91,21 @@ function EntryRoute() {
         debtParams.delete('returnTo');
 
         destination = `/debts/?${debtParams.toString()}`;
+        const debtParams = new URLSearchParams(queryParams);
+
+        // ไม่จำเป็นต้องส่ง returnTo ต่อไป
+        debtParams.delete('returnTo');
+
+        destination = `/debts/?${debtParams.toString()}`;
       }
       const redirectUri =
         `${window.location.origin}${window.location.pathname}${window.location.search}`;
+
+
+      let accessToken = getAccessToken();
+      if (!accessToken && getRefreshToken()) {
+        accessToken = await refreshAccessToken();
+      }
 
 
       let accessToken = getAccessToken();
@@ -108,7 +134,34 @@ function EntryRoute() {
 
         if (response.ok) {
           navigate(destination, { replace: true });
+        let response = await fetch("/users/me/", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (response.status === 401) {
+          accessToken = await refreshAccessToken();
+
+          if (accessToken) {
+            response = await fetch("/users/me/", {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            });
+          }
+        }
+
+        if (response.ok) {
+          navigate(destination, { replace: true });
           return;
+        } else if (response.status === 401) {
+          clearTokens();
+
+          // ให้ทำงานต่อไปยัง LIFF Login ตาม flow เดิม
+        } else {
+          throw new Error("ไม่สามารถตรวจสอบข้อมูลผู้ใช้ได้");
+        }
         } else if (response.status === 401) {
           clearTokens();
 
@@ -174,6 +227,7 @@ function EntryRoute() {
         }
 
         saveTokens(data.access, data.refresh);
+        saveTokens(data.access, data.refresh);
         navigate(destination, { replace: true });
       } catch (routeError) {
         if (!cancelled) {
@@ -189,6 +243,11 @@ function EntryRoute() {
         setError(routeError.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
       }
     });
+    routeUser().catch((routeError) => {
+      if (!cancelled) {
+        setError(routeError.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ');
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -196,6 +255,8 @@ function EntryRoute() {
   }, [navigate]);
 
   return (
+    <>
+      {!error && <LoadingScreen />}
     <>
       {!error && <LoadingScreen />}
 
@@ -210,10 +271,22 @@ function EntryRoute() {
             ลองอีกครั้ง
           </button>
         </main>
+        <main className="entry-route">
+          <p>{error}</p>
+
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+          >
+            ลองอีกครั้ง
+          </button>
+        </main>
       )}
+    </>
     </>
   );
 }
+
 
 
 function DebtEntryRoute() {
@@ -232,7 +305,19 @@ function DebtEntryRoute() {
           if (!accessToken) {
             accessToken = await refreshAccessToken();
           }
+      try {
+        const checkUser = async () => {
+          let accessToken = getAccessToken();
 
+          if (!accessToken) {
+            accessToken = await refreshAccessToken();
+          }
+
+          if (!accessToken) {
+            clearTokens();
+            setAuthorizationState('unauthorized');
+            return;
+          }
           if (!accessToken) {
             clearTokens();
             setAuthorizationState('unauthorized');
@@ -244,7 +329,20 @@ function DebtEntryRoute() {
               Authorization: `Bearer ${accessToken}`,
             },
           });
+          let response = await fetch("/users/me/", {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
 
+          if (response.status === 401) {
+            accessToken = await refreshAccessToken();
+
+            if (!accessToken) {
+              clearTokens();
+              setAuthorizationState('unauthorized');
+              return;
+            }
           if (response.status === 401) {
             accessToken = await refreshAccessToken();
 
@@ -273,7 +371,29 @@ function DebtEntryRoute() {
 
         await checkUser();
       } catch (error) {
+            response = await fetch("/users/me/", {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+              },
+            });
+          }
+
+          if (response.ok) {
+            setAuthorizationState('authorized');
+          } else if (response.status === 401) {
+            clearTokens();
+            setAuthorizationState('unauthorized');
+          } else {
+            throw new Error("ไม่สามารถตรวจสอบข้อมูลผู้ใช้ได้");
+          }
+        };
+
+        await checkUser();
+      } catch (error) {
         if (!cancelled) {
+          setError(
+            error.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ'
+          );
           setError(
             error.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ'
           );
@@ -283,6 +403,7 @@ function DebtEntryRoute() {
     }
 
     verifyAccessToken();
+
 
     return () => {
       cancelled = true;
@@ -299,6 +420,10 @@ function DebtEntryRoute() {
           pathname: '/',
           search: `?${queryParams.toString()}`,
         }}
+        to={{
+          pathname: '/',
+          search: `?${queryParams.toString()}`,
+        }}
         replace
       />
     );
@@ -310,9 +435,15 @@ function DebtEntryRoute() {
         <p>{error}</p>
       </main>
     );
+    return (
+      <main className="entry-route">
+        <p>{error}</p>
+      </main>
+    );
   }
 
   if (authorizationState !== 'authorized') {
+    return <LoadingScreen />;
     return <LoadingScreen />;
   }
 
@@ -372,10 +503,16 @@ function App() {
         />
 
         <Route
+          path="/dashboard"
+          element={<Dashboard />}
+        />
+
+        <Route
           path="/transactions/"
           element={<Transactions />}
         />
 
+        {/* หน้าแก้ไขรายการจาก LINE Flex Card */}
         {/* หน้าแก้ไขรายการจาก LINE Flex Card */}
         <Route
           path="/edit-transaction/"
@@ -390,6 +527,7 @@ function App() {
           path="/debts/"
           element={<DebtEntryRoute />}
         />
+
 
 
         <Route
@@ -427,19 +565,26 @@ function App() {
           element={<CompoundInterest />}
         />
         <Route
+        <Route
           path="/saving-plan"
           element={<SavingPlan />}
+        />
+        <Route
         />
         <Route
           path="/calculator"
           element={<Retirement />}
         />
+        />
 
         <Route
           path="/financial-health"
           element={<FinHealth />}
+          element={<FinHealth />}
         />
         <Route
+          path="/financial-health/:id"
+          element={<FinHealthDetail />}
           path="/financial-health/:id"
           element={<FinHealthDetail />}
         />

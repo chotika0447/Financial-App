@@ -6,11 +6,14 @@ import Navbar from '../components/Navbar'
 import CustomHeader from '../components/CustomHeader';
 import { Calculator, Plus } from "lucide-react";
 import { authenticatedFetch as fetch } from '../utils/auth';
+import CompletedWallets from '../components/CompletedWallets';
 
 function Wallet() {
     const navigate = useNavigate()
 
     const [wallets, setWallets] = useState([])
+    const activeWallets = wallets.filter((wallet) => wallet.status === 'active')
+    const completedWallets = wallets.filter((wallet) => wallet.status === 'completed')
     const [showForm, setShowForm] = useState(false)
     const [name, setName] = useState('')
     const [target, setTarget] = useState('')
@@ -28,6 +31,10 @@ function Wallet() {
     const today = new Date().toISOString().split('T')[0]
 
     const accessToken = () => sessionStorage.getItem('accessToken')
+
+    //กำหนดจำนวนกระเป๋าเงินสูงสุด
+    const maxWallets = 15;
+    const isWalletLimitReached = activeWallets.length >= maxWallets;
 
     //แปลงชื่อ field จาก Django ให้ตรงกับ WalletCard เดิม
     const normalizeWallet = (item) => ({
@@ -151,6 +158,11 @@ function Wallet() {
             return
         }
 
+        if (editingWalletId === null && isWalletLimitReached) {
+            alert(`คุณสามารถสร้างกระเป๋าเงินออมได้สูงสุด ${maxWallets} กระเป๋า`)
+            return
+        }
+
         if (target.trim() === '' || !Number.isFinite(Number(target)) || Number(target) < 0) {
             alert('กรุณากรอกเป้าหมายเงินออมตั้งแต่ 0 บาทขึ้นไป')
             return
@@ -182,7 +194,7 @@ function Wallet() {
 
         try {
             if (editingWalletId !== null) {
-                // Backend ปัจจุบันรองรับ PUT
+                //Backend ปัจจุบันรองรับ PUT
                 await apiRequest(`/savings/${editingWalletId}/`, {
                     method: 'PUT',
                     body: JSON.stringify(payload),
@@ -259,7 +271,7 @@ function Wallet() {
                 )
             )
 
-            // ดึงประวัติใหม่หลังฝากเงินสำเร็จ
+            //ดึงประวัติใหม่หลังฝากเงินสำเร็จ
             await fetchTransactions()
 
             return true
@@ -288,7 +300,7 @@ function Wallet() {
                 )
             )
 
-            // ดึงประวัติใหม่หลังถอนเงินสำเร็จ
+            //ดึงประวัติใหม่หลังถอนเงินสำเร็จ
             await fetchTransactions()
 
             return true
@@ -397,6 +409,11 @@ function Wallet() {
                         type="button"
                         className="wallet-add-button"
                         onClick={() => {
+                            if (wallets.filter((wallet) => wallet.status === 'active').length >= maxWallets) {
+                                alert(`คุณสามารถสร้างกระเป๋าเงินออมได้สูงสุด ${maxWallets} กระเป๋า`)
+                                return
+                            }
+
                             setEditingWalletId(null)
                             setName('')
                             setTarget('')
@@ -473,10 +490,10 @@ function Wallet() {
                     <div className="wallet-list">
                         {loading ? (
                             <p>กำลังโหลดกระเป๋าเงิน...</p>
-                        ) : wallets.length === 0 ? (
+                        ) : activeWallets.length === 0 ? (
                             <p>ยังไม่มีกระเป๋าเงินออม</p>
                         ) : (
-                            wallets.map((wallet) => (
+                            activeWallets.map((wallet) => (
                                 <WalletCard
                                     key={wallet.id}
                                     name={wallet.name}
@@ -487,11 +504,14 @@ function Wallet() {
                                     onWithdraw={(amount) => withdraw(wallet.id, amount)}
                                     onEdit={() => editWallet(wallet)}
                                     onDelete={() => deleteWallet(wallet.id)}
+                                    isCompleted={false}
                                 />
                             ))
                         )}
                     </div>
                 </section>
+
+                <CompletedWallets wallets={completedWallets} />
 
 
                 {/*ส่วนต่อท้ายพื้นที่แสดงกระเป๋า ประวัติการฝาก-ถอน */}

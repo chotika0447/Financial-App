@@ -1,5 +1,7 @@
 import logging
 
+import logging
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -7,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from django.db import transaction
+from django.db.models import Sum
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -159,6 +162,11 @@ class TransactionDetailView(APIView):
                 transaction_item.receipt = None
                 transaction_item.save(update_fields=["receipt"])
 
+            # ลบการเชื่อมโยงรูปใบเสร็จ เมื่อผู้ใช้กดลบรูป
+            if request.data.get("remove_receipt") == "true":
+                transaction_item.receipt = None
+                transaction_item.save(update_fields=["receipt"])
+
             return Response(
                 TransactionSerializer(transaction_item).data
             )
@@ -211,6 +219,12 @@ class ReceiptOCRView(APIView):
                 {"error": "รูปภาพต้องมีขนาดไม่เกิน 5 MB"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        logger.info(
+            "Receipt OCR: request received size=%s content_type=%s",
+            image.size,
+            image.content_type,
+        )
 
         logger.info(
             "Receipt OCR: request received size=%s content_type=%s",
@@ -432,6 +446,158 @@ class TransactionDraftConfirmView(APIView):
             status=status.HTTP_201_CREATED
         )
 
+
+# คำนวณตัวชี้วัด อัตรารายจ่ายต่อรายได้สำหรับเดือนปัจจุบัน เพื่อเอาไปใช้ในการประเมินสุขภาพทางการเงิน
+class FinHealthSpendView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        today = timezone.localdate()
+
+        current_month_transactions = Transaction.objects.filter(
+            user=request.user,
+            transaction_date__year=today.year,
+            transaction_date__month=today.month
+        )
+
+        # รวมรายจ่ายของเดือนปัจจุบัน
+        expense_total = (
+            current_month_transactions
+            .filter(transaction_type="expense")
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        # รวมรายรับจาก Transaction ของเดือนปัจจุบัน
+        transaction_income_total = (
+            current_month_transactions
+            .filter(transaction_type="income")
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+
+        # ดึงเงินเดือนจาก PersonalProfile
+        profile = PersonalProfile.objects.filter(
+            user=request.user
+        ).first()
+
+        monthly_income = (
+            profile.monthly_income
+            if profile
+            else Decimal("0.00")
+        )
+
+        # รายได้สุทธิ = เงินเดือน + รายรับทั้งหมด
+        net_monthly_income = monthly_income + transaction_income_total
+
+        # คำนวณ EIR
+        if net_monthly_income > 0:
+            expense_ratio = (
+                expense_total / net_monthly_income * Decimal("100")
+            ).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP
+            )
+        else:
+            expense_ratio = None
+
+        # ==========================================
+        # TRC: Transaction Recording Consistency
+        # ==========================================
+
+        # สร้างรายการช่วงย้อนหลัง 3 เดือน รวมเดือนปัจจุบัน
+        month_periods = []
+
+        for offset in reversed(range(3)):
+            month_index = today.year * 12 + today.month - 1 - offset
+            year, month_index = divmod(month_index, 12)
+            month = month_index + 1
+
+            month_periods.append({
+                "year": year,
+                "month": month,
+                "has_income": False,
+                "has_expense": False,
+                "income_count": 0,
+                "expense_count": 0
+            })
+
+        # วันที่เริ่มต้นของช่วงประเมิน
+        first_period = month_periods[0]
+        period_start = date(
+            first_period["year"],
+            first_period["month"],
+            1
+        )
+
+        # ดึง Transaction ย้อนหลัง 3 เดือน
+        period_transactions = Transaction.objects.filter(
+            user=request.user,
+            transaction_date__gte=period_start,
+            transaction_date__lte=today
+        ).values(
+            "transaction_date",
+            "transaction_type"
+        )
+
+        # จัดกลุ่ม Transaction ตามเดือน
+        period_lookup = {
+            (item["year"], item["month"]): item
+            for item in month_periods
+        }
+
+        for transaction_item in period_transactions:
+            transaction_date = transaction_item["transaction_date"]
+
+            key = (
+                transaction_date.year,
+                transaction_date.month
+            )
+
+            month_data = period_lookup.get(key)
+
+            if not month_data:
+                continue
+
+            if transaction_item["transaction_type"] == "income":
+                month_data["has_income"] = True
+                month_data["income_count"] += 1
+
+            elif transaction_item["transaction_type"] == "expense":
+                month_data["has_expense"] = True
+                month_data["expense_count"] += 1
+
+        # นับเดือนที่มีทั้งรายรับและรายจ่าย
+        complete_months = sum(
+            1
+            for item in month_periods
+            if item["has_income"] and item["has_expense"]
+        )
+
+        # คำนวณ TRC
+        trc_percentage = (
+            Decimal(complete_months) / Decimal("3") * Decimal("100")
+        ).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP
+        )
+
+        # ส่งข้อมูลกลับ Frontend
+        return Response({
+            "year": today.year,
+            "month": today.month,
+            "expense_total": expense_total,
+            "transaction_income_total": transaction_income_total,
+            "monthly_income": monthly_income,
+            "net_monthly_income": net_monthly_income,
+            "expense_ratio": expense_ratio,
+
+            # TRC
+            "trc_period_months": 3,
+            "trc_complete_months": complete_months,
+            "trc_percentage": trc_percentage,
+            "trc_months": month_periods
+        })
 
 # คำนวณตัวชี้วัด อัตรารายจ่ายต่อรายได้สำหรับเดือนปัจจุบัน เพื่อเอาไปใช้ในการประเมินสุขภาพทางการเงิน
 class FinHealthSpendView(APIView):

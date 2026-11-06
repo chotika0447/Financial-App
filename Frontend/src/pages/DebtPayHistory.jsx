@@ -7,10 +7,13 @@ import {
     ImagePlus,
 } from "lucide-react";
 import { authenticatedFetch as fetch } from "../utils/auth";
+import { authenticatedFetch as fetch } from "../utils/auth";
 
 function DebtPaymentHistory({ debt, onBack, onDebtUpdated, onPreviewChange }) {
     const isBorrow = debt.type === "borrowed";
     const [payments, setPayments] = useState([]);
+    const [loading, setLoading] = useState(true);//
+    const [error, setError] = useState("");//
     const [loading, setLoading] = useState(true);//
     const [error, setError] = useState("");//
     const [editingId, setEditingId] = useState(null);
@@ -125,13 +128,41 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated, onPreviewChange }) {
     };
 
 
+    //สถานะการชำระหนี้ตามเวลา
+    const getPaymentTimingStatus = (payment) => {
+        if (!payment.paid_date || !payment.due_date) {
+            return null;
+        }
+
+        // เปรียบเทียบวันที่ในรูปแบบ YYYY-MM-DD
+        // วันที่ชำระตรงกับวันครบกำหนดถือว่าชำระภายในกำหนด
+        const paidDate = payment.paid_date.slice(0, 10);
+        const dueDate = payment.due_date.slice(0, 10);
+
+        if (paidDate <= dueDate) {
+            return {
+                label: "ชำระภายในกำหนด",
+                className: "border-green-500 text-green-600",
+            };
+        }
+
+        return {
+            label: "ชำระเกินกำหนด",
+            className: "border-red-500 text-red-600",
+        };
+    };
+
+
     const statusText = {
+        pending: "กำลังรอการอนุมัติ",
+        approved: "อนุมัติแล้ว",
         pending: "กำลังรอการอนุมัติ",
         approved: "อนุมัติแล้ว",
     };
 
     const statusClass = {
         pending: "bg-yellow-100 text-black",
+        approved: "bg-green-500 text-white",
         approved: "bg-green-500 text-white",
     };
 
@@ -275,6 +306,8 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated, onPreviewChange }) {
 
 
     const updateApprovementStatus = async (payment, action) => {
+
+    const updateApprovementStatus = async (payment, action) => {
         const accessToken = sessionStorage.getItem("accessToken");
 
         if (!accessToken) {
@@ -289,10 +322,12 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated, onPreviewChange }) {
                 `/debts/payments/${payment.id}/`,
                 {
                     method: "PATCH",
+                    method: "PATCH",
                     headers: {
                         Authorization: `Bearer ${accessToken}`,
                         "Content-Type": "application/json",
                     },
+                    body: JSON.stringify({ action }),
                     body: JSON.stringify({ action }),
                 }
             );
@@ -319,7 +354,10 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated, onPreviewChange }) {
                 await onDebtUpdated();
             }
 
+
         } catch (error) {
+            console.error("Update approvement error:", error);
+            alert(error.message || "ไม่สามารถเปลี่ยนสถานะการอนุมัติได้");
             console.error("Update approvement error:", error);
             alert(error.message || "ไม่สามารถเปลี่ยนสถานะการอนุมัติได้");
         } finally {
@@ -458,6 +496,7 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated, onPreviewChange }) {
                             className="bg-white border border-[#c5c5c5] rounded-lg mb-3 p-[14px] relative"
                         >
                             {/* ชื่อและสถานะการชำระตามเวลา */}
+                            {/* ชื่อและสถานะการชำระตามเวลา */}
                             <div className="flex items-center gap-2 mb-3">
                                 <div className="bg-[#252525] text-white text-xs px-2 py-2 -ml-[14px]">
                                     งวดที่ {payments.length - index}
@@ -519,6 +558,12 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated, onPreviewChange }) {
                                             )}
                                         </label>
 
+                                        <span className="flex items-center gap-1 border border-gray-400 rounded-full px-2 py-1 text-[10px] text-gray-500">
+                                            วันที่ครบกำหนด: {payment.due_date
+                                                ? formatDate(payment.due_date)
+                                                : "-"}
+                                        </span>
+                                    </div>
                                         <span className="flex items-center gap-1 border border-gray-400 rounded-full px-2 py-1 text-[10px] text-gray-500">
                                             วันที่ครบกำหนด: {payment.due_date
                                                 ? formatDate(payment.due_date)
@@ -648,6 +693,7 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated, onPreviewChange }) {
                                         </div>
                                     )}
 
+
                                 </div>
 
 
@@ -696,6 +742,7 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated, onPreviewChange }) {
                                         )}
 
                                         {/* รูปที่แสดง*/}
+                                        {/* รูปที่แสดง*/}
                                         {(payment.evidencePreview ||
                                             (payment.proof_image && !payment.removeProofImage)) ? (
                                             <button
@@ -705,7 +752,11 @@ function DebtPaymentHistory({ debt, onBack, onDebtUpdated, onPreviewChange }) {
                                                     setPreviewImage(
                                                         payment.evidencePreview || payment.proof_image
                                                     );
+                                                    setPreviewImage(
+                                                        payment.evidencePreview || payment.proof_image
+                                                    );
                                                 }}
+                                                aria-label="ดูรูปหลักฐานขนาดใหญ่"
                                                 aria-label="ดูรูปหลักฐานขนาดใหญ่"
                                             >
                                                 <img
