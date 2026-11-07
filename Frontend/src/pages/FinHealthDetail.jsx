@@ -259,7 +259,6 @@ function FinHealthDetail() {
 
     const Icon = criterion.Icon;
 
-    const trcMonths = spendMetrics?.trc_months || [];
     const saveMonths = saveMetrics?.monthly_breakdown || [];
     const eirScore = calculateEirScore(spendMetrics?.expense_ratio);
 
@@ -448,60 +447,158 @@ function FinHealthDetail() {
                                     </div>
 
                                     <p className="fhd-spend-description">
-                                        ตรวจสอบจำนวนเดือนที่มีการบันทึก
-                                        ทั้งรายการรายรับและรายจ่าย
+                                        ประเมินความสม่ำเสมอในการบันทึกรายรับหรือรายจ่าย
+                                        ภายใน 1 เดือน โดยพิจารณาทั้งจำนวนวันที่มีการบันทึก
+                                        และการกระจายตัวของวันที่บันทึกตลอดทั้งเดือน
                                     </p>
 
+                                    <div className="fhd-spend-period">
+                                        ข้อมูลเดือน{' '}
+                                        {formatThaiMonth(
+                                            spendMetrics.year,
+                                            spendMetrics.month
+                                        )}
+                                    </div>
+
+                                    {/* Recording Frequency */}
                                     <div className="fhd-spend-formula">
                                         <span className="fhd-spend-label">
-                                            สูตรคำนวณ
+                                            1. Recording Frequency (RF)
                                         </span>
                                         <p>
-                                            (จำนวนเดือนที่มีทั้งรายรับและรายจ่าย
-                                            ÷ จำนวนเดือนที่ใช้ประเมิน) × 100
+                                            (จำนวนวันที่มีการบันทึก ÷ จำนวนวันที่ใช้ประเมิน) × 100
                                         </p>
                                     </div>
 
                                     <div className="fhd-trc-summary">
                                         <div>
-                                            <span>เดือนที่บันทึกครบ</span>
+                                            <span>วันที่มีการบันทึก</span>
                                             <strong>
-                                                {spendMetrics.trc_complete_months}
+                                                {spendMetrics.trc_recorded_days}
                                                 {' / '}
-                                                {spendMetrics.trc_period_months}
-                                                {' เดือน'}
+                                                {spendMetrics.trc_days_evaluated}
+                                                {' วัน'}
                                             </strong>
                                         </div>
 
                                         <div className="fhd-trc-percentage">
-                                            <span>ผลการคำนวณ TRC</span>
+                                            <span>คะแนน Recording Frequency</span>
                                             <strong>
                                                 {formatSpendMoney(
-                                                    spendMetrics.trc_percentage
+                                                    spendMetrics.trc_recording_frequency
                                                 )}%
                                             </strong>
                                         </div>
                                     </div>
 
+                                    {/* Recording Distribution */}
+                                    <div className="fhd-spend-formula">
+                                        <span className="fhd-spend-label">
+                                            2. Recording Distribution (RD)
+                                        </span>
+                                        <p>
+                                            (จำนวนช่วงที่มีการบันทึก ÷ 4) × 100
+                                        </p>
+                                    </div>
+
+                                    <div className="fhd-trc-summary">
+                                        <div>
+                                            <span>ช่วงที่มีการบันทึก</span>
+                                            <strong>
+                                                {spendMetrics.trc_recorded_periods}
+                                                {' / '}
+                                                {spendMetrics.trc_total_periods}
+                                                {' ช่วง'}
+                                            </strong>
+                                        </div>
+
+                                        <div className="fhd-trc-percentage">
+                                            <span>คะแนน Recording Distribution</span>
+                                            <strong>
+                                                {formatSpendMoney(
+                                                    spendMetrics.trc_recording_distribution
+                                                )}%
+                                            </strong>
+                                        </div>
+                                    </div>
+
+                                    {/* TRC Score */}
+                                    <div className="fhd-spend-result">
+                                        <div className="fhd-spend-result-card">
+                                            <span className="fhd-spend-result-label">
+                                                คะแนน TRC
+                                            </span>
+
+                                            <div className="fhd-spend-result-value">
+                                                <strong>
+                                                    {formatSpendMoney(spendMetrics.trc_score)}
+                                                </strong>
+                                                <span>/ 100</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="fhd-spend-formula">
+                                        <span className="fhd-spend-label">
+                                            สูตรคำนวณคะแนน TRC
+                                        </span>
+                                        <p>
+                                            (คะแนน RF + คะแนน RD) ÷ 2
+                                        </p>
+                                    </div>
+
+                                    {/* รายละเอียด 4 ช่วงของเดือน */}
                                     <div className="fhd-trc-month-list">
-                                        <h3>รายละเอียดข้อมูลรายเดือน</h3>
+                                        <h3>รายละเอียดการบันทึกในแต่ละช่วง</h3>
 
-                                        {trcMonths.map((item) => {
-                                            const isComplete =
-                                                item.has_income &&
-                                                item.has_expense;
+                                        {(spendMetrics.trc_periods || []).map((item) => (
+                                            <div
+                                                className="fhd-trc-month-item"
+                                                key={item.period}
+                                            >
+                                                <div className="fhd-trc-month-name">
+                                                    <strong>
+                                                        ช่วงที่ {item.period}
+                                                    </strong>
 
-                                            return (
+                                                    <span>
+                                                        วันที่ {item.start_day} - {item.end_day}
+                                                    </span>
+
+                                                    {item.recorded_days?.length > 0 && (
+                                                        <span>
+                                                            วันที่บันทึก: {item.recorded_days.join(', ')}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <span
+                                                    className={`fhd-trc-status ${item.has_records
+                                                            ? 'is-complete'
+                                                            : 'is-incomplete'
+                                                        }`}
+                                                >
+                                                    {item.has_records
+                                                        ? 'มีการบันทึก'
+                                                        : 'ไม่มีการบันทึก'}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* รายละเอียดรายวัน */}
+                                    <div className="fhd-trc-month-list">
+                                        <h3>รายละเอียดรายการบันทึกรายวัน</h3>
+
+                                        {(spendMetrics.trc_daily_records || []).length > 0 ? (
+                                            spendMetrics.trc_daily_records.map((item) => (
                                                 <div
                                                     className="fhd-trc-month-item"
-                                                    key={`${item.year}-${item.month}`}
+                                                    key={item.date}
                                                 >
                                                     <div className="fhd-trc-month-name">
                                                         <strong>
-                                                            {formatThaiMonth(
-                                                                item.year,
-                                                                item.month
-                                                            )}
+                                                            วันที่ {item.day}
                                                         </strong>
 
                                                         <span>
@@ -511,33 +608,30 @@ function FinHealthDetail() {
                                                         </span>
                                                     </div>
 
-                                                    <span
-                                                        className={`fhd-trc-status ${isComplete
-                                                            ? 'is-complete'
-                                                            : 'is-incomplete'
-                                                            }`}
-                                                    >
-                                                        {isComplete
-                                                            ? 'บันทึกครบ'
-                                                            : 'ข้อมูลไม่ครบ'}
+                                                    <span className="fhd-trc-status is-complete">
+                                                        บันทึกแล้ว
                                                     </span>
                                                 </div>
-                                            );
-                                        })}
+                                            ))
+                                        ) : (
+                                            <p className="fhd-spend-message">
+                                                ยังไม่มีรายการบันทึกในเดือนนี้
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="fhd-trc-note">
                                         <strong>หมายเหตุ</strong>
                                         <p>
-                                            ระบบใช้ข้อมูลย้อนหลัง 3 เดือน
-                                            รวมเดือนปัจจุบัน หากมีข้อมูลบันทึก
-                                            ไม่ครบทั้ง 3 เดือน คะแนนที่คำนวณได้
-                                            อาจไม่สะท้อนพฤติกรรมทางการเงิน
-                                            ที่แท้จริง และอาจมีความคลาดเคลื่อน
-                                            จากความเป็นจริงได้
+                                            ระบบนับวันที่มีรายการรายรับหรือรายจ่ายอย่างน้อย 1 รายการ
+                                            โดยไม่จำเป็นต้องมีทั้งรายรับและรายจ่ายในวันเดียวกัน
+                                            และแบ่งช่วงการประเมินเป็นวันที่ 1–7, 8–14,
+                                            15–21 และวันที่ 22 จนถึงวันสุดท้ายของเดือน
+                                            สำหรับเดือนปัจจุบัน ระบบจะประเมินเฉพาะวันที่ผ่านไปแล้ว
                                         </p>
                                     </div>
                                 </section>
+
 
                                 {/* Spend score */}
                                 <section className="fhd-card fhd-spend-total-card">
