@@ -166,7 +166,7 @@ function Register() {
           age: Number(age),
           occupation: occupation.trim(),
           email: email.trim(),
-          monthly_income: monthlyIncome,
+          salary: monthlyIncome,
         }),
       });
 

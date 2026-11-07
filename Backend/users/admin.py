@@ -31,7 +31,7 @@ class PersonalProfileAdmin(admin.ModelAdmin):
         'user',
         'age',
         'occupation',
-        'monthly_income',
+        'salary',
         'updated_at',
     )
 
@@ -69,7 +69,7 @@ class PersonalProfileAdmin(admin.ModelAdmin):
         # รายได้เฉลี่ยต่อเดือน
         average_income = (
             PersonalProfile.objects.aggregate(
-                average=Avg('monthly_income')
+                average=Avg('salary')
             )['average'] or 0
         )
 
@@ -120,31 +120,31 @@ class PersonalProfileAdmin(admin.ModelAdmin):
             .annotate(
                 income_group=Case(
                     When(
-                        monthly_income__lte=0,
+                        salary__lte=0,
                         then=Value('ไม่มีรายได้')
                     ),
                     When(
-                        monthly_income__gt=0,
-                        monthly_income__lt=10000,
+                        salary__gt=0,
+                        salary__lt=10000,
                         then=Value('1–9,999 บาท')
                     ),
                     When(
-                        monthly_income__gte=10000,
-                        monthly_income__lt=20000,
+                        salary__gte=10000,
+                        salary__lt=20000,
                         then=Value('10,000–19,999 บาท')
                     ),
                     When(
-                        monthly_income__gte=20000,
-                        monthly_income__lt=30000,
+                        salary__gte=20000,
+                        salary__lt=30000,
                         then=Value('20,000–29,999 บาท')
                     ),
                     When(
-                        monthly_income__gte=30000,
-                        monthly_income__lt=50000,
+                        salary__gte=30000,
+                        salary__lt=50000,
                         then=Value('30,000–49,999 บาท')
                     ),
                     When(
-                        monthly_income__gte=50000,
+                        salary__gte=50000,
                         then=Value('50,000 บาทขึ้นไป')
                     ),
                     output_field=CharField(),

@@ -345,8 +345,8 @@ class FinHealthWalletView(APIView):
         try:
             profile = PersonalProfile.objects.filter(user=user).first()
             monthly_income = (
-                profile.monthly_income 
-                if profile 
+                profile.salary
+                if profile
                 else Decimal("0.00")
             )
         except PersonalProfile.DoesNotExist:

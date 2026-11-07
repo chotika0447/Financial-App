@@ -146,7 +146,7 @@ class MeView(APIView):
                 'email': None,
                 'age': None,
                 'occupation': None,
-                'monthly_income': '0.00',
+                'salary': '0.00',
             }
         )
 

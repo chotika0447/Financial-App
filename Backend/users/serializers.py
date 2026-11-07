@@ -39,7 +39,7 @@ class PersonalProfileSerializer(serializers.ModelSerializer):
     )
     age = serializers.IntegerField(min_value=1)
     occupation = serializers.CharField(max_length=100, trim_whitespace=True)
-    monthly_income = serializers.DecimalField(
+    salary = serializers.DecimalField(
         max_digits=12,
         decimal_places=2,
         min_value=Decimal('0'),
@@ -52,6 +52,6 @@ class PersonalProfileSerializer(serializers.ModelSerializer):
             'email',
             'age',
             'occupation',
-            'monthly_income',
+            'salary',
             'profile_img',
         ]

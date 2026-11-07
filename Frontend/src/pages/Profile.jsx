@@ -20,7 +20,7 @@ function Profile() {
     email: '',
     age: '',
     occupation: '',
-    monthly_income: '',
+    salary: '',
   });
 
   const accessToken = sessionStorage.getItem('accessToken');
@@ -63,7 +63,7 @@ function Profile() {
           email: data.email ?? '',
           age: data.age ?? '',
           occupation: data.occupation ?? '',
-          monthly_income: data.monthly_income ?? '',
+          salary: data.salary ?? '',
         });
       })
       .catch(fetchError => {
@@ -128,7 +128,7 @@ function Profile() {
           email: form.email.trim(),
           age: form.age ? Number(form.age) : null,
           occupation: form.occupation.trim(),
-          monthly_income: form.monthly_income,
+          salary: form.salary,
         }),
       });
 
@@ -138,7 +138,7 @@ function Profile() {
         throw new Error(
           data.age?.[0] ||
           data.occupation?.[0] ||
-          data.monthly_income?.[0] ||
+          data.salary?.[0] ||
           data.detail ||
           'บันทึกข้อมูลไม่สำเร็จ'
         );
@@ -150,7 +150,7 @@ function Profile() {
         email: data.email ?? '',
         age: data.age ?? '',
         occupation: data.occupation ?? '',
-        monthly_income: data.monthly_income ?? '',
+        salary: data.salary ?? '',
       });
 
       setEditing(false);
@@ -169,7 +169,7 @@ function Profile() {
       email: user.email ?? '',
       age: user.age ?? '',
       occupation: user.occupation ?? '',
-      monthly_income: user.monthly_income ?? '',
+      salary: user.salary ?? '',
     });
 
     setError('');
@@ -373,11 +373,11 @@ function Profile() {
                 type="number"
                 min="0"
                 step="0.01"
-                value={form.monthly_income}
+                value={form.salary}
                 onChange={event =>
                   setForm({
                     ...form,
-                    monthly_income: event.target.value,
+                    salary: event.target.value,
                   })
                 }
                 required
@@ -431,8 +431,8 @@ function Profile() {
               <div className="info-row">
                 <span>เงินเดือน :</span>
                 <strong>
-                  {user.monthly_income
-                    ? `${Number(user.monthly_income).toLocaleString()} บาท`
+                  {user.salary
+                    ? `${Number(user.salary).toLocaleString()} บาท`
                     : '-'}
                 </strong>
               </div>

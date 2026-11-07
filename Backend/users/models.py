@@ -71,7 +71,7 @@ class PersonalProfile(models.Model):
         blank=True
     )
 
-    monthly_income = models.DecimalField(
+    salary = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         default=0

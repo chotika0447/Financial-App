@@ -1337,7 +1337,7 @@ class FinHealthBorrowView(APIView):
         ).first()
 
         monthly_income = (
-            profile.monthly_income
+            profile.salary
             if profile
             else Decimal("0.00")
         )

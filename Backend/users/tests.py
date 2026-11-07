@@ -27,7 +27,7 @@ class LineRegisterTests(TestCase):
 			'id_token': 'valid-id-token',
 			'age': 29,
 			'occupation': 'Designer',
-			'monthly_income': '42000.00',
+			'salary': '42000.00',
 		}, format='json')
 
 		self.assertEqual(response.status_code, 201)
@@ -47,17 +47,17 @@ class LineRegisterTests(TestCase):
 		self.assertEqual(profile_response.data['profile_img'], 'https://example.com/avatar.png')
 		self.assertEqual(profile_response.data['age'], 29)
 		self.assertEqual(profile_response.data['occupation'], 'Designer')
-		self.assertEqual(profile_response.data['monthly_income'], '42000.00')
+		self.assertEqual(profile_response.data['salary'], '42000.00')
 
 		update_response = self.client.patch('/users/me/', {
 			'age': 30,
 			'occupation': 'Product Designer',
-			'monthly_income': '50000.00',
+			'salary': '50000.00',
 		}, format='json')
 		self.assertEqual(update_response.status_code, 200)
 		self.assertEqual(update_response.data['age'], 30)
 		self.assertEqual(update_response.data['occupation'], 'Product Designer')
-		self.assertEqual(update_response.data['monthly_income'], '50000.00')
+		self.assertEqual(update_response.data['salary'], '50000.00')
 
 	@patch('users.views.requests.post')
 	def test_registration_requires_valid_profile_details(self, post):
@@ -69,7 +69,7 @@ class LineRegisterTests(TestCase):
 			'id_token': 'valid-id-token',
 			'age': 0,
 			'occupation': '   ',
-			'monthly_income': '-1',
+			'salary': '-1',
 		}, format='json')
 
 		self.assertEqual(response.status_code, 400)
