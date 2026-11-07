@@ -1,33 +1,87 @@
-from django.contrib import admin
-from .models import NewsBatch, NewsItem
 
-class NewsItemInline(admin.TabularInline):
-    model = NewsItem
-    extra = 0
-    readonly_fields = ('position', 'title', 'canonical', 'media_url', 'publish_time', 'carried_over')
-    can_delete = False
+from django.contrib import admin, messages
+from django.db import transaction
+from django.utils import timezone
 
-@admin.register(NewsBatch)
-class NewsBatchAdmin(admin.ModelAdmin):
-    list_display = ('id', 'published_at', 'is_active', 'fetched_count', 'source')
-    list_filter = ('is_active',)
-    inlines = [NewsItemInline]
+from .models import News
+
+
+@admin.register(News)
+class NewsAdmin(admin.ModelAdmin):
+
+    list_display = (
+        'title',
+        'batch_id',
+        'position',
+        'published_at',
+        'is_active',
+        'carried_over',
+        'source',
+    )
+
+    list_filter = (
+        'is_active',
+        'carried_over',
+        'source',
+    )
+
+    search_fields = (
+        'title',
+        'canonical',
+        'batch_id',
+    )
+
+    ordering = ('-published_at', 'position')
+
+    readonly_fields = (
+        'batch_id',
+        'created_at',
+        'published_at',
+        'fetched_count',
+    )
+
     actions = ['publish_selected_batch']
 
-    @admin.action(description='Publish selected complete batch (exactly one)')
+    @admin.action(description='Publish selected complete news batch')
     def publish_selected_batch(self, request, queryset):
-        from django.contrib import messages
-        from django.db import transaction
-        if queryset.count() != 1:
-            self.message_user(request, 'Select exactly one batch.', level=messages.ERROR)
+
+        batch_ids = list(
+            queryset.values_list('batch_id', flat=True).distinct()
+        )
+
+        if len(batch_ids) != 1:
+            self.message_user(
+                request,
+                'Please select news from exactly one batch.',
+                level=messages.ERROR
+            )
             return
-        batch = queryset.first()
-        if batch.items.count() != 5:
-            self.message_user(request, 'Batch must have exactly 5 items.', level=messages.ERROR)
+
+        batch_id = batch_ids[0]
+
+        batch = News.objects.filter(batch_id=batch_id)
+
+        if batch.count() != 5:
+            self.message_user(
+                request,
+                'Batch must contain exactly 5 news items.',
+                level=messages.ERROR
+            )
             return
+
         with transaction.atomic():
-            NewsBatch.objects.filter(is_active=True).update(is_active=False)
-            batch.is_active = True
-            batch.published_at = __import__('django.utils.timezone', fromlist=['now']).now()
-            batch.save(update_fields=['is_active', 'published_at'])
-        self.message_user(request, 'Batch published.')
+
+            News.objects.filter(is_active=True).update(
+                is_active=False
+            )
+
+            batch.update(
+                is_active=True,
+                published_at=timezone.now()
+            )
+
+        self.message_user(
+            request,
+            'News batch published successfully.',
+            level=messages.SUCCESS
+        )

@@ -1,18 +1,18 @@
-from django.db import models
 
-class NewsBatch(models.Model):
-    # One published snapshot, shared by every user until a complete replacement is ready.
-    created_at = models.DateTimeField(auto_now_add=True)
+from django.db import models
+from django.utils import timezone
+
+
+class News(models.Model):
+    # Batch information
+    batch_id = models.CharField(max_length=64, db_index=True)
+    created_at = models.DateTimeField(default=timezone.now)
     published_at = models.DateTimeField(null=True, blank=True)
     source = models.CharField(max_length=50, default='Thai PBS')
     is_active = models.BooleanField(default=False, db_index=True)
     fetched_count = models.PositiveSmallIntegerField(default=0)
 
-    def __str__(self):
-        return f'News batch #{self.pk} ({self.published_at})'
-
-class NewsItem(models.Model):
-    batch = models.ForeignKey(NewsBatch, related_name='items', on_delete=models.CASCADE)
+    # News information
     position = models.PositiveSmallIntegerField()
     title = models.CharField(max_length=500)
     canonical = models.URLField(max_length=1000)
@@ -22,7 +22,12 @@ class NewsItem(models.Model):
 
     class Meta:
         ordering = ['position']
-        constraints = [models.UniqueConstraint(fields=['batch','position'], name='news_batch_position_unique')]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['batch_id', 'position'],
+                name='news_batch_position_unique'
+            )
+        ]
 
     def __str__(self):
         return self.title
