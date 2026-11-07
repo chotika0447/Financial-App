@@ -321,12 +321,12 @@ function FinHealthDetail() {
                             </section>
                         ) : spendMetrics ? (
                             <>
-                                {/* Spend score */}
+                                {/* Spend Total Score */}
                                 <section className="fhd-card fhd-spend-total-card">
                                     <h2>คะแนนด้านรายรับ–รายจ่าย</h2>
+
                                     <p>
-                                        คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน
-                                        EIR และ TRC
+                                        คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน EIR และ TRC
                                     </p>
 
                                     <div className="fhd-spend-formula">
@@ -338,11 +338,27 @@ function FinHealthDetail() {
                                         </p>
                                     </div>
 
-                                    <p className="fhd-spend-message">
-                                        ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
-                                        เนื่องจากยังไม่ได้กำหนดเกณฑ์
-                                        แปลงค่า EIR และ TRC เป็นระดับคะแนน
-                                    </p>
+                                    <div className="fhd-spend-result">
+                                        <div className="fhd-spend-result-card">
+                                            <span className="fhd-spend-result-label">
+                                                คะแนนเฉลี่ยด้านรายรับ–รายจ่าย
+                                            </span>
+
+                                            {spendTotalScore == null ? (
+                                                <strong className="fhd-spend-no-result">
+                                                    ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
+                                                    เนื่องจากข้อมูลคะแนนไม่ครบถ้วน
+                                                </strong>
+                                            ) : (
+                                                <div className="fhd-spend-result-value">
+                                                    <strong>
+                                                        {formatSpendMoney(spendTotalScore)}
+                                                    </strong>
+                                                    <span>/ 100</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </section>
 
                                 {/* EIR */}
