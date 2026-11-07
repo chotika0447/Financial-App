@@ -1879,7 +1879,7 @@ def handle_text_message(text, line_user_id):
 
     data = {
         "token": uuid4().hex,
-        "user_id": user.id,
+        "user_id": user.uid,
         "amount": str(amount),
         "transaction_type": transaction_type,
         "item_name": result.get("item_name") or "",
@@ -2145,7 +2145,7 @@ def handle_image_message(message_id, line_user_id):
 
     data = {
         "token": uuid4().hex,
-        "user_id": user.id,
+        "user_id": user.uid,
         "amount": None,
         "transaction_type": transaction_type,
         "item_name": "",
