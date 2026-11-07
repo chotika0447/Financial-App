@@ -161,9 +161,18 @@ class SavingsBalanceActionView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # อัปเดตยอดเงินในกระเป๋า
-            saving.save(update_fields=["balance", "updated_at"])
+            #ตรวจว่ายอดเงินถึงเป้าหมายมั้ย
+            if (
+                saving.status == 'active' and
+                saving.target > 0 and
+                saving.balance >= saving.target
+            ):
+                saving.status = 'completed'
+                saving.end_date = timezone.localdate()
 
+            #อัปเดตยอดเงินในกระเป๋า
+            saving.save(update_fields=["balance", "status", "end_date", "updated_at"])
+            
             # บันทึกประวัติการฝาก/ถอน
             SavingsTransaction.objects.create(
                 saving=saving,
