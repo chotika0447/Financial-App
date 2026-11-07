@@ -20,6 +20,18 @@ function formatThaiMonth(year, month) {
         year: 'numeric',
     });
 }
+// Calculate EIR Score
+function calculateEirScore(eir) {
+    if (eir == null || !Number.isFinite(Number(eir))) {
+        return null;
+    }
+
+    const score = 100 - (1.25 * (Number(eir) - 60));
+
+    return Math.round(
+        Math.max(0, Math.min(100, score)) * 100
+    ) / 100;
+}
 
 function FinHealthDetail() {
     const navigate = useNavigate();
@@ -249,6 +261,7 @@ function FinHealthDetail() {
 
     const trcMonths = spendMetrics?.trc_months || [];
     const saveMonths = saveMetrics?.monthly_breakdown || [];
+    const eirScore = calculateEirScore(spendMetrics?.expense_ratio);
 
     return (
         <div className="fhd-page">
@@ -318,8 +331,7 @@ function FinHealthDetail() {
                                     </div>
 
                                     <p className="fhd-spend-description">
-                                        คำนวณจากรายจ่ายทั้งหมดของเดือน
-                                        เปรียบเทียบกับรายได้สุทธิของเดือนนั้น
+                                        ใช้ประเมินว่าภาระค่าใช้จ่ายของเรามีมากน้อยเพียงใดเมื่อเทียบกับรายได้ที่ได้รับใน 1 เดือน
                                     </p>
 
                                     <div className="fhd-spend-formula">
@@ -378,23 +390,43 @@ function FinHealthDetail() {
                                     </div>
 
                                     <div className="fhd-spend-result">
-                                        <span>ผลการคำนวณ EIR</span>
+                                        {/* ช่องที่ 1: EIR */}
+                                        <div className="fhd-spend-result-card">
+                                            <span className="fhd-spend-result-label">
+                                                ผลการคำนวณ EIR
+                                            </span>
 
-                                        {spendMetrics.expense_ratio == null ? (
-                                            <strong className="fhd-spend-no-result">
-                                                ยังไม่สามารถคำนวณได้
-                                                เนื่องจากรายได้สุทธิเป็นศูนย์
-                                            </strong>
-                                        ) : (
-                                            <div className="fhd-spend-result-value">
-                                                <strong>
-                                                    {formatSpendMoney(
-                                                        spendMetrics.expense_ratio
-                                                    )}
+                                            {spendMetrics.expense_ratio == null ? (
+                                                <strong className="fhd-spend-no-result">
+                                                    ไม่สามารถคำนวณได้
                                                 </strong>
-                                                <span>%</span>
-                                            </div>
-                                        )}
+                                            ) : (
+                                                <div className="fhd-spend-result-value">
+                                                    <strong>
+                                                        {formatSpendMoney(spendMetrics.expense_ratio)}
+                                                    </strong>
+                                                    <span>%</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* ช่องที่ 2: EIR Score */}
+                                        <div className="fhd-spend-result-card">
+                                            <span className="fhd-spend-result-label">
+                                                คะแนน EIR
+                                            </span>
+
+                                            {eirScore == null ? (
+                                                <strong className="fhd-spend-no-result">
+                                                    ยังไม่มีคะแนน
+                                                </strong>
+                                            ) : (
+                                                <div className="fhd-spend-result-value">
+                                                    <strong>{eirScore}</strong>
+                                                    <span>/ 100</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </section>
 

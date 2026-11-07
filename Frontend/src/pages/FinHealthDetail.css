@@ -604,47 +604,40 @@
 .fhd-spend-row-total strong {
     color: #16845f;
 }
-
 .fhd-spend-result {
-    margin-top: 18px;
-    padding: 18px;
-    border-radius: 14px;
-    background: #f0faf4;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
 }
 
-.fhd-spend-result > span {
-    display: block;
-    color: #526b5b;
-    font-size: 12px;
-    font-weight: 700;
+.fhd-spend-result-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px;
+    border-radius: 12px;
+    background: var(--color-background);
+}
+
+.fhd-spend-result-label {
+    font-size: 14px;
+    color: var(--color-text-secondary);
 }
 
 .fhd-spend-result-value {
     display: flex;
     align-items: baseline;
-    gap: 7px;
-    margin-top: 8px;
+    gap: 5px;
 }
 
 .fhd-spend-result-value strong {
-    color: #159b76;
-    font-size: 36px;
-    font-weight: 800;
-    line-height: 1.2;
-}
-
-.fhd-spend-result-value span {
-    color: #728078;
-    font-size: 16px;
+    font-size: 24px;
     font-weight: 700;
 }
 
 .fhd-spend-no-result {
-    display: block;
-    margin-top: 8px;
-    color: #9b6733;
-    font-size: 13px;
-    line-height: 1.8;
+    font-size: 14px;
 }
 
 .fhd-spend-message,
