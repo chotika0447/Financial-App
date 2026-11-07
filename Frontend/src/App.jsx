@@ -65,8 +65,8 @@ function EntryRoute() {
       }
 
       if (returnTo === '/saving/') {
-        destination = openAdd
-          ? '/saving/?openAdd=1'
+        destination = addWallet
+          ? '/saving/?addWallet=1'
           : '/saving/';
       }
       

@@ -124,7 +124,7 @@ function Wallet() {
     useEffect(() => {
         const params = new URLSearchParams(location.search)
 
-        if (params.get('openAdd') === '1') {
+        if (params.get('addWallet') === '1') {
             setEditingWalletId(null)
             setName('')
             setTarget('')
