@@ -97,6 +97,8 @@ function Debts() {
 
   //useEffect สำหรับเปิดรายการหนี้สินจาก LINE
   useEffect(() => {
+
+    const addDebt = searchParams.get("addDebt") === "1";
     const debtId = searchParams.get("debtId");
     const requestedTab = searchParams.get("tab");
     const requestedType = searchParams.get("type");
@@ -111,8 +113,22 @@ function Debts() {
     });
 
     if (loading) return;
+    
+    // เปิดฟอร์มเพิ่มหนี้สินจาก LINE Rich Menu
+    if (addDebt) {
+      setActiveTab("borrow");
+      setCurrentDebtType("borrow");
+      setEditingDebt(null);
+      setShowAddDebt(true);
 
-    // เปิดแท็บให้คนอื่นยืม
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("addDebt");
+      setSearchParams(nextParams, { replace: true });
+
+      return;
+    }
+
+    // เปิดแท็บให้ยืม
     if (requestedType === "lend") {
       setActiveTab("lend");
       setActiveStatus("ongoing");

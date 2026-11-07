@@ -57,11 +57,14 @@ function EntryRoute() {
       const returnTo = queryParams.get('returnTo');
       const transactionId = queryParams.get('transaction');
       const addWallet = queryParams.get('addWallet') === '1';
+      const addDebt = queryParams.get('addDebt') === '1';
 
       let destination = '/home/';
 
       if (returnTo === '/debts/') {
-        destination = '/debts/';
+        destination = addDebt
+          ? '/debts/?addDebt=1'
+          : '/debts/';
       }
 
       if (returnTo === '/saving/') {
@@ -69,7 +72,7 @@ function EntryRoute() {
           ? '/saving/?addWallet=1'
           : '/saving/';
       }
-      
+
       if (returnTo === '/edit-transaction/' && transactionId) {
         destination = `/edit-transaction/?transaction=${encodeURIComponent(transactionId)}`;
       }
