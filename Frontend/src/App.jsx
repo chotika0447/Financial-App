@@ -56,6 +56,7 @@ function EntryRoute() {
       const debtId = queryParams.get('debtId');
       const returnTo = queryParams.get('returnTo');
       const transactionId = queryParams.get('transaction');
+      
       let destination = '/home/';
 
       if (returnTo === '/debts/') {
