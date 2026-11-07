@@ -410,6 +410,17 @@ def save_line_debt_payment(
                 else None
             )
 
+            # กำหนดสถานะการชำระให้เหมือนระบบเว็บไซต์
+            if paid_amount <= 0:
+                payment_status = "pending"
+            elif (
+                scheduled_amount is not None
+                and paid_amount < scheduled_amount
+            ):
+                payment_status = "partial"
+            else:
+                payment_status = "paid"
+                
             payment = Payments.objects.create(
                 debt=debt,
                 scheduled_amount=scheduled_amount,
@@ -418,6 +429,7 @@ def save_line_debt_payment(
                 paid_date=timezone.localdate(),
                 proof_image=proof_image_url,
                 note="ชำระผ่าน LINE OA",
+                payment_status=payment_status,
                 approvement_status=approvement_status,
             )
 

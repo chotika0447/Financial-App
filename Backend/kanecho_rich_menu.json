@@ -54,7 +54,7 @@
       },
       "action": {
         "type": "postback",
-        "data": "action=pay_debt",
+        "data": "action=select_record&type=debt",
         "displayText": "ชำระหนี้สิน"
       }
     },
