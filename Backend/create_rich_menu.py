@@ -1,3 +1,4 @@
+# รัน python create_rich_menu.py ถ้ามีการอัพเดตไฟล์ JSON หรือรูปภาพ Rich Menu
 import os
 import json
 import mimetypes
@@ -13,7 +14,7 @@ load_dotenv(BASE_DIR / ".env")
 TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 
 JSON_PATH = BASE_DIR / "kanecho_rich_menu.json"
-IMAGE_PATH = BASE_DIR / "Kanecho_clean.png"
+IMAGE_PATH = BASE_DIR / "Kanecho_RichMenu.png"
 
 API_URL = "https://api.line.me/v2/bot"
 IMAGE_API_URL = "https://api-data.line.me/v2/bot"

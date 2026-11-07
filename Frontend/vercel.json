@@ -1,8 +1,9 @@
+
 {
   "rewrites": [
     {
-    "source": "/news/",
-    "destination": "https://financial-app-xgc0.onrender.com/news/"
+      "source": "/news/",
+      "destination": "https://financial-app-xgc0.onrender.com/news/"
     },
     {
       "source": "/news/:path*",
@@ -40,7 +41,6 @@
       "source": "/transactions/:path*/",
       "destination": "https://financial-app-xgc0.onrender.com/transactions/:path*/"
     },
-
     {
       "source": "/debts/",
       "has": [
@@ -66,12 +66,48 @@
       "destination": "https://financial-app-xgc0.onrender.com/debts/:debtId/payments/"
     },
     {
+      "source": "/debts/payments/:paymentId/",
+      "destination": "https://financial-app-xgc0.onrender.com/debts/payments/:paymentId/"
+    },
+    {
       "source": "/debts/:debtId/",
       "destination": "https://financial-app-xgc0.onrender.com/debts/:debtId/"
     },
     {
-      "source": "/debts/payments/:paymentId/",
-      "destination": "https://financial-app-xgc0.onrender.com/debts/payments/:paymentId/"
+      "source": "/debts/:path*/",
+      "destination": "https://financial-app-xgc0.onrender.com/debts/:path*/"
+    },
+    {
+      "source": "/debts/:path*",
+      "destination": "https://financial-app-xgc0.onrender.com/debts/:path*"
+    },
+    {
+      "source": "/savings/",
+      "destination": "https://financial-app-xgc0.onrender.com/savings/"
+    },
+    {
+      "source": "/savings/:savingId/",
+      "destination": "https://financial-app-xgc0.onrender.com/savings/:savingId/"
+    },
+    {
+      "source": "/savings/:path*/",
+      "destination": "https://financial-app-xgc0.onrender.com/savings/:path*/"
+    },
+    {
+      "source": "/savings/:path*",
+      "destination": "https://financial-app-xgc0.onrender.com/savings/:path*"
+    },
+    {
+      "source": "/categories/",
+      "destination": "https://financial-app-xgc0.onrender.com/categories/"
+    },
+    {
+      "source": "/categories/:path*/",
+      "destination": "https://financial-app-xgc0.onrender.com/categories/:path*/"
+    },
+    {
+      "source": "/categories/:path*",
+      "destination": "https://financial-app-xgc0.onrender.com/categories/:path*"
     },
     {
       "source": "/line/:path*/",
@@ -114,56 +150,8 @@
       "destination": "https://financial-app-xgc0.onrender.com/friends/:path*"
     },
     {
-      "source": "/debts/:path*/",
-      "destination": "https://financial-app-xgc0.onrender.com/debts/:path*/"
-    },
-    {
-      "source": "/debts/:path*",
-      "destination": "https://financial-app-xgc0.onrender.com/debts/:path*"
-    },
-    {
-      "source": "/savings/",
-      "destination": "https://financial-app-xgc0.onrender.com/savings/"
-    },
-    {
-      "source": "/savings/:savingId/",
-      "destination": "https://financial-app-xgc0.onrender.com/savings/:savingId/"
-    },
-    {
-      "source": "/savings/:path*/",
-      "destination": "https://financial-app-xgc0.onrender.com/savings/:path*/"
-    },
-    {
-      "source": "/savings/:path*",
-      "destination": "https://financial-app-xgc0.onrender.com/savings/:path*"
-    },
-    {
-      "source": "/categories/",
-      "destination": "https://financial-app-xgc0.onrender.com/categories/"
-    },
-    {
-      "source": "/categories/:path*/",
-      "destination": "https://financial-app-xgc0.onrender.com/categories/:path*/"
-    },
-    {
-      "source": "/categories/:path*",
-      "destination": "https://financial-app-xgc0.onrender.com/categories/:path*"
-    },
-    {
-      "source": "/savings/",
-      "destination": "https://financial-app-xgc0.onrender.com/savings/"
-    },
-    {
-      "source": "/savings/:savingId/",
-      "destination": "https://financial-app-xgc0.onrender.com/savings/:savingId/"
-    },
-    {
-      "source": "/savings/:path*/",
-      "destination": "https://financial-app-xgc0.onrender.com/savings/:path*/"
-    },
-    {
-      "source": "/savings/:path*",
-      "destination": "https://financial-app-xgc0.onrender.com/savings/:path*"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }

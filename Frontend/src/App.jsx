@@ -56,7 +56,8 @@ function EntryRoute() {
       const debtId = queryParams.get('debtId');
       const returnTo = queryParams.get('returnTo');
       const transactionId = queryParams.get('transaction');
-      
+      const addWallet = queryParams.get('addWallet') === '1';
+
       let destination = '/home/';
 
       if (returnTo === '/debts/') {
@@ -64,7 +65,9 @@ function EntryRoute() {
       }
 
       if (returnTo === '/saving/') {
-        destination = '/saving/';
+        destination = openAdd
+          ? '/saving/?openAdd=1'
+          : '/saving/';
       }
       
       if (returnTo === '/edit-transaction/' && transactionId) {

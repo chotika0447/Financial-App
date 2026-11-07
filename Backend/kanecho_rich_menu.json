@@ -4,135 +4,130 @@
     "height": 540
   },
   "selected": true,
-  "name": "KaneCho 10-button test",
-  "chatBarText": "เมนู KaneChō",
+  "name": "Rich Menu Design",
+  "chatBarText": "เมนู Kanecho",
   "areas": [
     {
       "bounds": {
-        "x": 30,
-        "y": 33,
-        "width": 243,
-        "height": 475
+        "x": 50,
+        "y": 20,
+        "width": 710,
+        "height": 160
       },
       "action": {
         "type": "uri",
-        "uri": "https://financial-app-delta-taupe.vercel.app/"
+        "uri": "https://financial-app-delta-taupe.vercel.app/",
+        "label": "เมนู 1"
       }
     },
     {
       "bounds": {
-        "x": 301,
-        "y": 50,
-        "width": 141,
-        "height": 141
+        "x": 40,
+        "y": 190,
+        "width": 160,
+        "height": 160
       },
       "action": {
         "type": "postback",
         "data": "action=select_record&type=income",
-        "displayText": "จดรายรับ"
+        "displayText": "จดรายรับ",
+        "label": "เมนู 2"
       }
     },
     {
       "bounds": {
-        "x": 467,
-        "y": 50,
-        "width": 141,
-        "height": 141
+        "x": 230,
+        "y": 190,
+        "width": 150,
+        "height": 150
       },
       "action": {
         "type": "postback",
         "data": "action=select_record&type=expense",
-        "displayText": "จดรายจ่าย"
+        "displayText": "จดรายจ่าย",
+        "label": "เมนู 3"
       }
     },
     {
       "bounds": {
-        "x": 632,
-        "y": 50,
-        "width": 142,
-        "height": 141
+        "x": 420,
+        "y": 190,
+        "width": 150,
+        "height": 150
       },
       "action": {
-        "type": "postback",
-        "data": "action=select_record&type=debt",
-        "displayText": "ชำระหนี้สิน"
+        "type": "uri",
+        "uri": "https://financial-app-delta-taupe.vercel.app/?returnTo=%2Fsaving%2F&addWallet=1",
+        "label": "เมนู 4"
       }
     },
     {
       "bounds": {
-        "x": 301,
-        "y": 210,
-        "width": 141,
-        "height": 141
+        "x": 600,
+        "y": 190,
+        "width": 150,
+        "height": 150
       },
       "action": {
         "type": "postback",
         "data": "action=select_record&type=savings",
-        "displayText": "จดการออม"
+        "displayText": "จดการออม",
+        "label": "เมนู 5"
       }
     },
     {
       "bounds": {
-        "x": 467,
-        "y": 210,
-        "width": 141,
-        "height": 141
+        "x": 40,
+        "y": 360,
+        "width": 160,
+        "height": 160
       },
       "action": {
         "type": "postback",
-        "data": "action=summary",
-        "displayText": "สรุปการจด"
+        "data": "action=select_add&type=debt",
+        "displayText": "สร้างหนี้สิน/การให้ยืม",
+        "label": "เมนู 6"
       }
     },
     {
       "bounds": {
-        "x": 632,
-        "y": 210,
-        "width": 142,
-        "height": 141
+        "x": 220,
+        "y": 360,
+        "width": 160,
+        "height": 160
       },
       "action": {
         "type": "postback",
-        "data": "action=financial_health",
-        "displayText": "ประเมินสุขภาพทางการเงิน"
+        "data": "action=select_record&type=debt",
+        "displayText": "ชำระหนี้สิน",
+        "label": "เมนู 7"
       }
     },
     {
       "bounds": {
-        "x": 301,
-        "y": 363,
-        "width": 141,
-        "height": 143
+        "x": 420,
+        "y": 360,
+        "width": 150,
+        "height": 150
+      },
+      "action": {
+        "type": "postback",
+        "data": "action=summary_today",
+        "displayText": "สรุปรายการวันนี้",
+        "label": "เมนู 8"
+      }
+    },
+    {
+      "bounds": {
+        "x": 600,
+        "y": 360,
+        "width": 150,
+        "height": 160
       },
       "action": {
         "type": "uri",
-        "uri": "https://financial-app-delta-taupe.vercel.app/transactions/"
-      }
-    },
-    {
-      "bounds": {
-        "x": 467,
-        "y": 363,
-        "width": 141,
-        "height": 143
-      },
-      "action": {
-        "type": "postback",
-        "data": "action=view_savings",
-        "displayText": "การออม"
-      }
-    },
-    {
-      "bounds": {
-        "x": 632,
-        "y": 363,
-        "width": 142,
-        "height": 143
-      },
-      "action": {
-        "type": "postback",
-        "data": "action=view_debts",
-        "displayText": "หนี้สิน"
+        "uri": "https://financial-app-delta-taupe.vercel.app/financial-health",
+        "label": "เมนู 9"
       }
     }
   ]

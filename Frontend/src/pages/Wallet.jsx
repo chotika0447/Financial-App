@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import WalletCard from '../components/WalletCard'
 import './Wallet.css'
 import Navbar from '../components/Navbar'
@@ -10,6 +10,7 @@ import CompletedWallets from '../components/CompletedWallets';
 
 function Wallet() {
     const navigate = useNavigate()
+    const location = useLocation()
 
     const [wallets, setWallets] = useState([])
     const activeWallets = wallets.filter((wallet) => wallet.status === 'active')
@@ -119,6 +120,21 @@ function Wallet() {
         fetchWallets()
         fetchTransactions()
     }, [])
+    
+    useEffect(() => {
+        const params = new URLSearchParams(location.search)
+
+        if (params.get('openAdd') === '1') {
+            setEditingWalletId(null)
+            setName('')
+            setTarget('')
+            setTargetDate('')
+            setShowForm(true)
+
+            // ล้างพารามิเตอร์หลังเปิดฟอร์ม
+            navigate('/saving/', { replace: true })
+        }
+    }, [location.search, navigate])
 
     const fromTitle =
         editingWalletId !== null
