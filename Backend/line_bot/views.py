@@ -68,7 +68,7 @@ def get_pending(line_user_id, user):
     if not data:
         return None
 
-    if data.get("user_id") != user.id:
+    if data.get("user_id") != user.uid:
         return None
 
     return data
@@ -1608,8 +1608,8 @@ def handle_postback(data, line_user_id):
     return (
         f"เลือกโหมดจด{label}แล้วค่ะ\n"
         "สามารถส่งข้อความบันทึกรายการ "
-        "และแนบรูปภาพเพื่อเป็นหลักฐานได้เลยค่ะ"
-        "เช่น ซื้อกาแฟ 80 หรือ ขายของ 500"
+        "และแนบรูปภาพเพื่อเป็นหลักฐานได้เลยค่ะ\n"
+        " เช่น ซื้อกาแฟ 80"
     )
 
 # ==================== Text Message ====================
