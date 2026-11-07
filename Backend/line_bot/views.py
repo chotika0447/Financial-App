@@ -298,6 +298,86 @@ def build_debt_attach_image_flex():
             },
         },
     }
+
+def build_line_debt_payment_success_flex(
+    debt,
+    paid_amount,
+    approvement_status,
+    history_url,
+):
+    status_text = (
+        "รอเจ้าหนี้ตรวจสอบและอนุมัติ"
+        if approvement_status == "pending"
+        else "บันทึกการชำระสำเร็จ"
+    )
+
+    return {
+        "type": "flex",
+        "altText": "บันทึกการชำระหนี้เรียบร้อยแล้ว",
+        "contents": {
+            "type": "bubble",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "md",
+                "backgroundColor": "#FFF9EE",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "ชำระหนี้เรียบร้อยแล้ว",
+                        "weight": "bold",
+                        "size": "xl",
+                        "color": "#805035",
+                        "wrap": True,
+                    },
+                    {
+                        "type": "separator",
+                        "color": "#E8DCC8",
+                    },
+                    {
+                        "type": "text",
+                        "text": f"รายการหนี้: {debt.name[:100]}",
+                        "size": "sm",
+                        "color": "#594A3D",
+                        "wrap": True,
+                    },
+                    {
+                        "type": "text",
+                        "text": f"จำนวนเงิน: {paid_amount:,.2f} บาท",
+                        "size": "lg",
+                        "weight": "bold",
+                        "color": "#805035",
+                        "wrap": True,
+                    },
+                    {
+                        "type": "text",
+                        "text": f"สถานะ: {status_text}",
+                        "size": "sm",
+                        "color": "#8B7A68",
+                        "wrap": True,
+                    },
+                ],
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#FFF9EE",
+                "contents": [
+                    {
+                        "type": "button",
+                        "style": "primary",
+                        "color": "#B8D95A",
+                        "action": {
+                            "type": "uri",
+                            "label": "ตรวจสอบ",
+                            "uri": history_url,
+                        },
+                    },
+                ],
+            },
+        },
+    }
+
 # คำนวณยอดคงเหลือและการแจ้งเตือนจาก debts/views.py
 def save_line_debt_payment(
     user,
@@ -490,16 +570,13 @@ def save_line_debt_payment(
 
         clear_debt_flow(line_user_id)
 
-        if approvement_status == "pending":
-            return (
-                f"ส่งรายการชำระหนี้ {debt.name} "
-                f"จำนวน {paid_amount:,.2f} บาทเรียบร้อยแล้วค่ะ\n\n"
-                "ระบบได้แจ้งเจ้าหนี้เพื่อรอตรวจสอบและอนุมัติแล้วค่ะ"
-            )
+        history_url = "https://financial-app-delta-taupe.vercel.app/debts/"
 
-        return (
-            f"บันทึกการชำระหนี้ {debt.name} "
-            f"จำนวน {paid_amount:,.2f} บาทเรียบร้อยแล้วค่ะ"
+        return build_line_debt_payment_success_flex(
+            debt=debt,
+            paid_amount=paid_amount,
+            approvement_status=approvement_status,
+            history_url=history_url,
         )
 
     except Exception as error:
