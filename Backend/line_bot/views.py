@@ -21,8 +21,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Sum
 
 from .parser import parse_financial_message
-from .category_matching import accessible_category, fallback_category, match_category
-
+from categories.category_matching import accessible_category, fallback_category, match_category
 
 from .supabase_storage import (
     upload_receipt,
@@ -1610,6 +1609,7 @@ def handle_postback(data, line_user_id):
         f"เลือกโหมดจด{label}แล้วค่ะ\n"
         "สามารถส่งข้อความบันทึกรายการ "
         "และแนบรูปภาพเพื่อเป็นหลักฐานได้เลยค่ะ"
+        "เช่น ซื้อกาแฟ 80 หรือ ขายของ 500"
     )
 
 # ==================== Text Message ====================
