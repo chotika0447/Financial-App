@@ -261,6 +261,14 @@ function FinHealthDetail() {
 
     const saveMonths = saveMetrics?.monthly_breakdown || [];
     const eirScore = calculateEirScore(spendMetrics?.expense_ratio);
+    const trcScore = spendMetrics?.trc_score;
+
+    const spendTotalScore =
+        eirScore == null ||
+            trcScore == null ||
+            !Number.isFinite(Number(trcScore))
+            ? null
+            : Math.round(((eirScore + Number(trcScore)) / 2) * 100) / 100;
 
     return (
         <div className="fhd-page">
@@ -313,6 +321,30 @@ function FinHealthDetail() {
                             </section>
                         ) : spendMetrics ? (
                             <>
+                                {/* Spend score */}
+                                <section className="fhd-card fhd-spend-total-card">
+                                    <h2>คะแนนด้านรายรับ–รายจ่าย</h2>
+                                    <p>
+                                        คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน
+                                        EIR และ TRC
+                                    </p>
+
+                                    <div className="fhd-spend-formula">
+                                        <span className="fhd-spend-label">
+                                            สูตรคำนวณ
+                                        </span>
+                                        <p>
+                                            (คะแนน EIR + คะแนน TRC) ÷ 2
+                                        </p>
+                                    </div>
+
+                                    <p className="fhd-spend-message">
+                                        ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
+                                        เนื่องจากยังไม่ได้กำหนดเกณฑ์
+                                        แปลงค่า EIR และ TRC เป็นระดับคะแนน
+                                    </p>
+                                </section>
+
                                 {/* EIR */}
                                 <section className="fhd-card fhd-spend-card">
                                     <div className="fhd-indicator-heading">
@@ -574,8 +606,8 @@ function FinHealthDetail() {
 
                                                 <span
                                                     className={`fhd-trc-status ${item.has_records
-                                                            ? 'is-complete'
-                                                            : 'is-incomplete'
+                                                        ? 'is-complete'
+                                                        : 'is-incomplete'
                                                         }`}
                                                 >
                                                     {item.has_records
@@ -632,30 +664,6 @@ function FinHealthDetail() {
                                     </div>
                                 </section>
 
-
-                                {/* Spend score */}
-                                <section className="fhd-card fhd-spend-total-card">
-                                    <h2>คะแนนด้านรายรับ–รายจ่าย</h2>
-                                    <p>
-                                        คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน
-                                        EIR และ TRC
-                                    </p>
-
-                                    <div className="fhd-spend-formula">
-                                        <span className="fhd-spend-label">
-                                            สูตรคำนวณ
-                                        </span>
-                                        <p>
-                                            (คะแนน EIR + คะแนน TRC) ÷ 2
-                                        </p>
-                                    </div>
-
-                                    <p className="fhd-spend-message">
-                                        ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
-                                        เนื่องจากยังไม่ได้กำหนดเกณฑ์
-                                        แปลงค่า EIR และ TRC เป็นระดับคะแนน
-                                    </p>
-                                </section>
                             </>
                         ) : (
                             <section className="fhd-card">
