@@ -1506,7 +1506,7 @@ def build_daily_summary_flex(user):
         for item in items:
             transaction_rows.append(
                 make_row(
-                    f"{item.item_name or 'ไม่ระบุชื่อรายการ'}",
+                    f"{  item.item_name or 'ไม่ระบุชื่อรายการ'}",
                     item.amount,
                     color,
                 )
@@ -1944,11 +1944,17 @@ def handle_postback(data, line_user_id):
         else "รายจ่าย"
     )
 
+    example = (
+        "พาร์ทไทม์ 400"
+        if record_type == "income"
+        else "ซื้อกาแฟ 30"
+    )
+
     return (
         f"เลือกโหมดจด{label}แล้วค่ะ\n"
         "สามารถส่งข้อความบันทึกรายการ "
         "และแนบรูปภาพเพื่อเป็นหลักฐานได้เลยค่ะ\n"
-        " เช่น ซื้อกาแฟ 80"
+        f"เช่น {example}"
     )
 
 # ==================== Text Message ====================

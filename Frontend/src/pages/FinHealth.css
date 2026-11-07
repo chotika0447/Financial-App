@@ -141,123 +141,92 @@
 .fh-score-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 9px;
 }
 
 .fh-score-card {
-    position: relative;
     display: flex;
     flex-direction: column;
     align-items: stretch;
     width: 100%;
     min-width: 0;
-    padding: 17px;
+    padding: 10px 13px;
     border: 1px solid #e8eeeb;
-    border-radius: 17px;
+    border-radius: 13px;
     background: #fff;
     box-shadow: 0 3px 12px rgb(33 61 48 / 4%);
     color: #293a32;
     text-align: left;
     font-family: inherit;
     cursor: pointer;
-    transition:
-        transform 0.18s ease,
-        border-color 0.18s ease,
-        box-shadow 0.18s ease;
 }
 
-.fh-score-card:active {
-    transform: scale(0.99);
-    border-color: var(--category-color);
-}
-
-.fh-score-card-top {
+.fh-score-card-heading {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
 }
 
 .fh-score-icon {
     display: flex;
+    flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    width: 43px;
-    height: 43px;
-    border-radius: 13px;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
     background: var(--category-bg);
     color: var(--category-color);
 }
 
-.fh-score-arrow {
-    color: #a5b2aa;
-}
-
 .fh-score-card-title {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    margin-top: 13px;
+    flex: 1;
+    min-width: 0;
 }
 
 .fh-score-card-title strong {
+    display: block;
+    overflow: hidden;
     color: #2b3b33;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 800;
-}
-
-.fh-score-card-title span {
-    color: #87948d;
-    font-size: 11px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .fh-score-number {
     display: flex;
     align-items: baseline;
-    gap: 5px;
-    margin-top: 12px;
+    justify-content: flex-end;
+    gap: 3px;
+    margin-top: 5px;
 }
 
 .fh-score-number strong {
     color: var(--category-color);
-    font-size: 34px;
+    font-size: 25px;
     font-weight: 800;
     line-height: 1.1;
 }
 
 .fh-score-number span {
     color: #9aa69f;
-    font-size: 12px;
+    font-size: 11px;
 }
 
-.fh-score-card > p {
-    min-height: 35px;
-    margin: 8px 0 12px;
-    color: #7d8a83;
-    font-size: 10px;
-    line-height: 1.7;
-}
-
-.fh-score-progress {
-    width: 100%;
-    height: 6px;
-    overflow: hidden;
-    border-radius: 10px;
-    background: #edf1ef;
-}
-
-.fh-score-progress-fill {
-    height: 100%;
-    border-radius: inherit;
-    background: var(--category-color);
-    transition: width 0.3s ease;
+.fh-score-card-footer {
+    margin-top: 7px;
+    padding-top: 6px;
+    border-top: 1px solid #edf1ee;
+    text-align: center;
 }
 
 .fh-score-card-status {
-    margin-top: 9px;
+    display: block;
     color: #87948d;
     font-size: 10px;
 }
-
 /* =========================
    COMMON PANEL
 ========================= */
@@ -653,8 +622,8 @@
     }
 
     .fh-score-card {
-        min-height: 260px;
-        padding: 19px;
+        min-height: unset;
+        padding: 14px;
     }
 
     .fh-score-card-title strong {
@@ -709,8 +678,8 @@
     }
 
     .fh-score-card {
-        min-height: 275px;
-        padding: 22px;
+        min-height: unset;
+        padding: 16px;
     }
 
     .fh-score-card:hover {
@@ -771,16 +740,5 @@
 
     .fh-panel {
         padding: 14px;
-    }
-}
-
-/* =========================
-   REDUCED MOTION
-========================= */
-
-@media (prefers-reduced-motion: reduce) {
-    .fh-score-card,
-    .fh-score-progress-fill {
-        transition: none;
     }
 }

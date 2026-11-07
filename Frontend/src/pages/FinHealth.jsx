@@ -92,28 +92,21 @@ function FinHealth() {
                                     className="fh-score-card"
                                     key={category.id}
                                     onClick={() =>
-                                        navigate(
-                                            `/financial-health/${category.id}`
-                                        )
+                                        navigate(`/financial-health/${category.id}`)
                                     }
                                     style={{
                                         '--category-color': category.color,
                                         '--category-bg': category.background,
                                     }}
                                 >
-                                    <div className="fh-score-card-top">
+                                    <div className="fh-score-card-heading">
                                         <div className="fh-score-icon">
-                                            <Icon size={22} />
+                                            <Icon size={19} />
                                         </div>
 
-                                        <ChevronRight
-                                            className="fh-score-arrow"
-                                            size={19}
-                                        />
-                                    </div>
-
-                                    <div className="fh-score-card-title">
-                                        <strong>{category.title}</strong>
+                                        <div className="fh-score-card-title">
+                                            <strong>{category.title}</strong>
+                                        </div>
                                     </div>
 
                                     <div className="fh-score-number">
@@ -123,25 +116,13 @@ function FinHealth() {
                                         <span>/ 100</span>
                                     </div>
 
-                                    <p>{category.description}</p>
-
-                                    <div className="fh-score-progress">
-                                        <div
-                                            className="fh-score-progress-fill"
-                                            style={{
-                                                width:
-                                                    score === null
-                                                        ? '0%'
-                                                        : `${score}%`,
-                                            }}
-                                        />
+                                    <div className="fh-score-card-footer">
+                                        <span className="fh-score-card-status">
+                                            {score === null
+                                                ? 'ยังไม่มีข้อมูลประเมิน'
+                                                : 'ดูรายละเอียดคะแนน'}
+                                        </span>
                                     </div>
-
-                                    <span className="fh-score-card-status">
-                                        {score === null
-                                            ? 'ยังไม่มีข้อมูลประเมิน'
-                                            : 'ดูรายละเอียดคะแนน'}
-                                    </span>
                                 </button>
                             );
                         })}
