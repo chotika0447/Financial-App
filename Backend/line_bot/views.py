@@ -23,17 +23,15 @@ from django.db.models import Sum
 from .parser import parse_financial_message
 from .category_matching import accessible_category, fallback_category, match_category
 
-from .models import LineRecordMode
-from .supabase_storage import upload_receipt
+
+from .supabase_storage import (
+    upload_receipt,
+    delete_receipt,
+)
 
 from categories.models import Category
-from transactions.models import Transaction, TransactionDraft
-from transactions.services import confirm_transaction_draft
-# from transactions.ocr import (
-#     read_receipt,
-#     get_receipt_amount,
-#     extract_datetime,
-# )
+
+from transactions.models import Transaction
 from users.models import User
 from friends.models import Friends
 from savings.models import Savings
@@ -56,36 +54,31 @@ from debts.views import (
 
 logger = logging.getLogger(__name__)
 
-PENDING_TIMEOUT_SECONDS = 24 * 60 * 60
+# ==================== Pending Transaction ====================
 
-# ==================== Pending Draft ====================
+PENDING_TIMEOUT_SECONDS = 30 * 60
+RECORD_MODE_TIMEOUT_SECONDS = 30 * 24 * 60 * 60
 
 def pending_key(line_user_id):
     return f"line_pending_transaction:{line_user_id}"
 
 
 def get_pending(line_user_id, user):
-    draft_id = cache.get(pending_key(line_user_id))
+    data = cache.get(pending_key(line_user_id))
 
-    if not draft_id:
+    if not data:
         return None
 
-    draft = TransactionDraft.objects.filter(
-        id=draft_id,
-        user=user,
-        status="pending"
-    ).first()
+    if data.get("user_id") != user.id:
+        return None
 
-    if draft is None:
-        cache.delete(pending_key(line_user_id))
-
-    return draft
+    return data
 
 
-def set_pending(line_user_id, draft):
+def set_pending(line_user_id, data):
     cache.set(
         pending_key(line_user_id),
-        draft.id,
+        data,
         timeout=PENDING_TIMEOUT_SECONDS
     )
 
@@ -94,6 +87,21 @@ def clear_pending(line_user_id):
     cache.delete(pending_key(line_user_id))
 
 
+def record_mode_key(line_user_id):
+    return f"line_record_mode:{line_user_id}"
+
+
+def set_record_mode(line_user_id, transaction_type):
+    cache.set(
+        record_mode_key(line_user_id),
+        transaction_type,
+        timeout=RECORD_MODE_TIMEOUT_SECONDS
+    )
+
+
+def get_record_mode(line_user_id):
+    return cache.get(record_mode_key(line_user_id))
+# =======================================================
 def transaction_flow_key(line_user_id):
     return f"line_transaction_flow:{line_user_id}"
 
@@ -287,11 +295,11 @@ def build_debt_attach_image_flex():
                         "color": "#6C4BC1",
                         "action": {
                             "type": "postback",
-                            "label": "ไม่แนบรูป / บันทึกเลย",
+                            "label": "ไม่แนบรูป / ตรวจสอบรายการ",
                             "data": (
                                 "action=debt_finish_without_image"
                             ),
-                            "displayText": "ไม่แนบรูปหลักฐาน",
+                            "displayText": "ไม่แนบรูป ตรวจสอบรายการ",
                         },
                     },
                 ],
@@ -588,21 +596,6 @@ def save_line_debt_payment(
             "เกิดข้อผิดพลาดในการบันทึกการชำระหนี้ค่ะ "
             "กรุณาลองใหม่อีกครั้ง"
         )
-# ==================== LINE Reply ====================
-
-def reply_to_line(reply_token, message):
-    """ส่งข้อความธรรมดาหรือ Flex Message"""
-
-    if not reply_token:
-        return
-
-    if isinstance(message, dict):
-        line_message = message
-    else:
-        line_message = {
-            "type": "text",
-            "text": str(message)
-        }
 
 def build_attach_receipt_flex():
     return {
@@ -651,8 +644,9 @@ def build_attach_receipt_flex():
                         "color": "#B8D95A",
                         "action": {
                             "type": "postback",
-                            "label": "ไม่แนบรูป / บันทึกเลย",
-                            "data": "action=transaction_finish_without_image"
+                            "label": "ไม่แนบรูป / ตรวจสอบรายการ",
+                            "data": "action=transaction_finish_without_image",
+                            "displayText": "ไม่แนบรูป / ตรวจสอบรายการ"
                         }
                     }
                 ]
@@ -666,40 +660,6 @@ def build_image_note_prompt():
         "ต้องการบันทึกรายการนี้ว่าอะไรคะ?\n\n"
         "กรุณาพิมพ์ เช่น ข้าวมันไก่ 60"
     )
-
-def pending_key(line_user_id):
-    return f"line_pending_transaction:{line_user_id}"
-
-
-def get_pending(line_user_id, user):
-    draft_id = cache.get(pending_key(line_user_id))
-
-    if not draft_id:
-        return None
-
-    draft = TransactionDraft.objects.filter(
-        id=draft_id,
-        user=user,
-        status="pending"
-    ).first()
-
-    if draft is None:
-        cache.delete(pending_key(line_user_id))
-
-    return draft
-
-
-def set_pending(line_user_id, draft):
-    cache.set(
-        pending_key(line_user_id),
-        draft.id,
-        timeout=PENDING_TIMEOUT_SECONDS
-    )
-
-
-def clear_pending(line_user_id):
-    cache.delete(pending_key(line_user_id))
-
 
 # ==================== LINE Reply ====================
 
@@ -821,26 +781,297 @@ def build_transaction_flex(item):
             }
         }
     }
+def build_transaction_preview_flex(data):
+
+    transaction_type = data["transaction_type"]
+
+    type_label = (
+        "รายรับ"
+        if transaction_type == "income"
+        else "รายจ่าย"
+    )
+
+    category = None
+
+    if data.get("category_id"):
+        category = Category.objects.filter(
+            pk=data["category_id"],
+            transaction_type=transaction_type
+        ).first()
+
+    category_text = (
+        category.name
+        if category
+        else "ไม่ระบุ"
+    )
+
+    if data.get("sub_category"):
+        category_text += f" / {data['sub_category']}"
+
+    amount = Decimal(str(data["amount"]))
+
+    date_value = datetime.strptime(
+        data["transaction_date"],
+        "%Y-%m-%d"
+    ).date()
+
+    date_text = (
+        f"{date_value.day:02d}/"
+        f"{date_value.month:02d}/"
+        f"{date_value.year + 543}"
+    )
+
+    time_text = data.get("transaction_time") or "-"
+
+    if time_text != "-":
+        time_text = time_text[:5] + " น."
+
+    receipt_text = (
+        "แนบรูปหลักฐานแล้ว"
+        if data.get("receipt_path")
+        else "ไม่ได้แนบรูปหลักฐาน"
+    )
+
+    token = data["token"]
+
+    def detail(label, value):
+        return {
+            "type": "box",
+            "layout": "baseline",
+            "spacing": "sm",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": label,
+                    "size": "sm",
+                    "color": "#8B7A68",
+                    "flex": 3
+                },
+                {
+                    "type": "text",
+                    "text": str(value)[:200],
+                    "size": "sm",
+                    "color": "#594A3D",
+                    "wrap": True,
+                    "flex": 7
+                }
+            ]
+        }
+
+    return {
+        "type": "flex",
+        "altText": f"ตรวจสอบรายการ{type_label} {amount:,.2f} บาท",
+        "contents": {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#FFF9EE",
+                "spacing": "md",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "KaneCho | ตรวจสอบรายการ",
+                        "weight": "bold",
+                        "size": "lg",
+                        "color": "#805035"
+                    },
+                    {
+                        "type": "text",
+                        "text": f"฿{amount:,.2f}",
+                        "weight": "bold",
+                        "size": "xxl",
+                        "color": "#805035"
+                    },
+                    {
+                        "type": "separator",
+                        "color": "#E8DCC8"
+                    },
+                    detail("ประเภท", type_label),
+                    detail("รายการ", data.get("item_name") or "-"),
+                    detail("หมวดหมู่", category_text),
+                    detail("ช่องทาง", data.get("account") or "-"),
+                    detail("วันที่", date_text),
+                    detail("เวลา", time_text),
+                    detail("รายละเอียด", data.get("description") or "-"),
+                    detail("หลักฐาน", receipt_text),
+                    {
+                        "type": "text",
+                        "text": "กรุณาตรวจสอบข้อมูลก่อนกดยืนยันบันทึก",
+                        "size": "xs",
+                        "color": "#8B7A68",
+                        "wrap": True
+                    }
+                ]
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#FFF9EE",
+                "spacing": "sm",
+                "contents": [
+                    {
+                        "type": "button",
+                        "style": "primary",
+                        "color": "#B8D95A",
+                        "action": {
+                            "type": "postback",
+                            "label": "ยืนยันบันทึกรายการ",
+                            "data": (
+                                "action=transaction_confirm"
+                                f"&token={token}"
+                            ),
+                            "displayText": "ยืนยันบันทึกรายการ"
+                        }
+                    },
+                    {
+                        "type": "button",
+                        "style": "secondary",
+                        "action": {
+                            "type": "postback",
+                            "label": "ยกเลิกรายการ",
+                            "data": (
+                                "action=transaction_cancel"
+                                f"&token={token}"
+                            ),
+                            "displayText": "ยกเลิกรายการ"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+
+def confirm_pending_transaction(line_user_id, user, token):
+
+    data = get_pending(line_user_id, user)
+
+    if not data or data.get("token") != token:
+        return "รายการนี้หมดอายุหรือถูกยกเลิกไปแล้วค่ะ"
+
+    completed_key = (
+        f"line_transaction_completed:{line_user_id}:{token}"
+    )
+
+    completed_id = cache.get(completed_key)
+
+    if completed_id:
+        item = Transaction.objects.filter(
+            pk=completed_id,
+            user=user
+        ).first()
+
+        if item:
+            return build_transaction_flex(item)
+
+    lock_key = (
+        f"line_transaction_confirm_lock:{line_user_id}:{token}"
+    )
+
+    if not cache.add(
+        lock_key,
+        True,
+        timeout=30
+    ):
+        return "ระบบกำลังบันทึกรายการนี้อยู่ค่ะ กรุณารอสักครู่"
+
+    try:
+
+        data = get_pending(line_user_id, user)
+
+        if not data or data.get("token") != token:
+            return "รายการนี้หมดอายุหรือถูกยกเลิกไปแล้วค่ะ"
+
+        amount = Decimal(str(data["amount"]))
+
+        if amount <= 0:
+            return "จำนวนเงินไม่ถูกต้องค่ะ กรุณาเริ่มรายการใหม่"
+
+        transaction_type = data["transaction_type"]
+
+        if transaction_type not in ("income", "expense"):
+            return "ไม่พบประเภทรายการค่ะ"
+
+        category = None
+
+        if data.get("category_id"):
+            category = Category.objects.filter(
+                pk=data["category_id"],
+                transaction_type=transaction_type
+            ).first()
+
+        transaction_date = datetime.strptime(
+            data["transaction_date"],
+            "%Y-%m-%d"
+        ).date()
+
+        transaction_time = None
+
+        if data.get("transaction_time"):
+            transaction_time = datetime.strptime(
+                data["transaction_time"],
+                "%H:%M:%S"
+            ).time()
+
+        with transaction.atomic():
+
+            item = Transaction.objects.create(
+                user=user,
+                amount=amount,
+                transaction_type=transaction_type,
+                item_name=data.get("item_name", ""),
+                description=data.get("description", ""),
+                category=category,
+                sub_category=data.get("sub_category", ""),
+                account=data.get("account", ""),
+                transaction_date=transaction_date,
+                transaction_time=transaction_time,
+                receipt=data.get("receipt_path") or None
+            )
+
+        cache.set(
+            completed_key,
+            item.id,
+            timeout=24 * 60 * 60
+        )
+
+        clear_pending(line_user_id)
+        clear_transaction_flow(line_user_id)
+
+        remember_recent_transaction(
+            line_user_id,
+            item
+        )
+
+        return build_transaction_flex(item)
+
+    finally:
+        cache.delete(lock_key)
 
 
-def show_pending(draft):
-    """ยังอ่านยอดไม่ได้ จึงขอข้อความเพิ่มก่อนบันทึก"""
-    return "ได้รับรูปแล้วค่ะ แต่ยังอ่านยอดเงินไม่ได้ กรุณาพิมพ์รายการและจำนวนเงิน เช่น กาแฟ 80 บาท"
+def cancel_pending_transaction(line_user_id, user, token):
 
+    data = get_pending(line_user_id, user)
 
-def save_draft_now(draft, user, line_user_id):
-    """แปลงรายการร่างเป็นรายการจริง แล้วส่งการ์ดแก้ไข"""
-    item, error = confirm_transaction_draft(draft.id, user)
+    if not data or data.get("token") != token:
+        return "รายการนี้หมดอายุหรือถูกยกเลิกไปแล้วค่ะ"
 
-    if error:
-        return error
+    receipt_path = data.get("receipt_path")
 
     clear_pending(line_user_id)
     clear_transaction_flow(line_user_id)
 
-    remember_recent_transaction(line_user_id, item)
+    if receipt_path:
+        try:
+            delete_receipt(receipt_path)
 
-    return build_transaction_flex(item)
+        except Exception:
+            logger.exception(
+                "Failed to delete cancelled transaction receipt"
+            )
+
+    return "ยกเลิกรายการเรียบร้อยแล้วค่ะ ยังไม่มีการบันทึกข้อมูล"
 
 
 def recent_transaction_key(line_user_id):
@@ -1217,20 +1448,49 @@ def handle_postback(data, line_user_id):
             user=user,
             line_user_id=line_user_id,
         )
-    #=====================จดรายรับ/รายจ่าย========================
-    # ยกเลิกการแนบรูปและบันทึกรายการทันที ถ้าผู้ใช้เลือกไม่แนบรูป
+
+    # ==================== Transaction Preview ====================
     if action == "transaction_finish_without_image":
-        draft = get_pending(line_user_id, user)
+
+        data = get_pending(line_user_id, user)
         flow = get_transaction_flow(line_user_id)
 
         if (
-            draft is None
+            data is None
             or not flow
             or flow.get("step") != "await_image"
         ):
             return "รายการนี้หมดอายุหรือดำเนินการไปแล้วค่ะ"
 
-        return save_draft_now(draft, user, line_user_id)
+        if not data.get("amount"):
+            return "ไม่พบจำนวนเงิน กรุณาระบุรายละเอียดรายการก่อนค่ะ"
+
+        set_transaction_flow(
+            line_user_id,
+            {"step": "await_confirmation"}
+        )
+
+        return build_transaction_preview_flex(data)
+
+    if action == "transaction_confirm":
+
+        token = params.get("token", [""])[0]
+
+        return confirm_pending_transaction(
+            line_user_id,
+            user,
+            token
+        )
+
+    if action == "transaction_cancel":
+
+        token = params.get("token", [""])[0]
+
+        return cancel_pending_transaction(
+            line_user_id,
+            user,
+            token
+        )
      #=====================จดการออม========================
     # เปิดรายการกระเป๋าออมจาก Rich Menu
     if action == "view_savings" or (
@@ -1292,7 +1552,7 @@ def handle_postback(data, line_user_id):
     
     # การ์ดแบบใหม่ไม่มีปุ่มยืนยันหรือยกเลิกแล้ว
     if action in ("confirm", "cancel", "edit"):
-        return "รายการรูปแบบเดิม กรุณาเปิดหน้าเว็บไซต์เพื่อจัดการรายการค่ะ"
+        return "ปุ่มนี้หมดอายุแล้วค่ะ กรุณาเริ่มบันทึกรายการใหม่"
 
     # ปุ่มเลือกโหมดจาก Rich Menu
     if action != "select_record":
@@ -1308,28 +1568,36 @@ def handle_postback(data, line_user_id):
     clear_debt_flow(line_user_id)
     clear_savings_state(line_user_id)
     
-    previous = LineRecordMode.objects.filter(
-        user=user
-    ).first()
+    previous = get_record_mode(line_user_id)
+    if previous and previous != record_type:
 
-    # เปลี่ยนโหมดแล้วล้างรายการร่างที่รอข้อมูลเพิ่ม
-    if previous and previous.transaction_type != record_type:
-        draft = get_pending(line_user_id, user)
+        pending_data = get_pending(
+            line_user_id,
+            user
+        )
 
-        if draft is not None:
-            draft.status = "cancelled"
-            draft.save(update_fields=["status"])
+        if pending_data:
+            receipt_path = pending_data.get("receipt_path")
+
+            if receipt_path:
+                try:
+                    delete_receipt(receipt_path)
+
+                except Exception:
+                    logger.exception(
+                        "Failed to delete receipt when changing record mode"
+                    )
 
         clear_pending(line_user_id)
         clear_transaction_flow(line_user_id)
 
-        cache.delete(recent_transaction_key(line_user_id))
+        cache.delete(
+            recent_transaction_key(line_user_id)
+        )
 
-    LineRecordMode.objects.update_or_create(
-        user=user,
-        defaults={
-            "transaction_type": record_type
-        }
+    set_record_mode(
+        line_user_id,
+        record_type
     )
 
     label = (
@@ -1343,16 +1611,6 @@ def handle_postback(data, line_user_id):
         "สามารถส่งข้อความบันทึกรายการ "
         "และแนบรูปภาพเพื่อเป็นหลักฐานได้เลยค่ะ"
     )
-
-
-def get_record_mode(user):
-    return (
-        LineRecordMode.objects
-        .filter(user=user)
-        .values_list("transaction_type", flat=True)
-        .first()
-    )
-
 
 # ==================== Text Message ====================
 
@@ -1448,153 +1706,131 @@ def handle_text_message(text, line_user_id):
                 "'ไม่แนบรูป / บันทึกเลย' จากข้อความก่อนหน้า"
             )
         
-    draft = get_pending(line_user_id, user)
+    data = get_pending(line_user_id, user)
     flow = get_transaction_flow(line_user_id)
 
     # ==========================================
-    # 1. รูปมาก่อน รอข้อความโน้ต
+    # 1. รูปมาก่อน รอข้อความรายละเอียด
     # ==========================================
 
-    if flow and flow.get("step") == "await_note":
-        if not draft:
-            clear_pending(line_user_id)
+    if flow and flow.get("step") in ("await_note", "await_amount"):
+
+        if not data:
             clear_transaction_flow(line_user_id)
+
             return (
-                "รายการหมดอายุแล้วค่ะ กรุณาเริ่มบันทึกรายการใหม่อีกครั้ง"
+                "รายการหมดอายุแล้วค่ะ "
+                "กรุณาเริ่มบันทึกรายการใหม่อีกครั้ง"
             )
 
-        # วิเคราะห์ข้อความที่ผู้ใช้ส่งหลังจากแนบรูป
-        result = parse_financial_message(
-            command,
-            draft.transaction_type
-        )
-
-        if result and result.get("success"):
-            # ถ้าข้อความมีจำนวนเงิน ให้ใช้จำนวนเงินจากข้อความ
-            # ถ้าไม่มี ให้คงจำนวนเงินที่ OCR อ่านได้
-            parsed_amount = result.get("amount")
-            if parsed_amount and parsed_amount > 0:
-                draft.amount = parsed_amount
-
-            draft.item_name = (
-                result.get("item_name")
-                or draft.item_name
-                or ""
-            )
-
-            draft.description = (
-                result.get("description")
-                or command
-            )
-
-            parsed_category = result.get("category")
-            if parsed_category:
-                category = match_category(
-                    command,
-                    draft.transaction_type,
-                    user,
-                    rule_category=parsed_category
-                )
-                if category:
-                    draft.category = category
-
-            if result.get("sub_category"):
-                draft.sub_category = result["sub_category"]
-
-            if result.get("account"):
-                draft.account = result["account"]
-
-        else:
-            # ถ้าข้อความมีตัวเลขหรือวันที่ แต่ Parser วิเคราะห์ไม่ได้
-            # อย่าบันทึกยอด OCR เดิมแทนโดยอัตโนมัติ
-            if any(char.isdigit() for char in command):
-                return (result.get("message", "กรุณาระบุจำนวนเงินให้ชัดเจนค่ะ")
-                        if result else "กรุณาระบุจำนวนเงินให้ชัดเจนค่ะ")
-
-            # ข้อความไม่มีตัวเลข: เป็นโน้ตได้เฉพาะเมื่อมีจำนวนเงินจาก OCR แล้ว
-            if not draft.amount or draft.amount <= 0:
-                return "ยังไม่พบจำนวนเงินค่ะ กรุณาพิมพ์ชื่อรายการพร้อมจำนวนเงิน เช่น กาแฟ 80 บาท"
-            draft.description = command
-            if not draft.item_name:
-                draft.item_name = command
-
-        # หากยังไม่มีจำนวนเงิน ให้ขอข้อมูลเพิ่มเติม
-        if not draft.amount or draft.amount <= 0:
-            return (
-                "ยังไม่พบจำนวนเงินของรายการค่ะ กรุณาส่งรายละเอียดพร้อมจำนวนเงิน เช่น ซื้อกาแฟ 85 บาท"
-            )
-
-        draft.save()
-
-        # ใช้ระบบบันทึกเดิม ไม่สร้าง Transaction ใหม่เอง
-        return save_draft_now(draft, user, line_user_id)
-
-    # ==========================================
-    # 2. รูปมาก่อน แต่ OCR อ่านจำนวนเงินไม่ได้
-    # ==========================================
-
-    if flow and flow.get("step") == "await_amount":
-
-        if draft is None:
-            clear_transaction_flow(line_user_id)
-            return "รายการหมดอายุแล้วค่ะ กรุณาเริ่มรายการใหม่"
-
-        transaction_type = draft.transaction_type
+        transaction_type = data["transaction_type"]
 
         result = parse_financial_message(
             command,
             transaction_type
         )
 
-        if not result or not result.get("success"):
-            return (result.get("message", "ไม่สามารถวิเคราะห์จำนวนเงินได้ค่ะ")
-                    if result else "ไม่สามารถวิเคราะห์จำนวนเงินได้ค่ะ")
+        if result and result.get("success"):
 
-        draft.amount = result["amount"]
+            parsed_amount = result.get("amount")
 
-        parsed_category = (
-            result.get("category") or "อื่นๆ"
+            if parsed_amount and parsed_amount > 0:
+                data["amount"] = str(parsed_amount)
+
+            data["item_name"] = (
+                result.get("item_name")
+                or data.get("item_name")
+                or command
+            )
+
+            data["description"] = (
+                result.get("description")
+                or command
+            )
+
+            parsed_category = result.get("category")
+
+            if parsed_category:
+
+                category = match_category(
+                    command,
+                    transaction_type,
+                    user,
+                    rule_category=parsed_category
+                )
+
+                if category:
+                    data["category_id"] = category.pk
+
+            if result.get("sub_category"):
+                data["sub_category"] = result["sub_category"]
+
+            if result.get("account"):
+                data["account"] = result["account"]
+
+        else:
+
+            if any(char.isdigit() for char in command):
+
+                return (
+                    result.get(
+                        "message",
+                        "กรุณาระบุจำนวนเงินให้ชัดเจนค่ะ"
+                    )
+                    if result
+                    else "กรุณาระบุจำนวนเงินให้ชัดเจนค่ะ"
+                )
+
+            if not data.get("amount"):
+                return (
+                    "ยังไม่พบจำนวนเงินค่ะ "
+                    "กรุณาพิมพ์ชื่อรายการพร้อมจำนวนเงิน "
+                    "เช่น กาแฟ 80 บาท"
+                )
+
+            data["description"] = command
+
+            if not data.get("item_name"):
+                data["item_name"] = command
+
+        if not data.get("amount") or Decimal(str(data["amount"])) <= 0:
+
+            return (
+                "ยังไม่พบจำนวนเงินของรายการค่ะ "
+                "กรุณาส่งรายละเอียดพร้อมจำนวนเงิน "
+                "เช่น ซื้อกาแฟ 85 บาท"
+            )
+
+        set_pending(line_user_id, data)
+
+        set_transaction_flow(
+            line_user_id,
+            {"step": "await_confirmation"}
         )
 
-        category = match_category(
-            command,
-            transaction_type,
-            user,
-            rule_category=parsed_category
-        )
-
-        if category:
-            draft.category = category
-
-        if result.get("item_name"):
-            draft.item_name = result["item_name"]
-
-        draft.save()
-
-        return save_draft_now(
-            draft, user, line_user_id
-        )
+        return build_transaction_preview_flex(data)
 
     # ==========================================
-    # 3. ข้อความมาก่อน รอรูปหรือยกเลิก
+    # 2. ข้อความมาก่อน รอรูปภาพ
     # ==========================================
 
     if flow and flow.get("step") == "await_image":
 
         return (
             "ได้รับข้อมูลรายการแล้วค่ะ\n"
-            "หากต้องการแนบรูป สามารถส่งรูปภาพได้เลยค่ะ\n"
+            "หากต้องการแนบรูปหลักฐาน สามารถส่งรูปภาพได้เลยค่ะ\n"
             "หรือกดปุ่ม 'ไม่แนบรูป / บันทึกเลย' "
-            "จากข้อความก่อนหน้าได้เลยค่ะ"
+            "จากข้อความก่อนหน้าเพื่อดูรายการก่อนยืนยันค่ะ"
         )
 
     # ==========================================
-    # 4. ตรวจสอบโหมดรายรับ / รายจ่าย
+    # 3. ตรวจสอบโหมดรายรับ / รายจ่าย
     # ==========================================
 
-    transaction_type = get_record_mode(user)
+    transaction_type = get_record_mode(line_user_id)
 
     if transaction_type not in ("income", "expense"):
+
         return (
             "กรุณากดจดรายรับหรือจดรายจ่าย "
             "จาก Rich Menu ก่อนค่ะ"
@@ -1606,8 +1842,20 @@ def handle_text_message(text, line_user_id):
     )
 
     if not result or not result.get("success"):
-        return (result.get("message", "ไม่สามารถวิเคราะห์ข้อความได้ค่ะ")
-                if result else "ไม่สามารถวิเคราะห์ข้อความได้ค่ะ")
+
+        return (
+            result.get(
+                "message",
+                "ไม่สามารถวิเคราะห์ข้อความได้ค่ะ"
+            )
+            if result
+            else "ไม่สามารถวิเคราะห์ข้อความได้ค่ะ"
+        )
+
+    amount = result.get("amount")
+
+    if not amount or amount <= 0:
+        return "ไม่พบจำนวนเงิน กรุณาระบุจำนวนเงินให้ถูกต้องค่ะ"
 
     parsed_category = (
         result.get("category") or "อื่นๆ"
@@ -1621,47 +1869,67 @@ def handle_text_message(text, line_user_id):
     )
 
     if category is None:
-        return (
-            "ไม่พบหมวดหมู่ที่ตรงกับข้อความค่ะ "
-            "ลองพิมพ์ใหม่ หรือเลือกหมวดหมู่จากเว็บไซต์"
+        category = find_category(
+            "อื่นๆ",
+            transaction_type,
+            user
         )
-
-    # ==========================================
-    # 5. สร้าง Draft และรอรูปภาพ
-    # ==========================================
 
     now = timezone.localtime()
 
-    draft = TransactionDraft.objects.create(
-        user=user,
-        amount=result["amount"],
-        transaction_type=transaction_type,
-        item_name=result.get("item_name") or "",
-        description=result.get("description") or "",
-        category=category,
-        sub_category=result.get("sub_category") or "",
-        account=result.get("account") or "",
-        transaction_date=now.date(),
-        transaction_time=now.time().replace(microsecond=0),
+    data = {
+        "token": uuid4().hex,
+        "user_id": user.id,
+        "amount": str(amount),
+        "transaction_type": transaction_type,
+        "item_name": result.get("item_name") or "",
+        "description": result.get("description") or "",
+        "category_id": category.pk if category else None,
+        "sub_category": result.get("sub_category") or "",
+        "account": result.get("account") or "",
+        "transaction_date": now.date().isoformat(),
+        "transaction_time": now.time().replace(
+            microsecond=0
+        ).strftime("%H:%M:%S"),
+        "receipt_path": None
+    }
+
+    set_pending(
+        line_user_id,
+        data
     )
 
-    set_pending(line_user_id, draft)
-
-    set_transaction_flow(line_user_id, {
-        "step": "await_image"
-    })
+    set_transaction_flow(
+        line_user_id,
+        {"step": "await_image"}
+    )
 
     return build_attach_receipt_flex()
 
-
 # ==================== Image Message / OCR ====================
 
-def attach_receipt_to_draft(draft, image_bytes, message_id):
-    """Upload a receipt to private Supabase Storage and save its object path."""
-    path = upload_receipt(image_bytes, f"line_{message_id}.jpg")
-    draft.receipt.name = path
-    draft.save(update_fields=["receipt"])
-    return draft
+def attach_receipt_to_pending(data, image_bytes, message_id):
+
+    old_path = data.get("receipt_path")
+
+    path = upload_receipt(
+        image_bytes,
+        f"line_{message_id}.jpg"
+    )
+
+    data["receipt_path"] = path
+
+    if old_path and old_path != path:
+        try:
+            delete_receipt(old_path)
+
+        except Exception:
+            logger.exception(
+                "Failed to delete previous transaction receipt"
+            )
+
+    return data
+
 
 def handle_image_message(message_id, line_user_id):
 
@@ -1674,17 +1942,21 @@ def handle_image_message(message_id, line_user_id):
 
     if not message_id:
         return "ไม่พบรหัสรูปภาพ กรุณาส่งรูปใหม่ค่ะ"
+
     # ==================== Debt Payment Image ====================
 
     debt_state = get_debt_flow(line_user_id)
 
     if debt_state:
+
         if debt_state.get("step") != "await_image":
             return (
-                "กรุณาระบุจำนวนเงินที่ต้องการชำระก่อนส่งรูปหลักฐานค่ะ"
+                "กรุณาระบุจำนวนเงินที่ต้องการชำระ "
+                "ก่อนส่งรูปหลักฐานค่ะ"
             )
 
         try:
+
             response = httpx.get(
                 (
                     "https://api-data.line.me/v2/bot/message/"
@@ -1695,7 +1967,7 @@ def handle_image_message(message_id, line_user_id):
                         f"Bearer {settings.LINE_BOT_CHANNEL_ACCESS_TOKEN}"
                     )
                 },
-                timeout=20,
+                timeout=20
             )
 
             response.raise_for_status()
@@ -1709,127 +1981,202 @@ def handle_image_message(message_id, line_user_id):
                 user=user,
                 line_user_id=line_user_id,
                 image_bytes=image_bytes,
-                message_id=message_id,
+                message_id=message_id
             )
 
         except httpx.HTTPError as error:
+
             logger.exception(
                 "LINE debt image download failed: %s",
-                error,
+                error
             )
+
             return (
                 "ดาวน์โหลดรูปจาก LINE ไม่สำเร็จค่ะ "
                 "กรุณาส่งรูปอีกครั้ง"
             )
-    # ============================================================        
+
+    # ==================== Savings Check ====================
+
     if get_savings_state(line_user_id):
+
         return (
             "ขณะนี้กำลังทำรายการการออม "
             "กรุณากรอกจำนวนเงินหรือยกเลิกจากการ์ดค่ะ"
         )
 
-    transaction_type = get_record_mode(user)
+    transaction_type = get_record_mode(line_user_id)
 
     if transaction_type not in ("income", "expense"):
+
         return (
             "กรุณากดจดรายรับหรือจดรายจ่าย "
             "จาก Rich Menu ก่อนส่งรูปค่ะ"
         )
 
-    # 1. ดาวน์โหลดรูปจาก LINE
-    response = httpx.get(
-        (
-            "https://api-data.line.me/v2/bot/message/"
-            f"{message_id}/content"
-        ),
-        headers={
-            "Authorization": (
-                f"Bearer {settings.LINE_BOT_CHANNEL_ACCESS_TOKEN}"
-            )
-        },
-        timeout=20
+    # ==================== Download Image ====================
+
+    try:
+
+        response = httpx.get(
+            (
+                "https://api-data.line.me/v2/bot/message/"
+                f"{message_id}/content"
+            ),
+            headers={
+                "Authorization": (
+                    f"Bearer {settings.LINE_BOT_CHANNEL_ACCESS_TOKEN}"
+                )
+            },
+            timeout=20
+        )
+
+        response.raise_for_status()
+
+        image_bytes = response.content
+
+        if len(image_bytes) > 5 * 1024 * 1024:
+            return "รูปภาพใหญ่เกิน 5 MB กรุณาส่งรูปใหม่ค่ะ"
+
+    except httpx.HTTPError as error:
+
+        logger.exception(
+            "LINE transaction image download failed: %s",
+            error
+        )
+
+        return (
+            "ดาวน์โหลดรูปจาก LINE ไม่สำเร็จค่ะ "
+            "กรุณาส่งรูปอีกครั้ง"
+        )
+
+    data = get_pending(
+        line_user_id,
+        user
     )
 
-    response.raise_for_status()
-
-    image_bytes = response.content
-
-    if len(image_bytes) > 5 * 1024 * 1024:
-        return "รูปภาพใหญ่เกิน 5 MB กรุณาส่งรูปใหม่ค่ะ"
-
-    draft = get_pending(line_user_id, user)
     flow = get_transaction_flow(line_user_id)
 
-    # 2. กรณีข้อความมาก่อน แล้วส่งรูปตามมา
+    # ==========================================
+    # 1. ข้อความมาก่อน แล้วส่งรูปตามมา
+    # ==========================================
+
     if (
-        draft is not None
+        data is not None
         and flow
         and flow.get("step") == "await_image"
     ):
-        attach_receipt_to_draft(
-            draft,
+
+        attach_receipt_to_pending(
+            data,
             image_bytes,
             message_id
         )
 
-        return save_draft_now(
-            draft,
-            user,
-            line_user_id
+        set_pending(
+            line_user_id,
+            data
         )
 
-    # 3. กรณีมี Draft ที่รอข้อความ และส่งรูปเพิ่ม
+        set_transaction_flow(
+            line_user_id,
+            {"step": "await_confirmation"}
+        )
+
+        return build_transaction_preview_flex(data)
+
+    # ==========================================
+    # 2. รูปมาก่อน รอข้อความรายละเอียด
+    # ==========================================
+
     if (
-        draft is not None
+        data is not None
         and flow
         and flow.get("step") == "await_note"
     ):
-        attach_receipt_to_draft(
-            draft,
+
+        attach_receipt_to_pending(
+            data,
             image_bytes,
             message_id
+        )
+
+        set_pending(
+            line_user_id,
+            data
         )
 
         return build_image_note_prompt()
 
-    # 4. กรณีส่งรูปมาก่อน สร้าง Draft และรอข้อความ
+    # ==========================================
+    # 3. มีรายการรอยืนยันและส่งรูปเพิ่มเติม
+    # ==========================================
+
+    if (
+        data is not None
+        and flow
+        and flow.get("step") == "await_confirmation"
+    ):
+
+        attach_receipt_to_pending(
+            data,
+            image_bytes,
+            message_id
+        )
+
+        set_pending(
+            line_user_id,
+            data
+        )
+
+        return build_transaction_preview_flex(data)
+
+    # ==========================================
+    # 4. ส่งรูปมาก่อน
+    # ==========================================
+
     now = timezone.localtime()
 
-    draft = TransactionDraft.objects.create(
-        user=user,
-        amount=None,
-        transaction_type=transaction_type,
-        category=find_category(
-            "อื่นๆ",
-            transaction_type,
-            user
-        ),
-        item_name="",
-        description="",
-        transaction_date=now.date(),
-        transaction_time=now.time().replace(microsecond=0),
+    category = find_category(
+        "อื่นๆ",
+        transaction_type,
+        user
     )
 
-    # อัปโหลดรูปและผูกกับ Draft
-    attach_receipt_to_draft(
-        draft,
+    data = {
+        "token": uuid4().hex,
+        "user_id": user.id,
+        "amount": None,
+        "transaction_type": transaction_type,
+        "item_name": "",
+        "description": "",
+        "category_id": category.pk if category else None,
+        "sub_category": "",
+        "account": "",
+        "transaction_date": now.date().isoformat(),
+        "transaction_time": now.time().replace(
+            microsecond=0
+        ).strftime("%H:%M:%S"),
+        "receipt_path": None
+    }
+
+    attach_receipt_to_pending(
+        data,
         image_bytes,
         message_id
     )
 
-    # เก็บ Draft ไว้ใน pending
-    set_pending(line_user_id, draft)
+    set_pending(
+        line_user_id,
+        data
+    )
 
-    # รอรับข้อความรายละเอียดจากผู้ใช้
     set_transaction_flow(
         line_user_id,
-        {
-            "step": "await_note"
-        }
+        {"step": "await_note"}
     )
 
     return build_image_note_prompt()
-
 # ==================== LINE Webhook ====================
 
 @csrf_exempt
