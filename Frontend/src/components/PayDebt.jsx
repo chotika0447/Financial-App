@@ -1,7 +1,5 @@
 import { useEffect, useState, useRef } from "react";
 import { authenticatedFetch as fetch } from "../utils/auth";
-import { useEffect, useState, useRef } from "react";
-import { authenticatedFetch as fetch } from "../utils/auth";
 import {
   X,
   Upload,
@@ -47,9 +45,6 @@ const colorMap = {
 };
 
 function PayDebt({ open, debt, onClose, onSaved }) {
-
-  const isSubmittingRef = useRef(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isSubmittingRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -109,12 +104,6 @@ function PayDebt({ open, debt, onClose, onSaved }) {
     isSubmittingRef.current = true;
     setIsSubmitting(true);
 
-    // ป้องกันการส่ง POST ซ้ำ
-    if (isSubmittingRef.current) return;
-
-    isSubmittingRef.current = true;
-    setIsSubmitting(true);
-
     const formData = new FormData();
 
     formData.append("paid_amount", form.amount);
@@ -149,26 +138,8 @@ function PayDebt({ open, debt, onClose, onSaved }) {
           }
         }
       }
-      const responseText = await response.text();
-      let data = null;
-
-      if (responseText) {
-        try {
-          data = JSON.parse(responseText);
-        } catch {
-          if (response.ok) {
-            throw new Error("เซิร์ฟเวอร์ตอบกลับข้อมูลไม่ถูกต้อง");
-          }
-        }
-      }
 
       if (!response.ok) {
-        const validationMessages =
-          data && typeof data === "object"
-            ? Object.values(data)
-              .flat()
-              .filter((message) => typeof message === "string")
-            : [];
         const validationMessages =
           data && typeof data === "object"
             ? Object.values(data)
@@ -180,14 +151,7 @@ function PayDebt({ open, debt, onClose, onSaved }) {
           data?.detail ||
           validationMessages.join("\n") ||
           `เซิร์ฟเวอร์บันทึกไม่สำเร็จ (HTTP ${response.status})`
-          data?.detail ||
-          validationMessages.join("\n") ||
-          `เซิร์ฟเวอร์บันทึกไม่สำเร็จ (HTTP ${response.status})`
         );
-      }
-
-      if (!data || typeof data !== "object") {
-        throw new Error("เซิร์ฟเวอร์ตอบกลับข้อมูลไม่ถูกต้อง");
       }
 
       if (!data || typeof data !== "object") {
@@ -196,7 +160,6 @@ function PayDebt({ open, debt, onClose, onSaved }) {
 
       // แจ้ง Debts.jsx ว่าบันทึกสำเร็จ
       if (onSaved) {
-        await onSaved(data);
         await onSaved(data);
       }
 
@@ -212,11 +175,6 @@ function PayDebt({ open, debt, onClose, onSaved }) {
 
     } catch (error) {
       console.error("Save payment error:", error);
-      alert(error.message || "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
-
-    } finally {
-      isSubmittingRef.current = false;
-      setIsSubmitting(false);
       alert(error.message || "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
 
     } finally {
@@ -268,7 +226,6 @@ function PayDebt({ open, debt, onClose, onSaved }) {
               ${colorMap[debt?.color] || "bg-gray-300"} `}
           >
             {debt?.image ? (
-              <img src={debt.image} alt={debt.name} className="w-full h-full object-cover" />
               <img src={debt.image} alt={debt.name} className="w-full h-full object-cover" />
             ) : (
               (() => {

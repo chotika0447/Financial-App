@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 
 function WalletCard({
@@ -80,19 +79,6 @@ function WalletCard({
           	แก้ไข
         	</button>
 
-        <button
-          type="button"
-          className="delete-button"
-          onClick={onDelete}
-          disabled={processing}
-        >
-          ลบ
-        </button>
-      </div>
-
-      <p className="wallet-balance">
-        {balance.toLocaleString()} บาท
-      </p>
 			<button
 				type="button"
 				className="delete-button"
@@ -108,9 +94,6 @@ function WalletCard({
         {balance.toLocaleString()} บาท
       	</p>
 
-      <p className="wallet-info">
-        เป้าหมาย: {target.toLocaleString()} บาท
-      </p>
       	<p className="wallet-info">
         เป้าหมาย: {target.toLocaleString()} บาท
       	</p>
@@ -137,16 +120,10 @@ function WalletCard({
         />
       	</div>
 
-      <p className="wallet-info">
-        คงเหลือ: {remaining.toLocaleString()} บาท
-      </p>
       	<p className="wallet-info">
         	คงเหลือ: {remaining.toLocaleString()} บาท
       	</p>
 
-      <p className="wallet-info">
-        วันที่เหลือ: {daysRemaining === null ? '-' : `${daysRemaining} วัน`}
-      </p>
       	<p className="wallet-info">
         	วันที่เหลือ: {daysRemaining === null ? '-' : `${daysRemaining} วัน`}
       	</p>

@@ -1,12 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   ArrowDownCircle,
   ArrowUpCircle,
-  Coffee, ShoppingBag, CarFront, Heart, BookOpen, Wallet,
-  Gift, Sparkles, UtensilsCrossed, BriefcaseBusiness,
-  Banknote, TrendingUp, MoreHorizontal, Phone, House,
-  Zap, HandHeart,
   Coffee, ShoppingBag, CarFront, Heart, BookOpen, Wallet,
   Gift, Sparkles, UtensilsCrossed, BriefcaseBusiness,
   Banknote, TrendingUp, MoreHorizontal, Phone, House,
@@ -23,8 +18,6 @@ import {
 } from 'lucide-react';
 
 import CustomHeader from '../components/CustomHeader';
-import { authenticatedFetch as fetch } from '../utils/auth';
-import { authenticatedFetch as fetch } from '../utils/auth';
 import Navbar from '../components/Navbar';
 import './Transactions.css';
 
@@ -33,12 +26,9 @@ const emptyForm = () => ({
   transaction_type: 'expense',
   amount: '',
   item_name: '',
-  item_name: '',
   category: '',
   // receipt: null,
   account: '',
-  transaction_date: getTodayString(),
-  transaction_time: new Date().toTimeString().slice(0, 5),
   transaction_date: getTodayString(),
   transaction_time: new Date().toTimeString().slice(0, 5),
   description: '',
@@ -67,34 +57,10 @@ const categoryIcons = {
   'โบนัส': Gift, 'รายได้': Wallet, 'ลงทุน': TrendingUp,
 };
 const getCategoryIcon = (name) => categoryIcons[name] || MoreHorizontal;
-const getTodayString = () => {
-  const today = new Date();
-
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-
-  // รูปแบบภายในระบบ: YYYY-MM-DD
-  return `${year}-${month}-${day}`;
-};
-
-
-// Icons are chosen by category name, without changing category IDs from the backend.
-const categoryIcons = {
-  'ของใช้': Coffee, 'ความงาม': ShoppingBag, 'ความบันเทิง': CarFront,
-  'ค่าเช่า': Heart, 'ค่าเดินทาง': BookOpen, 'ค่าโทรศัพท์': Phone,
-  'ค่าน้ำไฟ': Zap, 'ค่าหมอ': Sparkles, 'เครื่องดื่ม': Coffee,
-  'ช้อปปิ้ง': ShoppingBag, 'ซูเปอร์มาร์เก็ต': CarFront,
-  'ทำบุญ': HandHeart, 'อาหาร': UtensilsCrossed, 'อื่นๆ': Wallet,
-  'งานเสริม': BriefcaseBusiness, 'เงินเดือน': Banknote,
-  'โบนัส': Gift, 'รายได้': Wallet, 'ลงทุน': TrendingUp,
-};
-const getCategoryIcon = (name) => categoryIcons[name] || MoreHorizontal;
 
 function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [showMoreCategories, setShowMoreCategories] = useState(false);
   const [showMoreCategories, setShowMoreCategories] = useState(false);
 
   const [loading, setLoading] = useState(true);
@@ -109,15 +75,9 @@ function Transactions() {
   const [period, setPeriod] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [listCategories, setListCategories] = useState([]);
-  const [filterDate, setFilterDate] = useState(getTodayString);
-  const [period, setPeriod] = useState('all');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [listCategories, setListCategories] = useState([]);
   const [showAll, setShowAll] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const initialFormRef = useRef(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const initialFormRef = useRef(null);
   const [editingId, setEditingId] = useState(null);
@@ -128,14 +88,11 @@ function Transactions() {
   // รูปใบเสร็จที่ผู้ใช้เลือกใหม่
   const [receiptFile, setReceiptFile] = useState(null);
   const [removeReceipt, setRemoveReceipt] = useState(false);
-  const [removeReceipt, setRemoveReceipt] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrMessage, setOcrMessage] = useState('');
 
   // URL สำหรับ preview รูป
   const [receiptPreview, setReceiptPreview] = useState('');
-
-  const dateInputRef = useRef(null);
 
   const dateInputRef = useRef(null);
 
@@ -261,68 +218,31 @@ function Transactions() {
 
 
   // เปิดรายการที่บันทึกแล้วจากลิงก์ใน LINE OA
-  // ดึงหมวดหมู่สำหรับตัวกรองรายการ โดยแยกจากหมวดหมู่ในฟอร์ม
   useEffect(() => {
-    if (!accessToken) return;
-    let cancelled = false;
-    async function loadCategories() {
-      try {
-        const types = ['income', 'expense'];
-        const groups = await Promise.all(types.map(async (type) => {
-          const response = await fetch(`/categories/?transaction_type=${type}`, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
-          if (!response.ok) throw new Error('โหลดหมวดหมู่สำหรับตัวกรองไม่สำเร็จ');
-          const data = await response.json();
-          return (Array.isArray(data) ? data : []).map((item) => ({ ...item, transaction_type: type }));
-        }));
-        if (!cancelled) setListCategories(groups.flat());
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    loadCategories();
-    return () => { cancelled = true; };
-  }, [accessToken]);
-
-
-
-
-  // เปิดรายการที่บันทึกแล้วจากลิงก์ใน LINE OA
-  useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get('transaction');
     const id = new URLSearchParams(window.location.search).get('transaction');
     if (!id) return;
     if (!/^\d+$/.test(id)) {
-      setError('ลิงก์รายการไม่ถูกต้อง');
       setError('ลิงก์รายการไม่ถูกต้อง');
       return;
     }
     if (!accessToken) {
       setError('กรุณาเข้าสู่ระบบด้วยบัญชีที่เชื่อมกับ LINE ก่อน');
-      setError('กรุณาเข้าสู่ระบบด้วยบัญชีที่เชื่อมกับ LINE ก่อน');
       return;
     }
 
-
     let cancelled = false;
     async function loadTransaction() {
-    async function loadTransaction() {
       try {
-        const response = await fetch(`/transactions/${id}/`, {
         const response = await fetch(`/transactions/${id}/`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || 'ไม่สามารถโหลดรายการได้');
         if (!cancelled) openEdit(data);
-        if (!response.ok) throw new Error(data.error || 'ไม่สามารถโหลดรายการได้');
-        if (!cancelled) openEdit(data);
       } catch (err) {
         if (!cancelled) setError(err.message);
       }
     }
-    loadTransaction();
     loadTransaction();
     return () => { cancelled = true; };
   }, [accessToken]);
@@ -377,37 +297,6 @@ function Transactions() {
     transaction.transaction_date >= periodRange[0] &&
     transaction.transaction_date <= periodRange[1]
   );
-  const toDate = (value) => new Date(`${value}T12:00:00`);
-  const toISODate = (date) => [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-');
-
-  const selectedDate = toDate(filterDate);
-  const periodRange = useMemo(() => {
-    if (period === 'all') return null;
-    const start = toDate(filterDate);
-    const end = toDate(filterDate);
-    if (period === 'week') {
-      const mondayOffset = (start.getDay() + 6) % 7;
-      start.setDate(start.getDate() - mondayOffset);
-      end.setTime(start.getTime());
-      end.setDate(start.getDate() + 6);
-    } else if (period === 'month') {
-      start.setDate(1);
-      end.setMonth(start.getMonth() + 1, 0);
-    } else if (period === 'year') {
-      start.setMonth(0, 1);
-      end.setMonth(11, 31);
-    }
-    return [toISODate(start), toISODate(end)];
-  }, [period, filterDate]);
-
-  const matchesPeriod = (transaction) => !periodRange || (
-    transaction.transaction_date >= periodRange[0] &&
-    transaction.transaction_date <= periodRange[1]
-  );
 
   // ยอดรวมขึ้นกับช่วงเวลาเท่านั้น ไม่ขึ้นกับประเภท/หมวดหมู่/คำค้นหา
   const summaryTransactions = useMemo(
@@ -421,29 +310,12 @@ function Transactions() {
     return result;
   }, { income: 0, expense: 0 }), [summaryTransactions]);
   const balance = summary.income - summary.expense;
-  // ยอดรวมขึ้นกับช่วงเวลาเท่านั้น ไม่ขึ้นกับประเภท/หมวดหมู่/คำค้นหา
-  const summaryTransactions = useMemo(
-    () => transactions.filter(matchesPeriod),
-    [transactions, periodRange]
-  );
-  const summary = useMemo(() => summaryTransactions.reduce((result, item) => {
-    if (item.transaction_type === 'income' || item.transaction_type === 'expense') {
-      result[item.transaction_type] += Number(item.amount || 0);
-    }
-    return result;
-  }, { income: 0, expense: 0 }), [summaryTransactions]);
-  const balance = summary.income - summary.expense;
-
-  const availableCategories = useMemo(() => listCategories.filter(
-    (item) => filterType === 'all' || item.transaction_type === filterType
-  ), [listCategories, filterType]);
 
   const availableCategories = useMemo(() => listCategories.filter(
     (item) => filterType === 'all' || item.transaction_type === filterType
   ), [listCategories, filterType]);
 
   const filtered = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
     const keyword = search.trim().toLowerCase();
     return transactions.filter((transaction) => {
       const typeMatched = filterType === 'all' || transaction.transaction_type === filterType;
@@ -452,38 +324,16 @@ function Transactions() {
         `${transaction.transaction_type}:${transaction.category}` === filterCategory
       );
       const text = [transaction.item_name, transaction.description, transaction.category_name,
-      transaction.account, transaction.amount].filter(Boolean).join(' ').toLowerCase();
+        transaction.account, transaction.amount].filter(Boolean).join(' ').toLowerCase();
       return typeMatched && dateMatched && categoryMatched && (!keyword || text.includes(keyword));
     });
   }, [transactions, filterType, filterCategory, periodRange, search]);
 
   function changePeriod(next) {
     setPeriod(next);
-  }, [transactions, filterType, filterCategory, periodRange, search]);
-
-  function changePeriod(next) {
-    setPeriod(next);
     setShowAll(false);
   }
 
-  function moveDate(direction) {
-    const date = toDate(filterDate);
-    if (period === 'day') date.setDate(date.getDate() + direction);
-    if (period === 'week') date.setDate(date.getDate() + 7 * direction);
-    if (period === 'month') date.setMonth(date.getMonth() + direction);
-    if (period === 'year') date.setFullYear(date.getFullYear() + direction);
-    setFilterDate(toISODate(date));
-    setShowAll(false);
-  }
-
-  const dateLabel = () => {
-    if (period === 'all') return 'ทุกช่วงเวลา';
-    if (period === 'day') return selectedDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' });
-    if (period === 'week') return `${formatDate(periodRange[0])} – ${formatDate(periodRange[1])}`;
-    if (period === 'month') return selectedDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
-    return selectedDate.toLocaleDateString('th-TH', { year: 'numeric' });
-  };
-  const periodDescription = period === 'all' ? 'ทุกช่วงเวลา' : dateLabel();
   function moveDate(direction) {
     const date = toDate(filterDate);
     if (period === 'day') date.setDate(date.getDate() + direction);
@@ -520,19 +370,11 @@ function Transactions() {
   function openAdd() {
     setEditingId(null);
     setRemoveReceipt(false);
-    setRemoveReceipt(false);
     setError('');
     setSuccess('');
 
     clearReceiptPreview();
     setOcrMessage('');
-    setOcrMessage('');
-
-    const initialForm = emptyForm();
-    initialFormRef.current = initialForm;
-    setForm(initialForm);
-    setShowExitConfirm(false);
-    setShowMoreCategories(false);
     setOcrMessage('');
 
     const initialForm = emptyForm();
@@ -546,7 +388,6 @@ function Transactions() {
 
   function openEdit(transaction) {
     setEditingId(transaction.id);
-    setRemoveReceipt(false);
     setRemoveReceipt(false);
 
     setError('');
@@ -562,7 +403,6 @@ function Transactions() {
     setReceiptFile(null);
     setOcrMessage('');
     setOcrMessage('');
-    setOcrMessage('');
 
     // แสดงรูปเดิมตอนแก้ไข
     setReceiptPreview(
@@ -570,15 +410,11 @@ function Transactions() {
     );
 
     const initialForm = {
-    const initialForm = {
       transaction_type:
         transaction.transaction_type || 'expense',
 
       amount:
         transaction.amount || '',
-
-      item_name:
-        transaction.item_name || '',
 
       item_name:
         transaction.item_name || '',
@@ -604,12 +440,7 @@ function Transactions() {
     initialFormRef.current = initialForm;
     setForm(initialForm);
     setShowExitConfirm(false);
-    };
-    initialFormRef.current = initialForm;
-    setForm(initialForm);
-    setShowExitConfirm(false);
 
-    setShowMoreCategories(false);
     setShowMoreCategories(false);
     setShowModal(true);
   }
@@ -617,23 +448,6 @@ function Transactions() {
 
   function closeModal() {
     if (saving || ocrLoading) return;
-    if (saving || ocrLoading) return;
-
-    // เตือนเฉพาะเมื่อมีการแก้ไขข้อมูลหรือเลือกรูปใหม่
-    const hasChanges =
-      JSON.stringify(form) !== JSON.stringify(initialFormRef.current) ||
-      receiptFile !== null;
-
-    if (hasChanges) {
-      setShowExitConfirm(true);
-      return;
-    }
-
-    discardAndClose();
-  }
-
-  function discardAndClose() {
-    setShowExitConfirm(false);
     if (saving || ocrLoading) return;
 
     // เตือนเฉพาะเมื่อมีการแก้ไขข้อมูลหรือเลือกรูปใหม่
@@ -667,9 +481,6 @@ function Transactions() {
     const url = new URL(window.location.href);
     url.searchParams.delete('transaction');
     window.history.replaceState({}, '', url.pathname + url.search + url.hash);
-    const url = new URL(window.location.href);
-    url.searchParams.delete('transaction');
-    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
   }
 
 
@@ -692,13 +503,8 @@ function Transactions() {
 
   const visibleCategories = categories;
 
-  // เมื่อผู้ใช้กดปุ่มแสกนใบเสร็จ ค่อยเริ่มทำ OCR 
-  async function scanReceipt() {
-    if (!receiptFile) {
-      setOcrMessage('กรุณาอัปโหลดรูปใบเสร็จก่อน');
-      return;
-    }
-
+  // OCR reads a receipt but never saves a transaction automatically.
+  async function scanReceipt(file) {
     setOcrLoading(true);
     setOcrMessage('');
 
@@ -707,105 +513,45 @@ function Transactions() {
       if (!token) throw new Error('กรุณาเข้าสู่ระบบใหม่');
 
       const payload = new FormData();
-      payload.append('image', receiptFile);
+      payload.append('image', file);
 
       const response = await fetch('/transactions/ocr/', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: payload,
       });
-
       const data = await response.json().catch(() => ({}));
-
       if (!response.ok) {
-        throw new Error(
-          response.status === 401
-            ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'
-            : data.error || data.detail ||
-            `อ่านใบเสร็จไม่สำเร็จ (HTTP ${response.status})`
-        );
+        throw new Error(response.status === 401
+          ? 'เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'
+          : data.error || data.detail ||
+          `อ่านใบเสร็จไม่สำเร็จ (HTTP ${response.status})`);
       }
 
-      const note = data.note || {};
+      setForm((current) => {
+        const updated = {
+          ...current,
+          transaction_type: 'expense',
+          account: '',
+        };
 
-      // รับเฉพาะข้อความที่มีอักษรภาษาไทย
-      const getThaiText = (value) => {
-        if (typeof value !== 'string') return '';
-        const text = value.trim();
-        return /[\u0E00-\u0E7F]/.test(text) ? text : '';
-      };
+        if (data.amount != null && Number(data.amount) > 0) {
+          updated.amount = String(data.amount);
+        }
+        if (data.transaction_datetime) {
+          const [date, time] = data.transaction_datetime.split(' ');
+          if (date) updated.transaction_date = date;
+          updated.transaction_time = time?.slice(0, 5) || '';
+        }
+        if (data.memo) {
+          updated.description = data.memo;
+        }
+        return updated;
+      });
 
-      const memo = getThaiText(note.memo);
-      const providerInfo = getThaiText(note.provider_info);
-      const fee = getThaiText(note.fee);
-
-      // ชื่อรายการ: ใช้ MEMO ก่อน ถ้าไม่มีจึงใช้ PROVIDER INFO
-      const itemName = memo || providerInfo;
-
-      // รายละเอียด: MEMO + PROVIDER INFO + FEE + จำนวนเงิน
-      const descriptionParts = [
-        memo,
-        providerInfo,
-        fee,
-      ].filter(Boolean);
-
-      const amount = data.amount != null &&
-        Number.isFinite(Number(data.amount)) &&
-        Number(data.amount) > 0
-        ? String(data.amount)
-        : '';
-
-      if (amount) {
-        descriptionParts.push(
-          Number(amount).toLocaleString('en-US', {
-            maximumFractionDigits: 2,
-          })
-        );
-      }
-
-      // วันที่ต้องเป็น YYYY-MM-DD และเป็นวันที่จริง
-      const isValidDate = (value) => {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
-
-        const date = new Date(`${value}T00:00:00`);
-        return !Number.isNaN(date.getTime()) &&
-          date.toISOString().slice(0, 10) === value;
-      };
-
-      // ใช้เวลาจาก parse_date ก่อน ถ้าไม่มีให้ดึง HH:mm จาก OCR text
-      const ocrText = Array.isArray(data.ocr_text)
-        ? data.ocr_text.join('\n')
-        : '';
-
-      const timeMatch = ocrText.match(
-        /(?:^|\D)([01]?\d|2[0-3]):([0-5]\d)(?:\D|$)/
-      );
-
-      const scannedTime =
-        /^\d{2}:\d{2}$/.test(data.time || '')
-          ? data.time
-          : timeMatch
-            ? `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`
-            : '';
-
-      setForm((current) => ({
-        ...current,
-        ...(itemName ? { item_name: itemName } : {}),
-        ...(amount ? { amount } : {}),
-        ...(isValidDate(data.date) ? {
-          transaction_date: data.date,
-        } : {}),
-        ...(scannedTime ? {
-          transaction_time: scannedTime,
-        } : {}),
-        ...(descriptionParts.length ? {
-          description: descriptionParts.join(' ').slice(0, 100),
-        } : {}),
-      }));
-
-      setOcrMessage(
-        'อ่านข้อมูลจากใบเสร็จแล้ว กรุณาตรวจสอบข้อมูลก่อนบันทึก'
-      );
+      setOcrMessage(data.amount_status === 'estimated_from_items'
+        ? 'OCR ประมาณยอดจากรายการสินค้า กรุณาตรวจสอบก่อนบันทึก'
+        : 'อ่านใบเสร็จแล้ว กรุณาตรวจสอบยอดเงินและวันที่ก่อนบันทึก');
     } catch (err) {
       setOcrMessage(err.message);
     } finally {
@@ -818,44 +564,54 @@ function Transactions() {
 
     if (!file) return;
 
-    const allowedExtensions = ['jpg', 'jpeg', 'png'];
-    const extension = file.name.split('.').pop().toLowerCase();
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+    ];
 
-    if (!allowedExtensions.includes(extension)) {
-      setError('รองรับเฉพาะไฟล์ JPG, JPEG และ PNG เท่านั้น');
+    if (!allowedTypes.includes(file.type)) {
+      setError(
+        'กรุณาเลือกไฟล์ JPG หรือ PNG เท่านั้น'
+      );
+
       event.target.value = '';
       return;
     }
 
-    if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      setError('ประเภทไฟล์ไม่ถูกต้อง กรุณาเลือกไฟล์ JPG, JPEG หรือ PNG');
-      event.target.value = '';
-      return;
-    }
-
-    const maxSize = 5 * 1024 * 1024;
+    const maxSize =
+      5 * 1024 * 1024;
 
     if (file.size > maxSize) {
-      setError('รูปใบเสร็จต้องมีขนาดไม่เกิน 5 MB');
+      setError(
+        'รูปใบเสร็จต้องมีขนาดไม่เกิน 5 MB'
+      );
+
       event.target.value = '';
       return;
     }
 
-    if (receiptPreview && receiptPreview.startsWith('blob:')) {
+    if (
+      receiptPreview &&
+      receiptPreview.startsWith('blob:')
+    ) {
       URL.revokeObjectURL(receiptPreview);
     }
 
     setError('');
     setReceiptFile(file);
     setRemoveReceipt(false);
-    setRemoveReceipt(false);
 
-    setReceiptPreview(URL.createObjectURL(file));
+    setReceiptPreview(
+      URL.createObjectURL(file)
+    );
 
+    // OCR เฉพาะตอนเพิ่มรายการใหม่
+    // ถ้าแก้ไขรายการเดิม ให้แนบรูปอย่างเดียว
+    if (!editingId) {
+      scanReceipt(file);
+    }
   }
-
   function removeSelectedReceipt() {
-    setOcrMessage('');
     setOcrMessage('');
     setOcrMessage('');
     if (
@@ -868,8 +624,8 @@ function Transactions() {
     setReceiptFile(null);
     setReceiptPreview('');
     setRemoveReceipt(true);
-    setRemoveReceipt(true);
   }
+
 
   async function submit(event) {
     event.preventDefault();
@@ -902,8 +658,6 @@ function Transactions() {
       'amount',
       form.amount
     );
-
-    payload.append('item_name', form.item_name.trim());
 
     payload.append('item_name', form.item_name.trim());
 
@@ -948,23 +702,15 @@ function Transactions() {
       payload.append('remove_receipt', 'true');
     }
 
-    if (editingId && removeReceipt && !receiptFile) {
-      payload.append('remove_receipt', 'true');
-    }
-
     try {
       setSaving(true);
       setError('');
       setSuccess('');
 
       const wasEditing = Boolean(editingId);
-      const wasEditing = Boolean(editingId);
       const response = await fetch(
         editingId ? `/transactions/${editingId}/` : '/transactions/',
-        editingId ? `/transactions/${editingId}/` : '/transactions/',
         {
-          method: editingId ? 'PATCH' : 'POST',
-          headers: { Authorization: `Bearer ${accessToken}` },
           method: editingId ? 'PATCH' : 'POST',
           headers: { Authorization: `Bearer ${accessToken}` },
           body: payload,
@@ -1004,11 +750,7 @@ function Transactions() {
       const url = new URL(window.location.href);
       url.searchParams.delete('transaction');
       window.history.replaceState({}, '', url.pathname + url.search + url.hash);
-      const url = new URL(window.location.href);
-      url.searchParams.delete('transaction');
-      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
       setShowModal(false);
-      setShowExitConfirm(false);
       setShowExitConfirm(false);
       setEditingId(null);
 
@@ -1023,7 +765,6 @@ function Transactions() {
       setReceiptPreview('');
 
       setSuccess(wasEditing ? 'แก้ไขรายการเรียบร้อยแล้ว' : 'เพิ่มรายการเรียบร้อยแล้ว');
-      setSuccess(wasEditing ? 'แก้ไขรายการเรียบร้อยแล้ว' : 'เพิ่มรายการเรียบร้อยแล้ว');
 
       await fetchTransactions();
     } catch (err) {
@@ -1036,7 +777,6 @@ function Transactions() {
 
   async function remove(transaction) {
     const label =
-      transaction.item_name ||
       transaction.item_name ||
       transaction.category_name ||
       'รายการนี้';
@@ -1106,7 +846,6 @@ function Transactions() {
             <div>
               <span>
                 {period === 'all' ? 'รายรับทั้งหมด' : 'รายรับในช่วงที่เลือก'}
-                {period === 'all' ? 'รายรับทั้งหมด' : 'รายรับในช่วงที่เลือก'}
               </span>
 
               <strong>
@@ -1123,7 +862,6 @@ function Transactions() {
 
             <div>
               <span>
-                {period === 'all' ? 'รายจ่ายทั้งหมด' : 'รายจ่ายในช่วงที่เลือก'}
                 {period === 'all' ? 'รายจ่ายทั้งหมด' : 'รายจ่ายในช่วงที่เลือก'}
               </span>
 
@@ -1142,7 +880,6 @@ function Transactions() {
             <span>คงเหลือสุทธิ</span>
 
             <p>
-              {period === 'all' ? 'รายรับทั้งหมด - รายจ่ายทั้งหมด' : `ยอดช่วง ${periodDescription}`}
               {period === 'all' ? 'รายรับทั้งหมด - รายจ่ายทั้งหมด' : `ยอดช่วง ${periodDescription}`}
             </p>
           </div>
@@ -1193,71 +930,13 @@ function Transactions() {
 
 
           <div className="transaction-period-tabs" aria-label="เลือกช่วงเวลา">
-          <div className="transaction-period-tabs" aria-label="เลือกช่วงเวลา">
             {[
-              ['all', 'ทั้งหมด'], ['day', 'รายวัน'], ['week', 'สัปดาห์'],
-              ['month', 'เดือน'], ['year', 'ปี'],
               ['all', 'ทั้งหมด'], ['day', 'รายวัน'], ['week', 'สัปดาห์'],
               ['month', 'เดือน'], ['year', 'ปี'],
             ].map(([value, label]) => (
               <button type="button" key={value}
                 className={period === value ? 'active' : ''}
                 onClick={() => changePeriod(value)}>{label}</button>
-              <button type="button" key={value}
-                className={period === value ? 'active' : ''}
-                onClick={() => changePeriod(value)}>{label}</button>
-            ))}
-          </div>
-
-          {period !== 'all' && (
-            <div className="transaction-date-filter">
-              <div className="date-navigation">
-                <button type="button" className="date-arrow" onClick={() => moveDate(-1)} aria-label="ช่วงเวลาก่อนหน้า">‹</button>
-                <div className="date-picker-column">
-                  {period === 'day' && filterDate === getTodayString() && <span className="today-badge">วันนี้</span>}
-                  <button type="button" className="date-picker-trigger" onClick={() => {
-                    if (period === 'year') {
-                      const value = window.prompt('ระบุปี พ.ศ. ที่ต้องการดู เช่น 2569', String(selectedDate.getFullYear() + 543));
-                      if (value === null) return;
-                      const year = Number(value);
-                      if (!/^\d{4}$/.test(value.trim()) || year < 2443 || year > 2743) {
-                        window.alert('กรุณาระบุปี พ.ศ. 4 หลัก ระหว่าง 2443–2743');
-                        return;
-                      }
-                      setFilterDate(`${year - 543}-01-01`);
-                      setShowAll(false);
-                    } else if (dateInputRef.current?.showPicker) dateInputRef.current.showPicker();
-                    else dateInputRef.current?.click();
-                  }} aria-label="เลือกช่วงเวลา">
-                    <CalendarDays size={17} /><strong>{dateLabel()}</strong>
-                  </button>
-                  <input ref={dateInputRef} type={period === 'month' ? 'month' : 'date'}
-                    className="date-picker-hidden-input" aria-label="เลือกวันที่ เดือน หรือปี"
-                    value={period === 'month' ? filterDate.slice(0, 7) : filterDate}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      if (!value) return;
-                      if (period === 'year') {
-                        if (!/^\d{4}$/.test(value)) return;
-                        setFilterDate(`${value}-01-01`);
-                      } else if (period === 'month') setFilterDate(`${value}-01`);
-                      else setFilterDate(value);
-                      setShowAll(false);
-                    }} tabIndex={-1} />
-                </div>
-                <button type="button" className="date-arrow" onClick={() => moveDate(1)} aria-label="ช่วงเวลาถัดไป">›</button>
-              </div>
-            </div>
-          )}
-
-          <div className="transaction-tabs">
-            {[
-              ['all', 'ทุกประเภท'], ['income', 'รายรับ'], ['expense', 'รายจ่าย'],
-            ].map(([value, label]) => (
-              <button type="button" key={value} className={filterType === value ? 'active' : ''}
-                onClick={() => { setFilterType(value); setFilterCategory('all'); setShowAll(false); }}>
-                {label}
-              </button>
             ))}
           </div>
 
@@ -1326,7 +1005,6 @@ function Transactions() {
 
               <h2>
                 {period === 'all' ? 'รายการธุรกรรม' : `รายการช่วง ${periodDescription}`}
-                {period === 'all' ? 'รายการธุรกรรม' : `รายการช่วง ${periodDescription}`}
               </h2>
 
               <p>
@@ -1342,20 +1020,9 @@ function Transactions() {
                 onClick={() => {
                   // แสดงรายการทั้งหมดโดยไม่เปลี่ยนวันที่หรือตัวกรอง
                   setShowAll((current) => !current);
-                  // แสดงรายการทั้งหมดโดยไม่เปลี่ยนวันที่หรือตัวกรอง
-                  setShowAll((current) => !current);
                 }}
               >
                 {showAll ? 'แสดงน้อยลง' : 'แสดงทั้งหมด ›'}
-                {showAll ? 'แสดงน้อยลง' : 'แสดงทั้งหมด ›'}
-              </button>
-              <button
-                type="button"
-                className="desktop-add-button"
-                onClick={openAdd}
-              >
-                <Plus size={17} />
-                เพิ่มรายการ
               </button>
               <button
                 type="button"
@@ -1415,7 +1082,6 @@ function Transactions() {
 
                 const name =
                   transaction.item_name ||
-                  transaction.item_name ||
                   transaction.category_name ||
                   (income
                     ? 'รายรับ'
@@ -1435,10 +1101,6 @@ function Transactions() {
                         }`
                       }
                     >
-                      {(() => {
-                        const CategoryIcon = getCategoryIcon(transaction.category_name);
-                        return <CategoryIcon size={22} strokeWidth={1.8} />;
-                      })()}
                       {(() => {
                         const CategoryIcon = getCategoryIcon(transaction.category_name);
                         return <CategoryIcon size={22} strokeWidth={1.8} />;
@@ -1695,21 +1357,6 @@ function Transactions() {
                 />
               </div>
 
-              {/* ชื่อรายการแยกจากรายละเอียดที่ใช้จดโน้ต */}
-              <div className="form-group full">
-                <label htmlFor="item_name">ชื่อรายการ *</label>
-                <input
-                  id="item_name"
-                  name="item_name"
-                  type="text"
-                  maxLength={200}
-                  placeholder="เช่น ชาเขียว"
-                  value={form.item_name}
-                  onChange={change}
-                  required
-                />
-              </div>
-
               {/* จำนวนเงิน */}
               <div className="form-group full">
 
@@ -1733,9 +1380,7 @@ function Transactions() {
 
 
               {/* หมวดหมู่ที่กำหนดไว้ในระบบเท่านั้น */}
-              {/* หมวดหมู่ที่กำหนดไว้ในระบบเท่านั้น */}
               <div className="form-group full">
-                <label>หมวดหมู่ *</label>
                 <label>หมวดหมู่ *</label>
                 <div className="category-choice-list">
                   {visibleCategories.map((category) => {
@@ -1751,19 +1396,20 @@ function Transactions() {
                     );
                   })}
                   {categories.length === 0 && <span>ยังไม่มีหมวดหมู่</span>}
-                  {visibleCategories.map((category) => {
-                    const CategoryIcon = getCategoryIcon(category.name);
-                    return (
-                      <button key={category.id} type="button"
-                        aria-pressed={String(form.category) === String(category.id)}
-                        className={String(form.category) === String(category.id) ? 'active' : ''}
-                        onClick={() => setForm((current) => ({ ...current, category: category.id }))}>
-                        <CategoryIcon size={22} strokeWidth={1.8} />
-                        <span>{category.name}</span>
-                      </button>
-                    );
-                  })}
-                  {categories.length === 0 && <span>ยังไม่มีหมวดหมู่</span>}
+                </div>
+                <label>หมวดหมู่</label>
+                <div className="category-choice-list">
+                  {categories.map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      className={String(form.category) === String(category.id) ? 'active' : ''}
+                      onClick={() => setForm({ ...form, category: category.id })}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                  {categories.length === 0 && <span>ยังไม่มีหมวดหมู่ให้เลือก</span>}
                 </div>
               </div>
 
@@ -1823,14 +1469,7 @@ function Transactions() {
 
 
               {/* รายละเอียด พร้อมตัวนับอักษร */}
-              {/* รายละเอียด พร้อมตัวนับอักษร */}
               <div className="form-group full">
-                <div className="description-label-row">
-                  <label htmlFor="description">รายละเอียด</label>
-                  <span>{form.description.length}/100</span>
-                </div>
-                <input id="description" name="description" maxLength={100}
-                  placeholder="เช่น ข้าวกลางวัน" value={form.description} onChange={change} />
                 <div className="description-label-row">
                   <label htmlFor="description">รายละเอียด</label>
                   <span>{form.description.length}/100</span>
@@ -1844,7 +1483,6 @@ function Transactions() {
 
                 <label htmlFor="receipt">
                   รูปใบเสร็จ
-                  รูปใบเสร็จ
                 </label>
 
 
@@ -1856,14 +1494,12 @@ function Transactions() {
                   >
 
                     <Upload size={28} strokeWidth={2} className="receipt-upload-icon" />
-                    <Upload size={28} strokeWidth={2} className="receipt-upload-icon" />
 
                     <strong>
                       เลือกรูปใบเสร็จ
                     </strong>
 
                     <span>
-                      JPG หรือ PNG ขนาดไม่เกิน 5 MB
                       JPG หรือ PNG ขนาดไม่เกิน 5 MB
                     </span>
 
@@ -1899,24 +1535,6 @@ function Transactions() {
                         ลบรูป
                       </button>
 
-                      {receiptFile && (
-                        <button
-                          type="button"
-                          className="receipt-scan-button"
-                          onClick={scanReceipt}
-                          disabled={ocrLoading || saving}
-                        >
-                          {ocrLoading ? (
-                            <>
-                              <LoaderCircle size={15} className="transaction-spinner" />
-                              กำลังสแกน...
-                            </>
-                          ) : (
-                            'สแกนข้อความจากใบเสร็จ'
-                          )}
-                        </button>
-                      )}
-
                     </div>
 
                   </div>
@@ -1927,8 +1545,10 @@ function Transactions() {
                 <input
                   id="receipt"
                   type="file"
-                  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                  onChange={handleReceiptChange}
+                  accept="image/jpeg,image/png"
+                  onChange={
+                    handleReceiptChange
+                  }
                   className="receipt-file-input"
                   disabled={ocrLoading}
                 />
@@ -1968,7 +1588,6 @@ function Transactions() {
                   )}
 
                   {saving ? 'กำลังบันทึก...' : editingId ? 'บันทึกการแก้ไข' : 'เพิ่มรายการ'}
-                  {saving ? 'กำลังบันทึก...' : editingId ? 'บันทึกการแก้ไข' : 'เพิ่มรายการ'}
 
                 </button>
 
@@ -1982,32 +1601,6 @@ function Transactions() {
 
       )}
 
-
-      {/* ยืนยันก่อนปิดฟอร์มที่มีข้อมูลยังไม่ได้บันทึก */}
-      {showExitConfirm && (
-        <div className="transaction-exit-overlay" role="presentation">
-          <div
-            className="transaction-exit-dialog"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="transaction-exit-title"
-            aria-describedby="transaction-exit-description"
-          >
-            <h3 id="transaction-exit-title">ต้องการออกจากหน้าต่างหรือไม่?</h3>
-            <p id="transaction-exit-description">
-              หากปิดหน้าต่างนี้ ข้อมูลที่กรอกไว้จะไม่ถูกบันทึก
-            </p>
-            <div className="transaction-exit-actions">
-              <button type="button" onClick={() => setShowExitConfirm(false)}>
-                ยกเลิก
-              </button>
-              <button type="button" className="exit-confirm-button" onClick={discardAndClose}>
-                ออกจากหน้าต่าง
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ยืนยันก่อนปิดฟอร์มที่มีข้อมูลยังไม่ได้บันทึก */}
       {showExitConfirm && (

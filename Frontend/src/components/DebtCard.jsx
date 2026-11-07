@@ -12,8 +12,6 @@ import {
   Pencil,
   Trash2,
   BellRing
-  Trash2,
-  BellRing
 } from "lucide-react";
 
 const iconMap = {
@@ -43,13 +41,8 @@ const colorMap = {
 };
 
 function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDelete, onSendReminder, sendingReminderId }) {
-function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDelete, onSendReminder, sendingReminderId }) {
 
   const isBorrow = debt.type === "borrowed";
-
-  // แปลงยอดเงินเป็นตัวเลข
-  const totalAmount = Number(debt.total_amount) || 0;
-  const remainingAmount = Number(debt.remaining_amount) || 0;
 
   // แปลงยอดเงินเป็นตัวเลข
   const totalAmount = Number(debt.total_amount) || 0;
@@ -144,30 +137,10 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
                   }
                 </span>
               </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-baseline gap-x-1">
-                <h3 className="font-bold text-[12px] text-gray-900">
-                  {debt.name}
-                </h3>
-
-                <span className="text-[9px] text-gray-500">
-                  | ครบกำหนด: {
-                    debt.payment_type === "monthly"
-                      ? (debt.current_due_date || debt.due_date)
-                      : debt.due_date
-                  }
-                </span>
-              </div>
               {/* หมวดหมู่หนี้สิน */}
-              <span className="inline-block mt-1 mr-1 px-2 py-[1px] text-[9px] rounded-full border border-pink-300 text-pink-500">
               <span className="inline-block mt-1 mr-1 px-2 py-[1px] text-[9px] rounded-full border border-pink-300 text-pink-500">
                 {debt.payment_type === "monthly" ? "รายเดือน" : "ทยอยจ่าย"}
               </span>
-              {debt.counterparty && (
-                <span className="inline-block mt-1 px-2 py-[1px] text-[9px] rounded-full border border-green-500 text-green-600">
-                  ผูกบัญชีเพื่อน
-                </span>
-              )}
               {debt.counterparty && (
                 <span className="inline-block mt-1 px-2 py-[1px] text-[9px] rounded-full border border-green-500 text-green-600">
                   ผูกบัญชีเพื่อน
@@ -186,14 +159,8 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
           {/* Counterparty */}
           <p className="text-[9px] text-gray-500 mt-1">
             {debt.type === "borrowed" ? "เจ้าหนี้:" : "ลูกหนี้:"} {debt.counterparty_name}
-            {debt.type === "borrowed" ? "เจ้าหนี้:" : "ลูกหนี้:"} {debt.counterparty_name}
           </p>
 
-          {debt.note?.trim() && (
-            <p className="text-[9px] text-gray-500">
-              หมายเหตุ: {debt.note}
-            </p>
-          )}
           {debt.note?.trim() && (
             <p className="text-[9px] text-gray-500">
               หมายเหตุ: {debt.note}
@@ -263,10 +230,6 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
           onClick={() => onDelete?.(debt)}
           aria-label={`ลบรายการ ${debt.name}`}
           title="ลบรายการหนี้"
-          type="button"
-          onClick={() => onDelete?.(debt)}
-          aria-label={`ลบรายการ ${debt.name}`}
-          title="ลบรายการหนี้"
           className="
             w-[30px]
             h-[30px]
@@ -281,21 +244,6 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
         >
           <Trash2 size={15} />
         </button>
-
-        {/* ส่งแจ้งเตือนชำระหนี้ไปยัง LINE ของเพื่อน */}
-        {!isBorrow && debt.counterparty && (
-          <button
-            type="button"
-            onClick={() => onSendReminder?.(debt)}
-            disabled={sendingReminderId === debt.id}
-            aria-label={`ส่งแจ้งเตือนชำระหนี้ ${debt.name} ทาง LINE`}
-            title="ส่งแจ้งเตือนชำระหนี้ทาง LINE"
-            className="h-[30px] px-2 border border-green-500 rounded-md flex items-center justify-center gap-1 text-green-700 text-[10px] whitespace-nowrap disabled:opacity-50"
-          >
-            <BellRing size={13} />
-            {sendingReminderId === debt.id ? "กำลังส่ง..." : "ส่งเตือน LINE"}
-          </button>
-        )}
 
         {/* ส่งแจ้งเตือนชำระหนี้ไปยัง LINE ของเพื่อน */}
         {!isBorrow && debt.counterparty && (
@@ -345,13 +293,17 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
               ดูประวัติการได้รับเงินคืน
             </button>
           <div className="flex flex-1 h-[30px] gap-2">
-            <button
-              onClick={onViewHistory}
-              className="flex-1 border border-gray-300 rounded-md text-[11px] text-gray-600 bg-white"
-            >
+            <button onClick={onViewHistory} className="flex-1 border border-gray-300 rounded-md text-[11px] text-gray-600 bg-white">
               ดูประวัติการได้รับเงินคืน
             </button>
 
+            <button
+              onClick={onPayment}
+              className="flex-1 rounded-md bg-green-500 text-white text-[11px] font-medium"
+            >
+              บันทึกการได้รับเงินคืน
+            </button>
+          </div>
             <button
               onClick={onPayment}
               className="flex-1 rounded-md bg-green-500 text-white text-[11px] font-medium"

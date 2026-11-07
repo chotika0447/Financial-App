@@ -13,12 +13,9 @@ import {
   ArrowUpDown,
   ArrowDown,
   ArrowUp,
-  ArrowDown,
-  ArrowUp,
   Plus,
   X,
 } from "lucide-react";
-import { authenticatedFetch as fetch } from '../utils/auth';
 import { authenticatedFetch as fetch } from '../utils/auth';
 
 function Debts() {
@@ -44,13 +41,6 @@ function Debts() {
   // แสดง/ซ่อนเมนูเรียงลำดับ
   const [showSortMenu, setShowSortMenu] = useState(false);
 
-  // คำค้นหาและรูปแบบการเรียงรายการหนี้
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState("newest");
-  const [sortDirection, setSortDirection] = useState("desc");
-  // แสดง/ซ่อนเมนูเรียงลำดับ
-  const [showSortMenu, setShowSortMenu] = useState(false);
-
   // รายชื่อเพื่อนจาก Backend
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(true);
@@ -59,10 +49,6 @@ function Debts() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [openingLinkedDebt, setOpeningLinkedDebt] = useState(false);
 
-  const [activeStatus, setActiveStatus] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("tab") === "paid" ? "paid" : "ongoing";
-  });
   const [activeStatus, setActiveStatus] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get("tab") === "paid" ? "paid" : "ongoing";
@@ -125,33 +111,6 @@ function Debts() {
     });
 
     if (loading) return;
-    const requestedTab = searchParams.get("tab");
-    const requestedType = searchParams.get("type");
-    const view = searchParams.get("view");
-
-    console.log("LINE DEBT LINK DEBUG:", {
-      fullUrl: window.location.href,
-      search: window.location.search,
-      debtId,
-      requestedTab,
-      view,
-    });
-
-    if (loading) return;
-
-    // เปิดแท็บให้คนอื่นยืม
-    if (requestedType === "lend") {
-      setActiveTab("lend");
-      setActiveStatus("ongoing");
-      setShowDebtPay(false);
-      setShowDebtHistory(false);
-      setSelectedDebt(null);
-
-      setSearchParams({}, { replace: true });
-      return;
-    }
-
-    if (!debtId) return;
 
     // เปิดแท็บให้คนอื่นยืม
     if (requestedType === "lend") {
@@ -184,7 +143,6 @@ function Debts() {
     }
 
     // เลือกประเภทรายการให้ตรงกับหนี้
-    // เลือกประเภทรายการให้ตรงกับหนี้
     setActiveTab(
       targetDebt.type === "borrowed" ? "borrow" : "lend"
     );
@@ -199,24 +157,7 @@ function Debts() {
       setSelectedDebt(targetDebt);
       setShowDebtPay(false);
       setShowDebtHistory(true);
-    if (requestedTab === "paid") {
-      setActiveStatus("paid");
-      setShowDebtPay(false);
-      setShowDebtHistory(false);
-      setSelectedDebt(null);
 
-    } else if (view === "payment_history") {
-      setSelectedDebt(targetDebt);
-      setShowDebtPay(false);
-      setShowDebtHistory(true);
-
-    } else {
-      setSelectedDebt(targetDebt);
-      setShowDebtHistory(false);
-      setShowDebtPay(true);
-    }
-
-    // ล้าง query string หลังจัดการลิงก์แล้ว
     } else {
       setSelectedDebt(targetDebt);
       setShowDebtHistory(false);
@@ -227,7 +168,6 @@ function Debts() {
     setSearchParams({}, { replace: true });
 
   }, [debts, loading, searchParams, setSearchParams]);
-
 
 
   //useEffect สำหรับดึงรายชื่อเพื่อน
@@ -536,77 +476,9 @@ function Debts() {
 
   // แยกตามประเภทหนี้หลังจากเลือกสถานะแล้ว
   const borrowDebts = statusFilteredDebts.filter(
-
-  const handleSendDebtReminder = async (debt) => {
-    const confirmed = window.confirm(
-      `ต้องการส่งแจ้งเตือนชำระหนี้ "${debt.name}" ` +
-      `ไปยัง LINE ของ ${debt.counterparty_name} ทันทีหรือไม่?`
-    );
-
-    if (!confirmed) return;
-
-    const accessToken = sessionStorage.getItem("accessToken");
-
-    if (!accessToken) {
-      alert("ไม่พบข้อมูลการเข้าสู่ระบบ");
-      return;
-    }
-
-    setSendingReminderId(debt.id);
-
-    try {
-      const response = await fetch(
-        `/debts/${debt.id}/send-reminder/`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.detail || "ไม่สามารถส่งแจ้งเตือน LINE ได้"
-        );
-      }
-
-      alert(data.detail || "ส่งแจ้งเตือน LINE สำเร็จ");
-    } catch (error) {
-      console.error("Send debt reminder error:", error);
-      alert(error.message || "เกิดข้อผิดพลาดในการส่งแจ้งเตือน");
-    } finally {
-      setSendingReminderId(null);
-    }
-  };
-
-  // แยกรายการหนี้ตามสถานะการชำระ
-  const ongoingDebts = debts.filter(
-    (debt) =>
-      debt.status === "ongoing" &&
-      Number(debt.remaining_amount) > 0
-  );
-
-  const paidDebts = debts.filter(
-    (debt) =>
-      debt.status === "paid" ||
-      Number(debt.remaining_amount) <= 0
-  );
-
-  // กรองรายการตามแท็บสถานะที่เลือก
-  const statusFilteredDebts =
-    activeStatus === "ongoing"
-      ? ongoingDebts
-      : paidDebts;
-
-  // แยกตามประเภทหนี้หลังจากเลือกสถานะแล้ว
-  const borrowDebts = statusFilteredDebts.filter(
     (debt) => debt.type === "borrowed"
   );
 
-  const lendDebts = statusFilteredDebts.filter(
   const lendDebts = statusFilteredDebts.filter(
     (debt) => debt.type === "lent"
   );
@@ -616,91 +488,6 @@ function Debts() {
       ? borrowDebts
       : lendDebts;
 
-  // ค้นหาด้วยชื่อรายการ และเรียงตามเงื่อนไขที่เลือก
-  const filteredDebtsList = [...currentDebtsList]
-    .filter((debt) =>
-      String(debt.name ?? "")
-        .toLocaleLowerCase("th")
-        .includes(searchTerm.trim().toLocaleLowerCase("th"))
-    )
-
-    .sort((a, b) => {
-      // วันที่ครบกำหนดที่ไม่มีค่า หรือไม่ใช่วันที่ที่ถูกต้อง
-      // จะถูกจัดไว้ท้ายรายการเสมอ
-      if (sortBy === "dueDate") {
-        const getDueDate = (debt) => {
-          if (!debt.due_date) return null;
-
-          const timestamp = new Date(debt.due_date).getTime();
-          return Number.isNaN(timestamp) ? null : timestamp;
-        };
-
-        const dateA = getDueDate(a);
-        const dateB = getDueDate(b);
-
-        if (dateA === null && dateB === null) return 0;
-        if (dateA === null) return 1;
-        if (dateB === null) return -1;
-
-        // ใกล้ไปไกล = น้อยไปมาก
-        const comparison = dateA - dateB;
-
-        return sortDirection === "asc"
-          ? comparison
-          : -comparison;
-      }
-
-      let comparison = 0;
-
-      switch (sortBy) {
-        case "newest": {
-          const dateA = new Date(a.created_at || 0).getTime();
-          const dateB = new Date(b.created_at || 0).getTime();
-
-          comparison =
-            dateA !== dateB
-              ? dateB - dateA
-              : Number(b.id) - Number(a.id);
-          break;
-        }
-
-        case "amount":
-          comparison =
-            Number(b.total_amount || 0) -
-            Number(a.total_amount || 0);
-          break;
-
-        case "remaining":
-          comparison =
-            Number(b.remaining_amount || 0) -
-            Number(a.remaining_amount || 0);
-          break;
-
-        default:
-          comparison = 0;
-      }
-
-      return sortDirection === "desc"
-        ? comparison
-        : -comparison;
-    });
-
-
-  // ยอดที่ต้องจ่ายคืน: รวมเฉพาะหนี้ที่ยังดำเนินการอยู่ทั้งหมด
-  const totalBorrow = ongoingDebts
-    .filter((debt) => debt.type === "borrowed")
-    .reduce(
-      (sum, debt) => sum + Number(debt.remaining_amount || 0),
-      0
-    );
-
-  // ยอดที่ต้องได้รับคืน: รวมเฉพาะหนี้ที่ยังดำเนินการอยู่ทั้งหมด
-  const totalLend = ongoingDebts
-    .filter((debt) => debt.type === "lent")
-    .reduce(
-      (sum, debt) => sum + Number(debt.remaining_amount || 0),
-      0
-    );
   // ค้นหาด้วยชื่อรายการ และเรียงตามเงื่อนไขที่เลือก
   const filteredDebtsList = [...currentDebtsList]
     .filter((debt) =>
@@ -843,7 +630,6 @@ function Debts() {
   };
   return (
     <div className="debts-page pb-20">
-
 
 
       <CustomHeader title="หนี้สินและการให้ยืม" color="var(--color-debts)" />
@@ -1057,7 +843,6 @@ function Debts() {
         <div className="bg-white px-5 py-3">
           <div className="flex items-center gap-2">
             {/* ช่องค้นหา */}
-            {/* ช่องค้นหา */}
             <div className="relative flex-1">
               <Search
                 size={16}
@@ -1071,22 +856,11 @@ function Debts() {
                 placeholder="ค้นหาชื่อรายการหนี้..."
                 aria-label="ค้นหาชื่อรายการหนี้"
                 className="w-full h-9 rounded-full border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-gray-500 "
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="ค้นหาชื่อรายการหนี้..."
-                aria-label="ค้นหาชื่อรายการหนี้"
-                className="w-full h-9 rounded-full border border-gray-300 pl-8 pr-3 text-sm outline-none focus:border-gray-500 "
               />
             </div>
 
             {/* ปุ่มเปิดเมนูเรียงลำดับ */}
-            {/* ปุ่มเปิดเมนูเรียงลำดับ */}
             <button
-              type="button"
-              onClick={() => setShowSortMenu((prev) => !prev)}
-              aria-label="เลือกวิธีเรียงรายการหนี้"
-              aria-expanded={showSortMenu}
-              className=" h-9 px-3 rounded-md border border-gray-300 flex items-center justify-center gap-1 bg-white hover:bg-gray-100 "
               type="button"
               onClick={() => setShowSortMenu((prev) => !prev)}
               aria-label="เลือกวิธีเรียงรายการหนี้"
@@ -1095,103 +869,9 @@ function Debts() {
             >
               <ArrowUpDown size={16} />
               <span className="text-xs">เรียง</span>
-              <ArrowUpDown size={16} />
-              <span className="text-xs">เรียง</span>
             </button>
           </div>
-          </div>
 
-          {/* เมนูตัวเลือกการเรียง */}
-          {showSortMenu && (
-            <div className="mt-2 rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-              {[
-                { value: "newest", label: "วันที่สร้าง" },
-                { value: "amount", label: "ยอดหนี้ทั้งหมด" },
-                { value: "remaining", label: "ยอดหนี้คงเหลือ" },
-                { value: "dueDate", label: "วันครบกำหนด" },
-              ].map((option) => {
-                const isSelected = sortBy === option.value;
-
-                const directionLabel =
-                  option.value === "newest"
-                    ? sortDirection === "desc"
-                      ? "ใหม่ไปเก่า"
-                      : "เก่าไปใหม่"
-                    : option.value === "dueDate"
-                      ? sortDirection === "asc"
-                        ? "ใกล้ไปไกล"
-                        : "ไกลไปใกล้"
-                      : sortDirection === "desc"
-                        ? "มากไปน้อย"
-                        : "น้อยไปมาก";
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => {
-                      if (isSelected) {
-                        setSortDirection((prev) =>
-                          prev === "desc" ? "asc" : "desc"
-                        );
-                      } else {
-                        setSortBy(option.value);
-                        setSortDirection(
-                          option.value === "dueDate" ? "asc" : "desc"
-                        );
-                      }
-                    }}
-                    className={`w-full px-4 py-3 text-sm flex items-center justify-between gap-3 hover:bg-gray-100 transition ${isSelected
-                      ? "bg-gray-100 font-semibold text-gray-900"
-                      : "text-gray-700"
-                      }`}
-                  >
-                    <span>{option.label}</span>
-
-                    {isSelected && (
-                      <span className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs">{directionLabel}</span>
-                        {sortDirection === "desc" ? (
-                          <ArrowDown size={16} />
-                        ) : (
-                          <ArrowUp size={16} />
-                        )}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-
-          {/* แสดงวิธีเรียงปัจจุบัน */}
-          {(() => {
-            const sortLabel = {
-              newest: "วันที่สร้าง",
-              amount: "ยอดหนี้ทั้งหมด",
-              remaining: "ยอดหนี้คงเหลือ",
-              dueDate: "วันครบกำหนด",
-            }[sortBy];
-
-            const directionLabel =
-              sortBy === "newest"
-                ? sortDirection === "desc"
-                  ? "ใหม่ - เก่า"
-                  : "เก่า - ใหม่"
-                : sortBy === "dueDate"
-                  ? sortDirection === "asc"
-                    ? "ใกล้ - ไกล"
-                    : "ไกล - ใกล้"
-                  : sortDirection === "desc"
-                    ? "มาก - น้อย"
-                    : "น้อย - มาก";
-
-            return (
-              <p className="mt-2 text-xs text-gray-500">
-                เรียงตาม: {sortLabel} {directionLabel}
-              </p>
-            );
-          })()}
           {/* เมนูตัวเลือกการเรียง */}
           {showSortMenu && (
             <div className="mt-2 rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -1322,43 +1002,7 @@ function Debts() {
                 : "ยังไม่มีรายการหนี้ในหมวดนี้"}
             </div>
           )}
-          {filteredDebtsList.length > 0 ? (
-            filteredDebtsList.map((debt) => (
-              <DebtCard
-                key={debt.id}
-                debt={debt}
-                onDelete={handleDeleteDebt}
-                onSendReminder={handleSendDebtReminder}
-                sendingReminderId={sendingReminderId}
-                onPayment={() => {
-                  setSelectedDebt(debt);
-                  setShowDebtPay(true);
-                }}
-                onViewHistory={() => {
-                  setSelectedDebt(debt);
-                  setShowDebtHistory(true);
-                }}
-                onCheckPayment={() => {
-                  setSelectedDebt(debt);
-                  setShowDebtHistory(true);
-                }}
-                onEdit={(debt) => {
-                  setEditingDebt(debt);
-                  setCurrentDebtType(
-                    debt.type === "borrowed" ? "borrow" : "lend"
-                  );
-                }}
-              />
-            ))
-          ) : (
-            <div className="py-10 text-center text-sm text-gray-500">
-              {searchTerm.trim()
-                ? `ไม่พบรายการหนี้ที่ตรงกับ "${searchTerm.trim()}"`
-                : "ยังไม่มีรายการหนี้ในหมวดนี้"}
-            </div>
-          )}
         </div>
-
 
 
         {/* ปุ่มเพิ่มรายการ */}

@@ -863,94 +863,6 @@ def build_savings_confirm_flex(saving, operation, amount, token):
         }
     }
 
-def build_savings_success_flex(saving, operation, amount):
-    label = "ฝากเงิน" if operation == "deposit" else "ถอนเงิน"
-
-    frontend_url = settings.FRONTEND_URL.rstrip("/")
-    saving_url = f"{frontend_url}/?returnTo=/saving/"
-
-    return {
-        "type": "flex",
-        "altText": f"{label}สำเร็จ จำนวน {amount:,.2f} บาท",
-        "contents": {
-            "type": "bubble",
-            "size": "mega",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "backgroundColor": "#FFF9EE",
-                "spacing": "md",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": "KaneCho | ทำรายการสำเร็จ ✓",
-                        "weight": "bold",
-                        "size": "md",
-                        "color": "#805035",
-                        "wrap": True
-                    },
-                    {
-                        "type": "text",
-                        "text": f"{label}สำเร็จค่ะ",
-                        "weight": "bold",
-                        "size": "xl",
-                        "color": "#805035"
-                    },
-                    {
-                        "type": "text",
-                        "text": f"฿{amount:,.2f}",
-                        "weight": "bold",
-                        "size": "xxl",
-                        "color": "#805035"
-                    },
-                    {
-                        "type": "separator",
-                        "margin": "md",
-                        "color": "#E8DCC8"
-                    },
-                    {
-                        "type": "text",
-                        "text": f"กระเป๋า: {saving.saving_name or 'กระเป๋าออม'}",
-                        "size": "sm",
-                        "color": "#594A3D",
-                        "wrap": True
-                    },
-                    {
-                        "type": "text",
-                        "text": f"ยอดคงเหลือ: {saving.balance:,.2f} บาท",
-                        "size": "sm",
-                        "weight": "bold",
-                        "color": "#805035",
-                        "wrap": True
-                    },
-                    {
-                        "type": "text",
-                        "text": "ตรวจสอบยอดเงินและรายละเอียดการออมเพิ่มเติมได้ที่เว็บไซต์ค่ะ",
-                        "size": "xs",
-                        "color": "#8B7A68",
-                        "wrap": True
-                    }
-                ]
-            },
-            "footer": {
-                "type": "box",
-                "layout": "vertical",
-                "backgroundColor": "#FFF9EE",
-                "contents": [
-                    {
-                        "type": "button",
-                        "style": "primary",
-                        "color": "#B8D95A",
-                        "action": {
-                            "type": "uri",
-                            "label": "ตรวจสอบ",
-                            "uri": saving_url
-                        }
-                    }
-                ]
-            }
-        }
-    }
 
 def handle_savings_postback(action, params, user, line_user_id):
     if action == "savings_select":
@@ -1027,12 +939,10 @@ def handle_savings_postback(action, params, user, line_user_id):
                     return "ประเภทการทำรายการไม่ถูกต้องค่ะ"
                 saving.save(update_fields=["balance", "updated_at"])
             clear_savings_state(line_user_id)
-            
-            return build_savings_success_flex(
-                saving,
-                operation,
-                amount
-            )
+            return (f"{label}เงินสำเร็จค่ะ\n"
+                    f"กระเป๋า: {saving.saving_name or 'กระเป๋าออม'}\n"
+                    f"จำนวน: {amount:,.2f} บาท\n"
+                    f"ยอดคงเหลือ: {saving.balance:,.2f} บาท")
         finally:
             cache.delete(lock_key)
 
@@ -1415,8 +1325,18 @@ def handle_text_message(text, line_user_id):
                 draft.account = result["account"]
 
         else:
-            # กรณี OCR อ่านจำนวนเงินได้ แต่ข้อความที่ส่งมาเป็นเพียงโน้ต
+            # ถ้าข้อความมีตัวเลขหรือวันที่ แต่ Parser วิเคราะห์ไม่ได้
+            # อย่าบันทึกยอด OCR เดิมแทนโดยอัตโนมัติ
+            if any(char.isdigit() for char in command):
+                return (result.get("message", "กรุณาระบุจำนวนเงินให้ชัดเจนค่ะ")
+                        if result else "กรุณาระบุจำนวนเงินให้ชัดเจนค่ะ")
+
+            # ข้อความไม่มีตัวเลข: เป็นโน้ตได้เฉพาะเมื่อมีจำนวนเงินจาก OCR แล้ว
+            if not draft.amount or draft.amount <= 0:
+                return "ยังไม่พบจำนวนเงินค่ะ กรุณาพิมพ์ชื่อรายการพร้อมจำนวนเงิน เช่น กาแฟ 80 บาท"
             draft.description = command
+            if not draft.item_name:
+                draft.item_name = command
 
         # หากยังไม่มีจำนวนเงิน ให้ขอข้อมูลเพิ่มเติม
         if not draft.amount or draft.amount <= 0:
@@ -1447,7 +1367,8 @@ def handle_text_message(text, line_user_id):
         )
 
         if not result or not result.get("success"):
-            return "ไม่พบจำนวนเงินค่ะ ลองพิมพ์ เช่น 80 บาท"
+            return (result.get("message", "ไม่สามารถวิเคราะห์จำนวนเงินได้ค่ะ")
+                    if result else "ไม่สามารถวิเคราะห์จำนวนเงินได้ค่ะ")
 
         draft.amount = result["amount"]
 
@@ -1505,10 +1426,8 @@ def handle_text_message(text, line_user_id):
     )
 
     if not result or not result.get("success"):
-        return (
-            "ไม่พบจำนวนเงินค่ะ "
-            "ลองพิมพ์ เช่น ชา 80 บาท"
-        )
+        return (result.get("message", "ไม่สามารถวิเคราะห์ข้อความได้ค่ะ")
+                if result else "ไม่สามารถวิเคราะห์ข้อความได้ค่ะ")
 
     parsed_category = (
         result.get("category") or "อื่นๆ"
