@@ -9,6 +9,7 @@ from decimal import Decimal, InvalidOperation
 from uuid import uuid4
 from io import BytesIO
 from urllib.parse import parse_qs, urlencode
+from collections import defaultdict
 
 import httpx
 
@@ -33,7 +34,7 @@ from categories.models import Category
 from transactions.models import Transaction
 from users.models import User
 from friends.models import Friends
-from savings.models import Savings
+from savings.models import Savings, SavingsTransaction
 
 from .messaging import approve_payment_from_line
 
@@ -1259,6 +1260,17 @@ def handle_savings_postback(action, params, user, line_user_id):
                 
                 saving.save(update_fields=["balance", "updated_at"])
                 
+                SavingsTransaction.objects.create(
+                    saving=saving,
+                    user=user,
+                    saving_name=saving.saving_name,
+                    transaction_type=operation,
+                    amount=amount,
+                    transaction_date=timezone.localdate(),
+                    balance_after=saving.balance,
+                    note="ทำรายการผ่าน LINE OA",
+                )
+                
                 clear_savings_state(line_user_id)
                 return build_savings_success_flex(
                     saving,
@@ -1387,6 +1399,328 @@ def build_savings_success_flex(saving, operation, amount):
         }
     }
 
+# สรุปรายการของวันนี้
+def build_daily_summary_flex(user):
+    today = timezone.localdate()
+
+    date_text = (
+        f"{today.day:02d}/"
+        f"{today.month:02d}/"
+        f"{today.year + 543}"
+    )
+
+    sections = []
+
+    def make_row(label, amount=None, amount_color="#594A3D"):
+        contents = [
+            {
+                "type": "text",
+                "text": str(label)[:100],
+                "size": "sm",
+                "color": "#594A3D",
+                "wrap": True,
+                "flex": 7,
+            }
+        ]
+
+        if amount is not None:
+            contents.append({
+                "type": "text",
+                "text": f"{amount:,.2f} บาท",
+                "size": "sm",
+                "weight": "bold",
+                "color": amount_color,
+                "align": "end",
+                "wrap": True,
+                "flex": 4,
+            })
+
+        return {
+            "type": "box",
+            "layout": "baseline",
+            "spacing": "sm",
+            "contents": contents,
+        }
+
+    def add_section(title, rows):
+        if not rows:
+            return
+
+        contents = [
+            {
+                "type": "text",
+                "text": title,
+                "weight": "bold",
+                "size": "md",
+                "color": "#805035",
+                "wrap": True,
+            },
+            {
+                "type": "separator",
+                "color": "#E8DCC8",
+            },
+        ]
+
+        contents.extend(rows)
+
+        sections.append({
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "sm",
+            "contents": contents,
+        })
+
+    # ==================== รายรับ - รายจ่าย ====================
+    transactions = Transaction.objects.filter(
+        user=user,
+        transaction_date=today,
+    ).order_by("transaction_time", "id")
+
+    income_items = [
+        item for item in transactions
+        if item.transaction_type == "income"
+    ]
+
+    expense_items = [
+        item for item in transactions
+        if item.transaction_type == "expense"
+    ]
+
+    transaction_rows = []
+
+    def add_transaction_group(title, items, color):
+        if not items:
+            return
+
+        # หัวข้อรายรับ / รายจ่าย
+        transaction_rows.append({
+            "type": "text",
+            "text": title,
+            "weight": "bold",
+            "size": "sm",
+            "color": "#805035",
+            "margin": "md",
+        })
+
+        # แสดงรายการแต่ละรายการ
+        for item in items:
+            transaction_rows.append(
+                make_row(
+                    f"{item.item_name or 'ไม่ระบุชื่อรายการ'}",
+                    item.amount,
+                    color,
+                )
+            )
+
+        # รวมยอดเงิน
+        total = sum(
+            (item.amount for item in items),
+            Decimal("0.00")
+        )
+
+        transaction_rows.append(
+            make_row("รวม:", total, color)
+        )
+
+    add_transaction_group(
+        "รายรับ",
+        income_items,
+        "#299D68",
+    )
+
+    add_transaction_group(
+        "รายจ่าย",
+        expense_items,
+        "#D66A6A",
+    )
+
+    add_section("รายรับ - รายจ่าย", transaction_rows)
+
+    # ==================== การออม ====================
+
+    savings_rows = []
+
+    # ส่วนที่ 1: กระเป๋าออมที่สร้างวันนี้
+    new_savings = Savings.objects.filter(
+        user=user,
+        created_at__date=today,
+    ).order_by("created_at")
+
+    if new_savings.exists():
+        savings_rows.append({
+            "type": "text",
+            "text": "กระเป๋าออมที่เพิ่มใหม่",
+            "weight": "bold",
+            "size": "sm",
+            "color": "#805035",
+            "margin": "md",
+        })
+
+        for saving in new_savings:
+            savings_rows.append(
+                make_row(f"  {saving.saving_name}")
+            )
+
+    # ส่วนที่ 2: กระเป๋าที่มีการฝากหรือถอนเงินวันนี้
+    saving_transactions = SavingsTransaction.objects.filter(
+        user=user,
+        transaction_date=today,
+    ).order_by("created_at")
+
+    saving_totals = defaultdict(lambda: Decimal("0.00"))
+
+    for item in saving_transactions:
+        saving_name = (
+            item.saving_name
+            or (
+                item.saving.saving_name
+                if item.saving
+                else "กระเป๋าออม"
+            )
+        )
+
+        key = (saving_name, item.transaction_type)
+        saving_totals[key] += item.amount
+
+    if saving_totals:
+        savings_rows.append({
+            "type": "text",
+            "text": "กระเป๋าที่มีการเปลี่ยนแปลง",
+            "weight": "bold",
+            "size": "sm",
+            "color": "#805035",
+            "margin": "md",
+        })
+
+        for (saving_name, transaction_type), total in saving_totals.items():
+            if transaction_type == "deposit":
+                label = f"  ฝากเงินเข้ากระเป๋า {saving_name}"
+                color = "#299D68"
+            else:
+                label = f"  ถอนเงินจากกระเป๋า {saving_name}"
+                color = "#D66A6A"
+
+            savings_rows.append(
+                make_row(label, total, color)
+            )
+
+    add_section("การออม", savings_rows)
+
+    # ==================== หนี้สิน ====================
+
+    debt_rows = []
+
+    # ส่วนที่ 1: รายการหนี้ / ให้ยืมที่สร้างวันนี้
+    new_debts = Debts.objects.filter(
+        user=user,
+        created_at__date=today,
+    ).order_by("created_at")
+
+    if new_debts.exists():
+        debt_rows.append({
+            "type": "text",
+            "text": "รายการหนี้ / ให้ยืมที่เพิ่มใหม่",
+            "weight": "bold",
+            "size": "sm",
+            "color": "#805035",
+            "margin": "md",
+        })
+
+        for debt in new_debts:
+            if debt.type == "borrowed":
+                label = f"  สร้างรายการหนี้ {debt.name}"
+            else:
+                label = f"  สร้างรายการให้ยืม {debt.name}"
+
+            debt_rows.append(make_row(label))
+
+    # ส่วนที่ 2: รายการหนี้ที่มีการชำระเงินวันนี้
+    payments = Payments.objects.filter(
+        debt__user=user,
+        paid_date=today,
+        paid_amount__gt=0,
+    ).select_related("debt").order_by("created_at")
+
+    debt_totals = defaultdict(lambda: Decimal("0.00"))
+    debt_names = {}
+
+    for payment in payments:
+        debt = payment.debt
+
+        key = (debt.id, debt.type)
+        debt_totals[key] += payment.paid_amount
+        debt_names[key] = debt.name
+
+    if debt_totals:
+        debt_rows.append({
+            "type": "text",
+            "text": "รายการหนี้ที่มีการเปลี่ยนแปลง",
+            "weight": "bold",
+            "size": "sm",
+            "color": "#805035",
+            "margin": "md",
+        })
+
+        for (debt_id, debt_type), total in debt_totals.items():
+            debt_name = debt_names[(debt_id, debt_type)]
+
+            if debt_type == "borrowed":
+                label = f"  ชำระหนี้ให้รายการ {debt_name}"
+            else:
+                label = f"  ได้รับชำระหนี้จากรายการ {debt_name}"
+
+            debt_rows.append(
+                make_row(label, total, "#299D68")
+            )
+
+    add_section("หนี้สิน", debt_rows)
+
+    # ==================== Flex Message ====================
+
+    if not sections:
+        sections.append({
+            "type": "text",
+            "text": "วันนี้ยังไม่มีรายการที่บันทึกไว้ค่ะ 😊",
+            "size": "sm",
+            "color": "#8B7A68",
+            "wrap": True,
+        })
+
+    return {
+        "type": "flex",
+        "altText": f"สรุปรายการวันที่ : {date_text}",
+        "contents": {
+            "type": "bubble",
+            "size": "mega",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "backgroundColor": "#FFF9EE",
+                "spacing": "lg",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "KaneCho | สรุปรายการวันนี้",
+                        "weight": "bold",
+                        "size": "lg",
+                        "color": "#805035",
+                    },
+                    {
+                        "type": "text",
+                        "text": date_text,
+                        "size": "sm",
+                        "color": "#8B7A68",
+                    },
+                    {
+                        "type": "separator",
+                        "color": "#E8DCC8",
+                    },
+                    *sections,
+                ],
+            },
+        },
+    }
+
 def handle_postback(data, line_user_id):
     params = parse_qs(data)
 
@@ -1399,6 +1733,11 @@ def handle_postback(data, line_user_id):
 
     if user is None:
         return "กรุณาเข้าสู่ระบบและเชื่อมบัญชี LINE ก่อนค่ะ"
+    
+    # สรุปรายการวันนี้
+    if action == "summary_today":
+        return build_daily_summary_flex(user)
+    
     #=====================จดหนี้สิน========================
     if action == "debt_select":
         try:
