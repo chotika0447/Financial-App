@@ -78,6 +78,45 @@ function getDsrLevel(dsr) {
     return 'เสี่ยงมาก';
 }
 
+// Calculate ODP Score
+function calculateOdpScore(odp) {
+    if (odp == null || !Number.isFinite(Number(odp))) {
+        return null;
+    }
+
+    const value = Number(odp);
+    let score;
+
+    if (value >= 100) score = 100;
+    else if (value >= 95) score = 90;
+    else if (value >= 90) score = 80;
+    else if (value >= 85) score = 70;
+    else if (value >= 80) score = 60;
+    else if (value >= 70) score = 50;
+    else if (value >= 60) score = 40;
+    else if (value >= 50) score = 30;
+    else if (value > 0) score = 15;
+    else score = 0;
+
+    return score;
+}
+
+function getOdpLevel(odp) {
+    if (odp == null || !Number.isFinite(Number(odp))) return null;
+
+    const value = Number(odp);
+    if (value >= 100) return 'ดีเยี่ยม';
+    if (value >= 95) return 'ดีมาก';
+    if (value >= 90) return 'ดี';
+    if (value >= 85) return 'ค่อนข้างดี';
+    if (value >= 80) return 'ปานกลาง';
+    if (value >= 70) return 'ควรปรับปรุง';
+    if (value >= 60) return 'ค่อนข้างเสี่ยง';
+    if (value >= 50) return 'เสี่ยง';
+    if (value > 0) return 'เสี่ยงมาก';
+    return 'ไม่ชำระตรงเวลา';
+}
+
 // Get Saving Rate Level
 function getSrLevel(sr) {
     if (sr == null || !Number.isFinite(Number(sr))) {
@@ -329,6 +368,12 @@ function FinHealthDetail() {
 
     const dsrScore = calculateDsrScore(borrowMetrics?.dsr_percentage);
     const dsrLevel = getDsrLevel(borrowMetrics?.dsr_percentage);
+    const odpScore = calculateOdpScore(borrowMetrics?.odp_percentage);
+    const odpLevel = getOdpLevel(borrowMetrics?.odp_percentage);
+    const borrowTotalScore =
+        dsrScore == null || odpScore == null
+            ? null
+            : Math.round(((dsrScore + odpScore) / 2) * 100) / 100;
 
     // Saving Consistency
     const scFrequency = saveMetrics?.sc_recording_frequency;
@@ -1182,13 +1227,9 @@ function FinHealthDetail() {
 
                                     <div className="fhd-result">
                                         <div className="fhd-result-card">
-                                            <span className="fhd-result-label">
-                                                คะแนน DSR
-                                            </span>
+                                            <span className="fhd-result-label">คะแนน DSR</span>
                                             {dsrScore == null ? (
-                                                <strong className="fhd-no-result">
-                                                    ยังไม่สามารถคำนวณคะแนน DSR ได้
-                                                </strong>
+                                                <strong className="fhd-no-result">ยังไม่สามารถคำนวณคะแนน DSR ได้</strong>
                                             ) : (
                                                 <>
                                                     <div className="fhd-result-value">
@@ -1199,12 +1240,36 @@ function FinHealthDetail() {
                                                 </>
                                             )}
                                         </div>
+
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">คะแนน ODP</span>
+                                            {odpScore == null ? (
+                                                <strong className="fhd-no-result">ยังไม่มีข้อมูลสำหรับคำนวณ</strong>
+                                            ) : (
+                                                <>
+                                                    <div className="fhd-result-value">
+                                                        <strong>{formatSpendMoney(odpScore)}</strong>
+                                                        <span>/ 100</span>
+                                                    </div>
+                                                    <p className="fhd-message">{odpLevel}</p>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
 
-                                    <p className="fhd-message">
-                                        คะแนนเฉลี่ยด้านหนี้สินจะแสดงเมื่อมีเกณฑ์คะแนน ODP
-                                        และสามารถคำนวณคะแนนของตัวชี้วัดทั้งสองรายการได้
-                                    </p>
+                                    <div className="fhd-result">
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">คะแนนเฉลี่ยด้านหนี้สิน</span>
+                                            {borrowTotalScore == null ? (
+                                                <strong className="fhd-no-result">ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้ เนื่องจากข้อมูลคะแนนไม่ครบ</strong>
+                                            ) : (
+                                                <div className="fhd-result-value">
+                                                    <strong>{formatSpendMoney(borrowTotalScore)}</strong>
+                                                    <span>/ 100</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </section>
                                 {/* DSR */}
                                 <section className="fhd-card fhd-indicator-card">
@@ -1378,14 +1443,52 @@ function FinHealthDetail() {
                                         )}
                                     </div>
 
+                                    <div className="fhd-result">
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">คะแนน ODP</span>
+                                            {odpScore == null ? (
+                                                <strong className="fhd-no-result">ยังไม่มีคะแนน</strong>
+                                            ) : (
+                                                <>
+                                                    <div className="fhd-result-value">
+                                                        <strong>{formatSpendMoney(odpScore)}</strong>
+                                                        <span>/ 100</span>
+                                                    </div>
+                                                    <p className="fhd-message">{odpLevel}</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="fhd-trc-month-list">
+                                        <h3>รายละเอียด ODP แยกตามรายการหนี้</h3>
+                                        {(borrowMetrics.debt_odp_details || []).length > 0 ? (
+                                            borrowMetrics.debt_odp_details.map((debt) => (
+                                                <div className="fhd-trc-month-item" key={debt.debt_id}>
+                                                    <div className="fhd-trc-month-name">
+                                                        <strong>{debt.debt_name}</strong>
+                                                        <span>ชำระตรงเวลา {debt.on_time_installments} / {debt.due_installments} งวด</span>
+                                                    </div>
+                                                    <span className={`fhd-trc-status ${Number(debt.odp_percentage) >= 80 ? 'is-complete' : 'is-incomplete'}`}>
+                                                        {debt.odp_percentage == null ? 'ไม่มีงวดที่ถึงกำหนด' : `${formatSpendMoney(debt.odp_percentage)}%`}
+                                                    </span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="fhd-message">ยังไม่มีหนี้รายเดือนที่มีงวดถึงกำหนดชำระ</p>
+                                        )}
+                                    </div>
+
                                     <div className="fhd-trc-note">
                                         <strong>หมายเหตุ</strong>
                                         <p>
                                             หนี้ที่ผูกบัญชีเพื่อนจะนับเฉพาะรายการที่ได้รับ
                                             การอนุมัติแล้ว ส่วนหนี้ที่ไม่ได้ผูกบัญชีเพื่อน
                                             จะพิจารณาจากยอดชำระและวันที่ชำระจริง
-                                            โดยไม่จำเป็นต้องมีสถานะอนุมัติ
-                                            ระบบจะนับการชำระบางส่วนรวมกันภายในงวดเดียวกัน
+                                            โดยไม่จำเป็นต้องมีสถานะอนุมัติ และรวมการชำระบางส่วน
+                                            ภายในงวดเดียวกัน คะแนน ODP รวมคำนวณแบบถ่วงน้ำหนัก
+                                            จากจำนวนงวดของหนี้ทุกก้อน โดยใช้ payment_date ปัจจุบัน
+                                            คำนวณตารางย้อนหลังตั้งแต่วันที่สร้างหนี้
                                         </p>
                                     </div>
                                 </section>
