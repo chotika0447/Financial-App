@@ -1133,47 +1133,49 @@ function FinHealthDetail() {
                                         <p>(คะแนน SF + คะแนน SD) ÷ 2</p>
                                     </div>
 
-                                    {/* รายละเอียด 4 ช่วง */}
-                                    <div className="fhd-trc-month-list">
-                                        <h3>รายละเอียดการออมในแต่ละช่วง</h3>
+                                    {/* รายละเอียด 4 ช่วง: แสดงเมื่อมีข้อมูล */}
+                                    {(saveMetrics.sc_periods || []).length > 0 && (
+                                        <div className="fhd-trc-month-list">
+                                            <h3>รายละเอียดการออมในแต่ละช่วง</h3>
 
-                                        {(saveMetrics.sc_periods || []).map((item) => (
-                                            <div
-                                                className="fhd-trc-month-item"
-                                                key={item.period}
-                                            >
-                                                <div className="fhd-trc-month-name">
-                                                    <strong>ช่วงที่ {item.period}</strong>
-
-                                                    <span>
-                                                        วันที่ {item.start_day} - {item.end_day}
-                                                    </span>
-
-                                                    {item.recorded_days?.length > 0 && (
-                                                        <span>
-                                                            วันที่มีการออม: {item.recorded_days.join(', ')}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                <span
-                                                    className={`fhd-trc-status ${item.has_records
-                                                            ? 'is-complete'
-                                                            : 'is-incomplete'
-                                                        }`}
+                                            {saveMetrics.sc_periods.map((item) => (
+                                                <div
+                                                    className="fhd-trc-month-item"
+                                                    key={item.period}
                                                 >
-                                                    {item.has_records ? 'มีการออม' : 'ไม่มีการออม'}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
+                                                    <div className="fhd-trc-month-name">
+                                                        <strong>ช่วงที่ {item.period}</strong>
 
-                                    {/* รายละเอียดรายวัน */}
-                                    <div className="fhd-trc-month-list">
-                                        <h3>รายละเอียดการออมรายวัน</h3>
+                                                        <span>
+                                                            วันที่ {item.start_day} - {item.end_day}
+                                                        </span>
 
-                                        {(saveMetrics.sc_daily_records || []).length > 0 ? (
-                                            saveMetrics.sc_daily_records.map((item) => (
+                                                        {item.recorded_days?.length > 0 && (
+                                                            <span>
+                                                                วันที่มีการออม: {item.recorded_days.join(', ')}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    <span
+                                                        className={`fhd-trc-status ${item.has_records
+                                                                ? 'is-complete'
+                                                                : 'is-incomplete'
+                                                            }`}
+                                                    >
+                                                        {item.has_records ? 'มีการออม' : 'ไม่มีการออม'}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* รายละเอียดรายวัน: แสดงเมื่อมีข้อมูล */}
+                                    {(saveMetrics.sc_daily_records || []).length > 0 && (
+                                        <div className="fhd-trc-month-list">
+                                            <h3>รายละเอียดการออมรายวัน</h3>
+
+                                            {saveMetrics.sc_daily_records.map((item) => (
                                                 <div
                                                     className="fhd-trc-month-item"
                                                     key={item.date}
@@ -1203,13 +1205,9 @@ function FinHealthDetail() {
                                                             : 'ไม่มีการออม'}
                                                     </span>
                                                 </div>
-                                            ))
-                                        ) : (
-                                            <p className="fhd-message">
-                                                ยังไม่มีข้อมูลการออมในเดือนนี้
-                                            </p>
-                                        )}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    )}
 
                                     {/* <div className="fhd-trc-note">
                                         <strong>หมายเหตุ</strong>
