@@ -606,36 +606,41 @@
 }
 .fhd-result {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
     gap: 12px;
+    width: 100%;
+    min-width: 0;
     margin-top: 16px;
     padding: 14px;
-    border-radius: 12px;
-    background: #edf7f1;
+    box-sizing: border-box;
 }
 
 .fhd-result-card {
     min-width: 0;
     padding: 16px;
+    box-sizing: border-box;
 }
 
 .fhd-result-label {
     display: block;
     margin-bottom: 8px;
-    color: var(--color-text-secondary);
+    color: #24815e;
     font-size: 14px;
-    font-weight: 400;
+    font-weight: 700;
 }
 
 .fhd-result-value {
     display: flex;
     align-items: baseline;
+    justify-content: flex-end;
     flex-wrap: wrap;
     gap: 5px;
+    min-width: 0;
     padding: 10px 12px;
-    border: 1px solid #17824b;
+    border: 3px solid #338f5f;
     border-radius: 12px;
     background: #fff;
+    text-align: right;
 }
 
 .fhd-result-value strong {
