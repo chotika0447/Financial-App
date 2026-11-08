@@ -43,6 +43,41 @@ function calculateSrScore(sr) {
     ) / 100;
 }
 
+// Calculate DSR Score (Piecewise Linear)
+function calculateDsrScore(dsr) {
+    if (dsr == null || !Number.isFinite(Number(dsr))) {
+        return null;
+    }
+
+    const value = Number(dsr);
+    let score;
+
+    if (value <= 15) score = 100;
+    else if (value <= 30) score = 100 - 2 * (value - 15);
+    else if (value <= 35) score = 70 - 2 * (value - 30);
+    else if (value <= 40) score = 60 - 4 * (value - 35);
+    else if (value <= 45) score = 40 - 4 * (value - 40);
+    else score = 0;
+
+    return Math.round(Math.max(0, Math.min(100, score)) * 100) / 100;
+}
+
+// Get DSR Score Level
+function getDsrLevel(dsr) {
+    if (dsr == null || !Number.isFinite(Number(dsr))) {
+        return null;
+    }
+
+    const value = Number(dsr);
+
+    if (value <= 15) return 'ดีเยี่ยม';
+    if (value <= 30) return 'ดี';
+    if (value <= 35) return 'ปานกลาง';
+    if (value <= 40) return 'ควรปรับปรุง';
+    if (value <= 45) return 'เสี่ยงสูง';
+    return 'เสี่ยงมาก';
+}
+
 // Get Saving Rate Level
 function getSrLevel(sr) {
     if (sr == null || !Number.isFinite(Number(sr))) {
@@ -291,6 +326,9 @@ function FinHealthDetail() {
     const trcScore = spendMetrics?.trc_score;
     const srScore = calculateSrScore(saveMetrics?.saving_rate);
     const srLevel = getSrLevel(saveMetrics?.saving_rate);
+
+    const dsrScore = calculateDsrScore(borrowMetrics?.dsr_percentage);
+    const dsrLevel = getDsrLevel(borrowMetrics?.dsr_percentage);
 
     // Saving Consistency
     const scFrequency = saveMetrics?.sc_recording_frequency;
@@ -1130,6 +1168,44 @@ function FinHealthDetail() {
                             </section>
                         ) : borrowMetrics ? (
                             <>
+                                {/* Borrow Total Score - moved to the top */}
+                                <section className="fhd-card fhd-score-card">
+                                    <h2>คะแนนด้านหนี้สิน</h2>
+                                    <p>
+                                        คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน DSR และ ODP
+                                    </p>
+
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">สูตรคำนวณ</span>
+                                        <p>(คะแนน DSR + คะแนน ODP) ÷ 2</p>
+                                    </div>
+
+                                    <div className="fhd-result">
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">
+                                                คะแนน DSR
+                                            </span>
+                                            {dsrScore == null ? (
+                                                <strong className="fhd-no-result">
+                                                    ยังไม่สามารถคำนวณคะแนน DSR ได้
+                                                </strong>
+                                            ) : (
+                                                <>
+                                                    <div className="fhd-result-value">
+                                                        <strong>{formatSpendMoney(dsrScore)}</strong>
+                                                        <span>/ 100</span>
+                                                    </div>
+                                                    <p className="fhd-message">{dsrLevel}</p>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <p className="fhd-message">
+                                        คะแนนเฉลี่ยด้านหนี้สินจะแสดงเมื่อมีเกณฑ์คะแนน ODP
+                                        และสามารถคำนวณคะแนนของตัวชี้วัดทั้งสองรายการได้
+                                    </p>
+                                </section>
                                 {/* DSR */}
                                 <section className="fhd-card fhd-indicator-card">
                                     <div className="fhd-indicator-heading">
@@ -1192,23 +1268,47 @@ function FinHealthDetail() {
                                     </div>
 
                                     <div className="fhd-result">
-                                        <span>ผลการคำนวณ DSR</span>
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">
+                                                ผลการคำนวณ DSR
+                                            </span>
 
-                                        {borrowMetrics.dsr_percentage == null ? (
-                                            <strong className="fhd-no-result">
-                                                ยังไม่สามารถคำนวณได้
-                                                เนื่องจากรายได้สุทธิเป็นศูนย์
-                                            </strong>
-                                        ) : (
-                                            <div className="fhd-result-value">
-                                                <strong>
-                                                    {formatSpendMoney(
-                                                        borrowMetrics.dsr_percentage
-                                                    )}
+                                            {borrowMetrics.dsr_percentage == null ? (
+                                                <strong className="fhd-no-result">
+                                                    ยังไม่สามารถคำนวณได้
+                                                    เนื่องจากรายได้สุทธิเป็นศูนย์
                                                 </strong>
-                                                <span>%</span>
-                                            </div>
-                                        )}
+                                            ) : (
+                                                <div className="fhd-result-value">
+                                                    <strong>
+                                                        {formatSpendMoney(
+                                                            borrowMetrics.dsr_percentage
+                                                        )}
+                                                    </strong>
+                                                    <span>%</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">
+                                                คะแนน DSR
+                                            </span>
+
+                                            {dsrScore == null ? (
+                                                <strong className="fhd-no-result">
+                                                    ยังไม่สามารถคำนวณคะแนนได้
+                                                </strong>
+                                            ) : (
+                                                <>
+                                                    <div className="fhd-result-value">
+                                                        <strong>{formatSpendMoney(dsrScore)}</strong>
+                                                        <span>/ 100</span>
+                                                    </div>
+                                                    <p className="fhd-message">{dsrLevel}</p>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div className="fhd-trc-note">
@@ -1290,24 +1390,6 @@ function FinHealthDetail() {
                                     </div>
                                 </section>
 
-                                {/* Borrow score */}
-                                <section className="fhd-card fhd-score-card">
-                                    <h2>คะแนนด้านหนี้สิน</h2>
-                                    <p>
-                                        คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน DSR และ ODP
-                                    </p>
-
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">สูตรคำนวณ</span>
-                                        <p>(คะแนน DSR + คะแนน ODP) ÷ 2</p>
-                                    </div>
-
-                                    <p className="fhd-message">
-                                        ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
-                                        เนื่องจากยังไม่ได้กำหนดเกณฑ์
-                                        แปลงค่า DSR และ ODP เป็นระดับคะแนน
-                                    </p>
-                                </section>
                             </>
                         ) : (
                             <section className="fhd-card">
