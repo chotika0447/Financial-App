@@ -653,7 +653,9 @@
 }
 
 .fhd-no-result {
+    color: #b45309;
     font-size: 14px;
+    font-weight: 400;
 }
 
 .fhd-message,

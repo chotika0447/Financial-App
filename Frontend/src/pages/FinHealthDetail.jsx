@@ -15,10 +15,51 @@ function formatSpendMoney(value) {
 }
 
 function formatThaiMonth(year, month) {
-    return new Date(year, month - 1, 1).toLocaleDateString('th-TH', {
+    const numericYear = Number(year);
+    const numericMonth = Number(month);
+
+    if (
+        !Number.isInteger(numericYear) ||
+        numericYear < 1 ||
+        !Number.isInteger(numericMonth) ||
+        numericMonth < 1 ||
+        numericMonth > 12
+    ) {
+        return null;
+    }
+
+    return new Date(numericYear, numericMonth - 1, 1).toLocaleDateString('th-TH', {
         month: 'long',
         year: 'numeric',
     });
+}
+
+function formatThaiMonthRange(startDate, endDate) {
+    function formatDate(date) {
+        if (typeof date !== 'string') return null;
+
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+        if (!match) return null;
+
+        const [, year, month, day] = match;
+        const parsedDate = new Date(Number(year), Number(month) - 1, Number(day));
+
+        if (
+            parsedDate.getFullYear() !== Number(year) ||
+            parsedDate.getMonth() !== Number(month) - 1 ||
+            parsedDate.getDate() !== Number(day)
+        ) {
+            return null;
+        }
+
+        return formatThaiMonth(year, month);
+    }
+
+    const startMonth = formatDate(startDate);
+    const endMonth = formatDate(endDate);
+
+    if (!startMonth || !endMonth) return null;
+    return startMonth === endMonth ? startMonth : `${startMonth} - ${endMonth}`;
 }
 // Calculate EIR Score
 function calculateEirScore(eir) {
@@ -360,6 +401,11 @@ function FinHealthDetail() {
     const Icon = criterion.Icon;
 
     const saveMonths = saveMetrics?.monthly_breakdown || [];
+    const spendPeriod = formatThaiMonth(spendMetrics?.year, spendMetrics?.month);
+    const savePeriod = formatThaiMonthRange(
+        saveMetrics?.period_start,
+        saveMetrics?.period_end
+    );
     const eirScore = calculateEirScore(spendMetrics?.expense_ratio);
 
     const trcScore = spendMetrics?.trc_score;
@@ -432,10 +478,10 @@ function FinHealthDetail() {
             </header>
 
             <main className="fhd-main">
-                <section className="fhd-card">
+                {/* <section className="fhd-card">
                     <h2>เกี่ยวกับเกณฑ์นี้</h2>
                     <p>{criterion.description}</p>
-                </section>
+                </section> */}
 
                 {criterion.id === 'spend' && (
                     <>
@@ -455,7 +501,7 @@ function FinHealthDetail() {
                             <>
                                 {/* Spend Total Score */}
                                 <section className="fhd-card fhd-score-card">
-                                    <h2>คะแนนด้านรายรับ–รายจ่าย</h2>
+                                    <h2>คะแนนเฉลี่ยด้านรายรับ–รายจ่าย</h2>
 
                                     <p>
                                         คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน EIR และ TRC
@@ -472,10 +518,6 @@ function FinHealthDetail() {
 
                                     <div className="fhd-result">
                                         <div className="fhd-result-card">
-                                            <span className="fhd-result-label">
-                                                คะแนนเฉลี่ยด้านรายรับ–รายจ่าย
-                                            </span>
-
                                             {spendTotalScore == null ? (
                                                 <strong className="fhd-no-result">
                                                     ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
@@ -522,13 +564,11 @@ function FinHealthDetail() {
                                         </p>
                                     </div>
 
-                                    <div className="fhd-period">
-                                        ข้อมูลเดือน{' '}
-                                        {formatThaiMonth(
-                                            spendMetrics.year,
-                                            spendMetrics.month
-                                        )}
-                                    </div>
+                                    {spendPeriod && (
+                                        <div className="fhd-period">
+                                            ข้อมูลเดือน {spendPeriod}
+                                        </div>
+                                    )}
 
                                     <div className="fhd-breakdown">
                                         <div className="fhd-breakdown-row">
@@ -632,13 +672,11 @@ function FinHealthDetail() {
                                         และการกระจายตัวของวันที่บันทึกตลอดทั้งเดือน
                                     </p>
 
-                                    <div className="fhd-period">
-                                        ข้อมูลเดือน{' '}
-                                        {formatThaiMonth(
-                                            spendMetrics.year,
-                                            spendMetrics.month
-                                        )}
-                                    </div>
+                                    {spendPeriod && (
+                                        <div className="fhd-period">
+                                            ข้อมูลเดือน {spendPeriod}
+                                        </div>
+                                    )}
 
                                     {/* Recording Frequency */}
                                     <div className="fhd-formula">
@@ -800,7 +838,7 @@ function FinHealthDetail() {
                                         )}
                                     </div>
 
-                                    <div className="fhd-trc-note">
+                                    {/* <div className="fhd-trc-note">
                                         <strong>หมายเหตุ</strong>
                                         <p>
                                             ระบบนับวันที่มีรายการรายรับหรือรายจ่ายอย่างน้อย 1 รายการ
@@ -809,7 +847,7 @@ function FinHealthDetail() {
                                             15–21 และวันที่ 22 จนถึงวันสุดท้ายของเดือน
                                             สำหรับเดือนปัจจุบัน ระบบจะประเมินเฉพาะวันที่ผ่านไปแล้ว
                                         </p>
-                                    </div>
+                                    </div> */}
                                 </section>
 
                             </>
@@ -841,7 +879,7 @@ function FinHealthDetail() {
                             <>
                                 {/* Save Total Score */}
                                 <section className="fhd-card fhd-score-card">
-                                    <h2>คะแนนด้านการออม</h2>
+                                    <h2>คะแนนเฉลี่ยด้านการออม</h2>
 
                                     <p>
                                         คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน SR และ SC
@@ -854,9 +892,6 @@ function FinHealthDetail() {
 
                                     <div className="fhd-result">
                                         <div className="fhd-result-card">
-                                            <span className="fhd-result-label">
-                                                คะแนนเฉลี่ยด้านการออม
-                                            </span>
 
                                             {saveTotalScore == null ? (
                                                 <strong className="fhd-no-result">
@@ -1007,10 +1042,11 @@ function FinHealthDetail() {
                                         ของวันที่มีการออมตลอดทั้งเดือน
                                     </p>
 
-                                    <div className="fhd-period">
-                                        ข้อมูลเดือน{' '}
-                                        {formatThaiMonth(saveMetrics.year, saveMetrics.month)}
-                                    </div>
+                                    {savePeriod && (
+                                        <div className="fhd-period">
+                                            ข้อมูลช่วงเดือน {savePeriod}
+                                        </div>
+                                    )}
 
                                     {/* Saving Frequency */}
                                     <div className="fhd-formula">
@@ -1175,7 +1211,7 @@ function FinHealthDetail() {
                                         )}
                                     </div>
 
-                                    <div className="fhd-trc-note">
+                                    {/* <div className="fhd-trc-note">
                                         <strong>หมายเหตุ</strong>
                                         <p>
                                             ระบบนับวันที่มียอดฝากหักยอดถอนสุทธิมากกว่า 0 บาท
@@ -1183,7 +1219,7 @@ function FinHealthDetail() {
                                             1–7, 8–14, 15–21 และวันที่ 22 จนถึงวันสุดท้ายของเดือน
                                             สำหรับเดือนปัจจุบัน ระบบจะประเมินเฉพาะวันที่ผ่านไปแล้ว
                                         </p>
-                                    </div>
+                                    </div> */}
                                 </section>
 
                             </>
@@ -1215,7 +1251,7 @@ function FinHealthDetail() {
                             <>
                                 {/* Borrow Total Score - moved to the top */}
                                 <section className="fhd-card fhd-score-card">
-                                    <h2>คะแนนด้านหนี้สิน</h2>
+                                    <h2>คะแนนเฉลี่ยด้านหนี้สิน</h2>
                                     <p>
                                         คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน DSR และ ODP
                                     </p>
@@ -1259,7 +1295,6 @@ function FinHealthDetail() {
 
                                     <div className="fhd-result">
                                         <div className="fhd-result-card">
-                                            <span className="fhd-result-label">คะแนนเฉลี่ยด้านหนี้สิน</span>
                                             {borrowTotalScore == null ? (
                                                 <strong className="fhd-no-result">ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้ เนื่องจากข้อมูลคะแนนไม่ครบ</strong>
                                             ) : (
@@ -1376,14 +1411,14 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <div className="fhd-trc-note">
+                                    {/* <div className="fhd-trc-note">
                                         <strong>หมายเหตุ</strong>
                                         <p>
                                             ระบบนับเฉพาะหนี้ที่ผู้ใช้เป็นลูกหนี้
                                             และเป็นการผ่อนชำระแบบรายเดือนที่ยังดำเนินการอยู่
                                             ไม่รวมหนี้แบบทยอยชำระและหนี้ที่ชำระครบแล้ว
                                         </p>
-                                    </div>
+                                    </div> */}
                                 </section>
 
                                 {/* ODP */}
@@ -1479,7 +1514,7 @@ function FinHealthDetail() {
                                         )}
                                     </div>
 
-                                    <div className="fhd-trc-note">
+                                    {/* <div className="fhd-trc-note">
                                         <strong>หมายเหตุ</strong>
                                         <p>
                                             หนี้ที่ผูกบัญชีเพื่อนจะนับเฉพาะรายการที่ได้รับ
@@ -1490,7 +1525,7 @@ function FinHealthDetail() {
                                             จากจำนวนงวดของหนี้ทุกก้อน โดยใช้ payment_date ปัจจุบัน
                                             คำนวณตารางย้อนหลังตั้งแต่วันที่สร้างหนี้
                                         </p>
-                                    </div>
+                                    </div> */}
                                 </section>
 
                             </>
