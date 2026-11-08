@@ -115,25 +115,43 @@ function Home() {
   }, []);
 
   //ดึงข้อมูลกระเป๋าออมทั้งหมด
+
+  // ดึงข้อมูลกระเป๋าออมทั้งหมด
   useEffect(() => {
     const fetchTotalSaving = async () => {
+      const token = sessionStorage.getItem('accessToken');
+
+      if (!token) {
+        console.error('ไม่พบ Access Token');
+        return;
+      }
+
       try {
-        const response = await fetch('/savings/');
+        const response = await fetch('/savings/', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         if (!response.ok) {
-          throw new Error('ไม่สามารถดึงข้อมูลกระเป๋าเงินออมได้');
+          throw new Error(`โหลดข้อมูลกระเป๋าออมไม่สำเร็จ (${response.status})`);
         }
 
         const data = await response.json();
 
-        const total = Array.isArray(data)
-          ? data.reduce(
-            (sum, wallet) => sum + Number(wallet.balance || 0),
-            0
-          )
-          : 0;
+        console.log('Savings API response:', data);
+
+        if (!Array.isArray(data)) {
+          throw new Error('รูปแบบข้อมูลกระเป๋าออมไม่ถูกต้อง');
+        }
+
+        const total = data.reduce(
+          (sum, wallet) => sum + Number(wallet.balance || 0),
+          0
+        );
 
         setTotalSaving(total);
+
       } catch (error) {
         console.error('โหลดข้อมูลเงินออมไม่สำเร็จ:', error);
       }
@@ -141,6 +159,7 @@ function Home() {
 
     fetchTotalSaving();
   }, []);
+
 
   //ดึงข่าวสารจาก Thai PBS
   useEffect(() => {
