@@ -662,12 +662,27 @@
     color: #b42318 !important;
 }
 
+.fhd-indicator-heading {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+}
+
+.fhd-indicator-heading > div {
+    flex: 1;
+    min-width: 0;
+}
+
 .fhd-indicator-number {
     display: flex;
     align-items: center;
     justify-content: center;
-    flex: 0 0 38px;
+    flex: 0 0 auto;
     height: 38px;
+    padding: 0 10px;
     border: 1px solid #d5eee1;
     border-radius: 12px;
     background: #edf7f1;
@@ -675,6 +690,7 @@
     font-size: 13px;
     font-weight: 800;
     line-height: 1;
+    white-space: nowrap;
 }
 
 .fhd-indicator-heading h2 {
