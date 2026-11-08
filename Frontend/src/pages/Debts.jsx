@@ -4,6 +4,7 @@ import AddDebt from "../components/AddDebt";
 import PayDebt from "../components/PayDebt";
 import DebtCard from "../components/DebtCard";
 import DebtPayHistory from "./DebtPayHistory";
+import "./Debts.css";
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -1023,8 +1024,8 @@ function Debts() {
 
         {/* ปุ่มเพิ่มรายการ */}
         {!isPopupOpen && (
-          <div className="fixed right-[30px] bottom-[85px] z-[99] flex items-center gap-[10px]">
-            <span className="whitespace-nowrap text-sm font-bold text-black">
+          <div className="add-debt-actions">
+            <span className="add-debt-label">
               เพิ่มรายการ
             </span>
 
@@ -1035,9 +1036,7 @@ function Debts() {
                 setCurrentDebtType(activeTab); //เซ็ตประเภทหนี้สินเริ่มต้นตามแท็บที่ผู้ใช้เลือกอยู่
               }}
 
-              className="flex h-12 w-12 items-center justify-center rounded-full
-                      bg-[#ffbd3d] text-white shadow-md transition-all duration-200
-                      hover:scale-105 hover:bg-[#f57f8b] active:scale-95"
+              className="add-debt-trigger"
             >
               <Plus size={27} strokeWidth={2.5} />
             </button>

@@ -912,9 +912,9 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                   }`}
               >
                 <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.reminderEnabled
-                    ? "translate-x-[22px]"
-                    : "translate-x-0.5"
+                  className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.reminderEnabled
+                    ? "translate-x-5"
+                    : "translate-x-0"
                     }`}
                 />
               </button>
@@ -980,9 +980,9 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                       }`}
                   >
                     <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.reminderRepeat
-                        ? "translate-x-[22px]"
-                        : "translate-x-0.5"
+                      className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${form.reminderRepeat
+                        ? "translate-x-5"
+                        : "translate-x-0"
                         }`}
                     />
                   </button>
