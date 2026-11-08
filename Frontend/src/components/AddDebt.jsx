@@ -938,9 +938,7 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                     }
                     className="h-9 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm"
                   />
-                  <p className="mt-1 text-[10px] text-gray-500">
-                    0 = แจ้งเตือนในวันครบกำหนด
-                  </p>
+                  
                 </div>
 
                 <div>

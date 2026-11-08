@@ -228,8 +228,7 @@ export default function DashboardSummary({ compact = false, onClick }) {
 
     return (
         <section
-            className={`home-dashboard-summary ${compact ? "home-dashboard-compact" : ""
-                } ${onClick ? 'clickable-dashboard' : ''}`}
+            className={`home-dashboard-summary ${compact ? "home-dashboard-compact" : "" } ${onClick ? 'clickable-dashboard' : ''}`}
             onClick={onClick}
         >
             <h3>แดชบอร์ด</h3>

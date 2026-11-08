@@ -1,15 +1,21 @@
 .debts-page {
+  width: 100%;
+  max-width: none;
   min-height: 100vh;
-  max-width: 440px;
-  margin: 0 auto;
+  margin: 0;
   padding-bottom: 72px;
+  box-sizing: border-box;
   background: #f3f3f3;
   color: #252525;
   font-family: inherit;
 }
-.content{
+
+.content {
+  width: 100%;
+  box-sizing: border-box;
   padding-bottom: 200px;
 }
+
 .debts-hero {
   min-height: 226px;
   box-sizing: border-box;
@@ -378,13 +384,6 @@
   transform: scale(0.95);
 }
 
-.debts-page .nav {
-  left: 50%;
-  right: auto;
-  width: min(100%, 440px);
-  transform: translateX(-50%);
-}
-
 .debt-modal-backdrop {
   position: fixed;
   z-index: 200;
@@ -491,5 +490,33 @@
     padding-right: 4px;
     padding-left: 4px;
     font-size: 9px;
+  }
+}
+
+/* Tablet และ Desktop */
+@media (min-width: 768px) {
+  .debts-page {
+    width: 100%;
+    max-width: none;
+  }
+
+  .debts-page main {
+    width: 100%;
+  }
+
+  .debts-page .nav {
+    width: 100%;
+  }
+}
+
+/* Mobile */
+@media (max-width: 767px) {
+  .debts-page {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .debts-page .nav {
+    width: 100%;
   }
 }

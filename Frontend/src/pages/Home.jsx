@@ -16,7 +16,11 @@ function Home() {
   const [news, setNews] = useState([]);
   const [newsState, setNewsState] = useState('loading');
   const [activeNews, setActiveNews] = useState(0);
-  const money = (n) => n === null ? '—' : `${n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ฿`;
+
+  const [totalDebt, setTotalDebt] = useState(0);
+  const [totalSaving, setTotalSaving] = useState(0);
+
+  const money = (n) => n === null ? '-' : `${n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ฿`;
   const monthLabel = new Intl.DateTimeFormat('th-TH', { timeZone: 'Asia/Bangkok', month: 'long', year: 'numeric', calendar: 'buddhist' }).format(new Date());
   const currentMonth = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit' }).format(new Date());
 
@@ -70,6 +74,75 @@ function Home() {
     };
   }, []);
 
+  //ดึงข้อมูลหนี้สินรวมทั้งหมด
+  useEffect(() => {
+    const loadDebtTotal = async () => {
+      const token = sessionStorage.getItem('accessToken');
+
+      if (!token) return;
+
+      try {
+        const response = await fetch('/debts/', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('ไม่สามารถโหลดข้อมูลหนี้สินได้');
+        }
+
+        const data = await response.json();
+
+        const total = data
+          .filter(debt =>
+            debt.type === 'borrowed' &&
+            debt.status === 'ongoing'
+          )
+          .reduce(
+            (sum, debt) =>
+              sum + Number(debt.remaining_amount || 0),
+            0
+          );
+
+        setTotalDebt(total);
+      } catch (error) {
+        console.error('Load debt total error:', error);
+      }
+    };
+
+    loadDebtTotal();
+  }, []);
+
+  //ดึงข้อมูลกระเป๋าออมทั้งหมด
+  useEffect(() => {
+    const fetchTotalSaving = async () => {
+      try {
+        const response = await fetch('/savings/');
+
+        if (!response.ok) {
+          throw new Error('ไม่สามารถดึงข้อมูลกระเป๋าเงินออมได้');
+        }
+
+        const data = await response.json();
+
+        const total = Array.isArray(data)
+          ? data.reduce(
+            (sum, wallet) => sum + Number(wallet.balance || 0),
+            0
+          )
+          : 0;
+
+        setTotalSaving(total);
+      } catch (error) {
+        console.error('โหลดข้อมูลเงินออมไม่สำเร็จ:', error);
+      }
+    };
+
+    fetchTotalSaving();
+  }, []);
+
+  //ดึงข่าวสารจาก Thai PBS
   useEffect(() => {
     const controller = new AbortController();
 
@@ -109,9 +182,23 @@ function Home() {
         <p className="home-period">สรุปประจำเดือน{monthLabel}</p>
         {monthlyError && <p className="home-data-error" role="status">{monthlyError}</p>}
         {/* Summary Cards */}
+
         <section className="summary-grid">
 
-          <div className="summary-card income-card">
+          {/* รายรับ */}
+          <div
+            className="summary-card income-card"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate('/transactions/')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigate('/transactions/');
+              }
+            }}
+            aria-label="ดูรายการรายรับ"
+          >
             <div className="card-title">รายรับ</div>
 
             <div className="card-bottom">
@@ -120,7 +207,20 @@ function Home() {
             </div>
           </div>
 
-          <div className="summary-card expense-card">
+          {/* รายจ่าย */}
+          <div
+            className="summary-card expense-card"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate('/transactions/')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigate('/transactions/');
+              }
+            }}
+            aria-label="ดูรายการรายจ่าย"
+          >
             <div className="card-title">รายจ่าย</div>
 
             <div className="card-bottom">
@@ -129,26 +229,51 @@ function Home() {
             </div>
           </div>
 
-          <div className="summary-card debt-card">
+          {/* หนี้สิน */}
+          <div
+            className="summary-card debt-card"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate('/debts/')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigate('/debts/');
+              }
+            }}
+            aria-label="ดูรายการหนี้สิน"
+          >
             <div className="card-title">หนี้สิน</div>
 
             <div className="card-bottom">
               <span>รวมทั้งหมด</span>
-              <strong>—</strong>
+              <strong>{money(totalDebt)}</strong>
             </div>
           </div>
 
-          <div className="summary-card receivable-card">
+          {/* กระเป๋าออม */}
+          <div
+            className="summary-card receivable-card"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate('/saving/')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigate('/saving/');
+              }
+            }}
+            aria-label="ดูกระเป๋าเงินออม"
+          >
             <div className="card-title">กระเป๋าออม</div>
 
             <div className="card-bottom">
               <span>รวมทั้งหมด</span>
-              <strong>—</strong>
+              <strong>{money(totalSaving)}</strong>
             </div>
           </div>
 
         </section>
-
 
         {/* ================= NEWS ================= */}
         <section className="news-section home-live-news">
