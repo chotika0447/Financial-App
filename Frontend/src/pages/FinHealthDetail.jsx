@@ -564,11 +564,11 @@ function FinHealthDetail() {
                                         </p>
                                     </div>
 
-                                    {spendPeriod && (
+                                    {/* {spendPeriod && (
                                         <div className="fhd-period">
                                             ข้อมูลเดือน {spendPeriod}
                                         </div>
-                                    )}
+                                    )} */}
 
                                     <div className="fhd-breakdown">
                                         <div className="fhd-breakdown-row">
@@ -741,6 +741,15 @@ function FinHealthDetail() {
                                     </div>
 
                                     {/* TRC Score */}
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">
+                                            สูตรคำนวณคะแนน TRC
+                                        </span>
+                                        <p>
+                                            (คะแนน RF + คะแนน RD) ÷ 2
+                                        </p>
+                                    </div>
+
                                     <div className="fhd-result">
                                         <div className="fhd-result-card">
                                             <span className="fhd-result-label">
@@ -756,14 +765,7 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">
-                                            สูตรคำนวณคะแนน TRC
-                                        </span>
-                                        <p>
-                                            (คะแนน RF + คะแนน RD) ÷ 2
-                                        </p>
-                                    </div>
+                                    
 
                                     {/* รายละเอียด 4 ช่วงของเดือน */}
                                     <div className="fhd-trc-month-list">
@@ -1048,6 +1050,33 @@ function FinHealthDetail() {
                                         </div>
                                     )}
 
+                                    {/* SC Score */}
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">
+                                            สูตรคำนวณคะแนน SC
+                                        </span>
+                                        <p>(คะแนน SF + คะแนน SD) ÷ 2</p>
+                                    </div>
+                                    
+                                    <div className="fhd-result">
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">
+                                                คะแนน SC
+                                            </span>
+
+                                            {scScore == null ? (
+                                                <strong className="fhd-no-result">
+                                                    ยังไม่มีคะแนน
+                                                </strong>
+                                            ) : (
+                                                <div className="fhd-result-value">
+                                                    <strong>{formatSpendMoney(scScore)}</strong>
+                                                    <span>/ 100</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
                                     {/* Saving Frequency */}
                                     <div className="fhd-formula">
                                         <span className="fhd-formula-label">
@@ -1104,33 +1133,6 @@ function FinHealthDetail() {
                                                 {formatSpendMoney(scDistribution)}%
                                             </strong>
                                         </div>
-                                    </div>
-
-                                    {/* SC Score */}
-                                    <div className="fhd-result">
-                                        <div className="fhd-result-card">
-                                            <span className="fhd-result-label">
-                                                คะแนน SC
-                                            </span>
-
-                                            {scScore == null ? (
-                                                <strong className="fhd-no-result">
-                                                    ยังไม่มีคะแนน
-                                                </strong>
-                                            ) : (
-                                                <div className="fhd-result-value">
-                                                    <strong>{formatSpendMoney(scScore)}</strong>
-                                                    <span>/ 100</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">
-                                            สูตรคำนวณคะแนน SC
-                                        </span>
-                                        <p>(คะแนน SF + คะแนน SD) ÷ 2</p>
                                     </div>
 
                                     {/* รายละเอียด 4 ช่วง: แสดงเมื่อมีข้อมูล */}
