@@ -609,6 +609,9 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
     margin-top: 16px;
+    padding: 14px;
+    border-radius: 12px;
+    background: #edf7f1;
 }
 
 .fhd-result-card {
@@ -630,6 +633,9 @@
     align-items: baseline;
     flex-wrap: wrap;
     gap: 5px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #fff;
 }
 
 .fhd-result-value strong {
@@ -654,6 +660,21 @@
 
 .fhd-error {
     color: #b42318 !important;
+}
+
+.fhd-indicator-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 38px;
+    height: 38px;
+    border: 1px solid #d5eee1;
+    border-radius: 12px;
+    background: #edf7f1;
+    color: #16845f;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
 }
 
 .fhd-indicator-heading h2 {
