@@ -358,28 +358,28 @@ function FinHealthDetail() {
                     <>
                         {spendLoading ? (
                             <section className="fhd-card">
-                                <p className="fhd-spend-message">
+                                <p className="fhd-message">
                                     กำลังคำนวณข้อมูลสุขภาพการเงิน...
                                 </p>
                             </section>
                         ) : spendError ? (
                             <section className="fhd-card">
-                                <p className="fhd-spend-error" role="alert">
+                                <p className="fhd-error" role="alert">
                                     {spendError}
                                 </p>
                             </section>
                         ) : spendMetrics ? (
                             <>
                                 {/* Spend Total Score */}
-                                <section className="fhd-card fhd-spend-total-card">
+                                <section className="fhd-card fhd-score-card">
                                     <h2>คะแนนด้านรายรับ–รายจ่าย</h2>
 
                                     <p>
                                         คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน EIR และ TRC
                                     </p>
 
-                                    <div className="fhd-spend-formula">
-                                        <span className="fhd-spend-label">
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">
                                             สูตรคำนวณ
                                         </span>
                                         <p>
@@ -387,19 +387,19 @@ function FinHealthDetail() {
                                         </p>
                                     </div>
 
-                                    <div className="fhd-spend-result">
-                                        <div className="fhd-spend-result-card">
-                                            <span className="fhd-spend-result-label">
+                                    <div className="fhd-result">
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">
                                                 คะแนนเฉลี่ยด้านรายรับ–รายจ่าย
                                             </span>
 
                                             {spendTotalScore == null ? (
-                                                <strong className="fhd-spend-no-result">
+                                                <strong className="fhd-no-result">
                                                     ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
                                                     เนื่องจากข้อมูลคะแนนไม่ครบถ้วน
                                                 </strong>
                                             ) : (
-                                                <div className="fhd-spend-result-value">
+                                                <div className="fhd-result-value">
                                                     <strong>
                                                         {formatSpendMoney(spendTotalScore)}
                                                     </strong>
@@ -411,7 +411,7 @@ function FinHealthDetail() {
                                 </section>
 
                                 {/* EIR */}
-                                <section className="fhd-card fhd-spend-card">
+                                <section className="fhd-card fhd-indicator-card">
                                     <div className="fhd-indicator-heading">
                                         <span className="fhd-indicator-number">
                                             01
@@ -426,12 +426,12 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <p className="fhd-spend-description">
+                                    <p className="fhd-indicator-description">
                                         ใช้ประเมินว่าภาระค่าใช้จ่ายของเรามีมากน้อยเพียงใดเมื่อเทียบกับรายได้ที่ได้รับใน 1 เดือน
                                     </p>
 
-                                    <div className="fhd-spend-formula">
-                                        <span className="fhd-spend-label">
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">
                                             สูตรคำนวณ
                                         </span>
                                         <p>
@@ -439,7 +439,7 @@ function FinHealthDetail() {
                                         </p>
                                     </div>
 
-                                    <div className="fhd-spend-period">
+                                    <div className="fhd-period">
                                         ข้อมูลเดือน{' '}
                                         {formatThaiMonth(
                                             spendMetrics.year,
@@ -447,8 +447,8 @@ function FinHealthDetail() {
                                         )}
                                     </div>
 
-                                    <div className="fhd-spend-breakdown">
-                                        <div className="fhd-spend-row">
+                                    <div className="fhd-breakdown">
+                                        <div className="fhd-breakdown-row">
                                             <span>ค่าใช้จ่ายทั้งหมด</span>
                                             <strong>
                                                 {formatSpendMoney(
@@ -457,7 +457,7 @@ function FinHealthDetail() {
                                             </strong>
                                         </div>
 
-                                        <div className="fhd-spend-row">
+                                        <div className="fhd-breakdown-row">
                                             <span>เงินเดือน</span>
                                             <strong>
                                                 {formatSpendMoney(
@@ -466,7 +466,7 @@ function FinHealthDetail() {
                                             </strong>
                                         </div>
 
-                                        <div className="fhd-spend-row">
+                                        <div className="fhd-breakdown-row">
                                             <span>รายรับจากธุรกรรม</span>
                                             <strong>
                                                 {formatSpendMoney(
@@ -475,7 +475,7 @@ function FinHealthDetail() {
                                             </strong>
                                         </div>
 
-                                        <div className="fhd-spend-row fhd-spend-row-total">
+                                        <div className="fhd-breakdown-row fhd-breakdown-row-total">
                                             <span>รายได้สุทธิ</span>
                                             <strong>
                                                 {formatSpendMoney(
@@ -485,19 +485,19 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <div className="fhd-spend-result">
+                                    <div className="fhd-result">
                                         {/* ช่องที่ 1: EIR */}
-                                        <div className="fhd-spend-result-card">
-                                            <span className="fhd-spend-result-label">
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">
                                                 ผลการคำนวณ EIR
                                             </span>
 
                                             {spendMetrics.expense_ratio == null ? (
-                                                <strong className="fhd-spend-no-result">
+                                                <strong className="fhd-no-result">
                                                     ไม่สามารถคำนวณได้
                                                 </strong>
                                             ) : (
-                                                <div className="fhd-spend-result-value">
+                                                <div className="fhd-result-value">
                                                     <strong>
                                                         {formatSpendMoney(spendMetrics.expense_ratio)}
                                                     </strong>
@@ -507,17 +507,17 @@ function FinHealthDetail() {
                                         </div>
 
                                         {/* ช่องที่ 2: EIR Score */}
-                                        <div className="fhd-spend-result-card">
-                                            <span className="fhd-spend-result-label">
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">
                                                 คะแนน EIR
                                             </span>
 
                                             {eirScore == null ? (
-                                                <strong className="fhd-spend-no-result">
+                                                <strong className="fhd-no-result">
                                                     ยังไม่มีคะแนน
                                                 </strong>
                                             ) : (
-                                                <div className="fhd-spend-result-value">
+                                                <div className="fhd-result-value">
                                                     <strong>{eirScore}</strong>
                                                     <span>/ 100</span>
                                                 </div>
@@ -543,13 +543,13 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <p className="fhd-spend-description">
+                                    <p className="fhd-indicator-description">
                                         ประเมินความสม่ำเสมอในการบันทึกรายรับหรือรายจ่าย
                                         ภายใน 1 เดือน โดยพิจารณาทั้งจำนวนวันที่มีการบันทึก
                                         และการกระจายตัวของวันที่บันทึกตลอดทั้งเดือน
                                     </p>
 
-                                    <div className="fhd-spend-period">
+                                    <div className="fhd-period">
                                         ข้อมูลเดือน{' '}
                                         {formatThaiMonth(
                                             spendMetrics.year,
@@ -558,8 +558,8 @@ function FinHealthDetail() {
                                     </div>
 
                                     {/* Recording Frequency */}
-                                    <div className="fhd-spend-formula">
-                                        <span className="fhd-spend-label">
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">
                                             1. Recording Frequency (RF)
                                         </span>
                                         <p>
@@ -589,8 +589,8 @@ function FinHealthDetail() {
                                     </div>
 
                                     {/* Recording Distribution */}
-                                    <div className="fhd-spend-formula">
-                                        <span className="fhd-spend-label">
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">
                                             2. Recording Distribution (RD)
                                         </span>
                                         <p>
@@ -620,13 +620,13 @@ function FinHealthDetail() {
                                     </div>
 
                                     {/* TRC Score */}
-                                    <div className="fhd-spend-result">
-                                        <div className="fhd-spend-result-card">
-                                            <span className="fhd-spend-result-label">
+                                    <div className="fhd-result">
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">
                                                 คะแนน TRC
                                             </span>
 
-                                            <div className="fhd-spend-result-value">
+                                            <div className="fhd-result-value">
                                                 <strong>
                                                     {formatSpendMoney(spendMetrics.trc_score)}
                                                 </strong>
@@ -635,8 +635,8 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <div className="fhd-spend-formula">
-                                        <span className="fhd-spend-label">
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">
                                             สูตรคำนวณคะแนน TRC
                                         </span>
                                         <p>
@@ -711,7 +711,7 @@ function FinHealthDetail() {
                                                 </div>
                                             ))
                                         ) : (
-                                            <p className="fhd-spend-message">
+                                            <p className="fhd-message">
                                                 ยังไม่มีรายการบันทึกในเดือนนี้
                                             </p>
                                         )}
@@ -732,7 +732,7 @@ function FinHealthDetail() {
                             </>
                         ) : (
                             <section className="fhd-card">
-                                <p className="fhd-spend-message">
+                                <p className="fhd-message">
                                     ยังไม่มีข้อมูลสำหรับคำนวณ
                                 </p>
                             </section>
@@ -744,44 +744,44 @@ function FinHealthDetail() {
                     <>
                         {saveLoading ? (
                             <section className="fhd-card">
-                                <p className="fhd-spend-message">
+                                <p className="fhd-message">
                                     กำลังคำนวณข้อมูลสุขภาพการเงิน...
                                 </p>
                             </section>
                         ) : saveError ? (
                             <section className="fhd-card">
-                                <p className="fhd-spend-error" role="alert">
+                                <p className="fhd-error" role="alert">
                                     {saveError}
                                 </p>
                             </section>
                         ) : saveMetrics ? (
                             <>
                                 {/* Save Total Score */}
-                                <section className="fhd-card fhd-save-total-card">
+                                <section className="fhd-card fhd-score-card">
                                     <h2>คะแนนด้านการออม</h2>
 
                                     <p>
                                         คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน SR และ SC
                                     </p>
 
-                                    <div className="fhd-save-formula">
-                                        <span className="fhd-save-label">สูตรคำนวณ</span>
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">สูตรคำนวณ</span>
                                         <p>(คะแนน SR + คะแนน SC) ÷ 2</p>
                                     </div>
 
-                                    <div className="fhd-save-result">
-                                        <div className="fhd-save-result-card">
-                                            <span className="fhd-save-result-label">
+                                    <div className="fhd-result">
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">
                                                 คะแนนเฉลี่ยด้านการออม
                                             </span>
 
                                             {saveTotalScore == null ? (
-                                                <strong className="fhd-spend-no-result">
+                                                <strong className="fhd-no-result">
                                                     ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
                                                     เนื่องจากข้อมูลคะแนนไม่ครบถ้วน
                                                 </strong>
                                             ) : (
-                                                <div className="fhd-save-result-value">
+                                                <div className="fhd-result-value">
                                                     <strong>{formatSpendMoney(saveTotalScore)}</strong>
                                                     <span>/ 100</span>
                                                 </div>
@@ -791,7 +791,7 @@ function FinHealthDetail() {
                                 </section>
 
                                 {/* Saving Rate */}
-                                <section className="fhd-card">
+                                <section className="fhd-card fhd-indicator-card">
                                     <div className="fhd-indicator-heading">
                                         <span className="fhd-indicator-number">
                                             01
@@ -803,13 +803,13 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <p className="fhd-spend-description">
+                                    <p className="fhd-indicator-description">
                                         วัดสัดส่วนเงินออมสุทธิเมื่อเทียบกับรายได้สุทธิ
                                         ในช่วงเวลาที่ใช้ประเมิน
                                     </p>
 
-                                    <div className="fhd-spend-formula">
-                                        <span className="fhd-spend-label">
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">
                                             สูตรคำนวณ
                                         </span>
                                         <p>
@@ -817,43 +817,43 @@ function FinHealthDetail() {
                                         </p>
                                     </div>
 
-                                    <div className="fhd-spend-breakdown">
-                                        <div className="fhd-spend-row">
+                                    <div className="fhd-breakdown">
+                                        <div className="fhd-breakdown-row">
                                             <span>ยอดฝากเงิน</span>
                                             <strong>
                                                 {formatSpendMoney(saveMetrics.total_deposit)} บาท
                                             </strong>
                                         </div>
 
-                                        <div className="fhd-spend-row">
+                                        <div className="fhd-breakdown-row">
                                             <span>ยอดถอนเงิน</span>
                                             <strong>
                                                 {formatSpendMoney(saveMetrics.total_withdraw)} บาท
                                             </strong>
                                         </div>
 
-                                        <div className="fhd-spend-row fhd-spend-row-total">
+                                        <div className="fhd-breakdown-row fhd-breakdown-row-total">
                                             <span>จำนวนเงินออมสุทธิ</span>
                                             <strong>
                                                 {formatSpendMoney(saveMetrics.total_saving)} บาท
                                             </strong>
                                         </div>
 
-                                        <div className="fhd-spend-row">
+                                        <div className="fhd-breakdown-row">
                                             <span>รายได้ประจำ</span>
                                             <strong>
                                                 {formatSpendMoney(saveMetrics.monthly_income)} บาท/เดือน
                                             </strong>
                                         </div>
 
-                                        <div className="fhd-spend-row">
+                                        <div className="fhd-breakdown-row">
                                             <span>รายได้จากธุรกรรม</span>
                                             <strong>
                                                 {formatSpendMoney(saveMetrics.transaction_income)} บาท
                                             </strong>
                                         </div>
 
-                                        <div className="fhd-spend-row fhd-spend-row-total">
+                                        <div className="fhd-breakdown-row fhd-breakdown-row-total">
                                             <span>รายได้สุทธิรวม</span>
                                             <strong>
                                                 {formatSpendMoney(saveMetrics.total_income)} บาท
@@ -861,20 +861,20 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <div className="fhd-save-result">
+                                    <div className="fhd-result">
                                         {/* Saving Rate */}
-                                        <div className="fhd-save-result-card">
-                                            <span className="fhd-save-result-label">
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">
                                                 ผลการคำนวณ SR
                                             </span>
 
                                             {saveMetrics.saving_rate == null ? (
-                                                <strong className="fhd-spend-no-result">
+                                                <strong className="fhd-no-result">
                                                     ยังไม่สามารถคำนวณได้
                                                     เนื่องจากไม่มีรายได้สุทธิ
                                                 </strong>
                                             ) : (
-                                                <div className="fhd-save-result-value">
+                                                <div className="fhd-result-value">
                                                     <strong>
                                                         {formatSpendMoney(saveMetrics.saving_rate)}
                                                     </strong>
@@ -884,23 +884,23 @@ function FinHealthDetail() {
                                         </div>
 
                                         {/* Saving Rate Score */}
-                                        <div className="fhd-save-result-card">
-                                            <span className="fhd-save-result-label">
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">
                                                 คะแนน SR
                                             </span>
 
                                             {srScore == null ? (
-                                                <strong className="fhd-spend-no-result">
+                                                <strong className="fhd-no-result">
                                                     ยังไม่มีคะแนน
                                                 </strong>
                                             ) : (
                                                 <>
-                                                    <div className="fhd-save-result-value">
+                                                    <div className="fhd-result-value">
                                                         <strong>{formatSpendMoney(srScore)}</strong>
                                                         <span>/ 100</span>
                                                     </div>
 
-                                                    <p className="fhd-spend-message">{srLevel}</p>
+                                                    <p className="fhd-message">{srLevel}</p>
                                                 </>
                                             )}
                                         </div>
@@ -909,7 +909,7 @@ function FinHealthDetail() {
 
                                 {/* Saving Consistency */}
                                 {/* Saving Consistency */}
-                                <section className="fhd-card">
+                                <section className="fhd-card fhd-indicator-card">
                                     <div className="fhd-indicator-heading">
                                         <span className="fhd-indicator-number">02</span>
                                         <div>
@@ -918,20 +918,20 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <p className="fhd-spend-description">
+                                    <p className="fhd-indicator-description">
                                         ประเมินความสม่ำเสมอในการออมเงินภายใน 1 เดือน
                                         โดยพิจารณาทั้งจำนวนวันที่มีการออมและการกระจายตัว
                                         ของวันที่มีการออมตลอดทั้งเดือน
                                     </p>
 
-                                    <div className="fhd-spend-period">
+                                    <div className="fhd-period">
                                         ข้อมูลเดือน{' '}
                                         {formatThaiMonth(saveMetrics.year, saveMetrics.month)}
                                     </div>
 
                                     {/* Saving Frequency */}
-                                    <div className="fhd-save-formula">
-                                        <span className="fhd-save-label">
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">
                                             1. Saving Frequency (SF)
                                         </span>
                                         <p>
@@ -959,8 +959,8 @@ function FinHealthDetail() {
                                     </div>
 
                                     {/* Saving Distribution */}
-                                    <div className="fhd-save-formula">
-                                        <span className="fhd-save-label">
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">
                                             2. Saving Distribution (SD)
                                         </span>
                                         <p>
@@ -988,18 +988,18 @@ function FinHealthDetail() {
                                     </div>
 
                                     {/* SC Score */}
-                                    <div className="fhd-save-result">
-                                        <div className="fhd-save-result-card">
-                                            <span className="fhd-save-result-label">
+                                    <div className="fhd-result">
+                                        <div className="fhd-result-card">
+                                            <span className="fhd-result-label">
                                                 คะแนน SC
                                             </span>
 
                                             {scScore == null ? (
-                                                <strong className="fhd-spend-no-result">
+                                                <strong className="fhd-no-result">
                                                     ยังไม่มีคะแนน
                                                 </strong>
                                             ) : (
-                                                <div className="fhd-save-result-value">
+                                                <div className="fhd-result-value">
                                                     <strong>{formatSpendMoney(scScore)}</strong>
                                                     <span>/ 100</span>
                                                 </div>
@@ -1007,8 +1007,8 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <div className="fhd-save-formula">
-                                        <span className="fhd-save-label">
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">
                                             สูตรคำนวณคะแนน SC
                                         </span>
                                         <p>(คะแนน SF + คะแนน SD) ÷ 2</p>
@@ -1086,7 +1086,7 @@ function FinHealthDetail() {
                                                 </div>
                                             ))
                                         ) : (
-                                            <p className="fhd-spend-message">
+                                            <p className="fhd-message">
                                                 ยังไม่มีข้อมูลการออมในเดือนนี้
                                             </p>
                                         )}
@@ -1106,7 +1106,7 @@ function FinHealthDetail() {
                             </>
                         ) : (
                             <section className="fhd-card">
-                                <p className="fhd-spend-message">
+                                <p className="fhd-message">
                                     ยังไม่มีข้อมูลสำหรับคำนวณ
                                 </p>
                             </section>
@@ -1118,20 +1118,20 @@ function FinHealthDetail() {
                     <>
                         {borrowLoading ? (
                             <section className="fhd-card">
-                                <p className="fhd-spend-message">
+                                <p className="fhd-message">
                                     กำลังคำนวณข้อมูลสุขภาพการเงิน...
                                 </p>
                             </section>
                         ) : borrowError ? (
                             <section className="fhd-card">
-                                <p className="fhd-spend-error" role="alert">
+                                <p className="fhd-error" role="alert">
                                     {borrowError}
                                 </p>
                             </section>
                         ) : borrowMetrics ? (
                             <>
                                 {/* DSR */}
-                                <section className="fhd-card fhd-spend-card">
+                                <section className="fhd-card fhd-indicator-card">
                                     <div className="fhd-indicator-heading">
                                         <span className="fhd-indicator-number">01</span>
                                         <div>
@@ -1140,21 +1140,21 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <p className="fhd-spend-description">
+                                    <p className="fhd-indicator-description">
                                         คำนวณจากยอดผ่อนชำระหนี้รายเดือนที่ยังดำเนินการอยู่
                                         เทียบกับรายได้สุทธิรายเดือน
                                         โดยไม่รวมหนี้แบบทยอยชำระ
                                     </p>
 
-                                    <div className="fhd-spend-formula">
-                                        <span className="fhd-spend-label">สูตรคำนวณ</span>
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">สูตรคำนวณ</span>
                                         <p>
                                             (ยอดผ่อนชำระหนี้รายเดือน ÷ รายได้สุทธิ) × 100
                                         </p>
                                     </div>
 
-                                    <div className="fhd-spend-breakdown">
-                                        <div className="fhd-spend-row">
+                                    <div className="fhd-breakdown">
+                                        <div className="fhd-breakdown-row">
                                             <span>ยอดผ่อนชำระหนี้รายเดือน</span>
                                             <strong>
                                                 {formatSpendMoney(
@@ -1163,7 +1163,7 @@ function FinHealthDetail() {
                                             </strong>
                                         </div>
 
-                                        <div className="fhd-spend-row">
+                                        <div className="fhd-breakdown-row">
                                             <span>เงินเดือน</span>
                                             <strong>
                                                 {formatSpendMoney(
@@ -1172,7 +1172,7 @@ function FinHealthDetail() {
                                             </strong>
                                         </div>
 
-                                        <div className="fhd-spend-row">
+                                        <div className="fhd-breakdown-row">
                                             <span>รายรับจากธุรกรรม</span>
                                             <strong>
                                                 {formatSpendMoney(
@@ -1181,7 +1181,7 @@ function FinHealthDetail() {
                                             </strong>
                                         </div>
 
-                                        <div className="fhd-spend-row fhd-spend-row-total">
+                                        <div className="fhd-breakdown-row fhd-breakdown-row-total">
                                             <span>รายได้สุทธิ</span>
                                             <strong>
                                                 {formatSpendMoney(
@@ -1191,16 +1191,16 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <div className="fhd-spend-result">
+                                    <div className="fhd-result">
                                         <span>ผลการคำนวณ DSR</span>
 
                                         {borrowMetrics.dsr_percentage == null ? (
-                                            <strong className="fhd-spend-no-result">
+                                            <strong className="fhd-no-result">
                                                 ยังไม่สามารถคำนวณได้
                                                 เนื่องจากรายได้สุทธิเป็นศูนย์
                                             </strong>
                                         ) : (
-                                            <div className="fhd-spend-result-value">
+                                            <div className="fhd-result-value">
                                                 <strong>
                                                     {formatSpendMoney(
                                                         borrowMetrics.dsr_percentage
@@ -1222,7 +1222,7 @@ function FinHealthDetail() {
                                 </section>
 
                                 {/* ODP */}
-                                <section className="fhd-card fhd-spend-card">
+                                <section className="fhd-card fhd-indicator-card">
                                     <div className="fhd-indicator-heading">
                                         <span className="fhd-indicator-number">02</span>
                                         <div>
@@ -1231,27 +1231,27 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <p className="fhd-spend-description">
+                                    <p className="fhd-indicator-description">
                                         คำนวณจากจำนวนงวดหนี้รายเดือนที่ชำระครบภายใน
                                         วันครบกำหนด เทียบกับจำนวนงวดที่ถึงกำหนดทั้งหมด
                                     </p>
 
-                                    <div className="fhd-spend-formula">
-                                        <span className="fhd-spend-label">สูตรคำนวณ</span>
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">สูตรคำนวณ</span>
                                         <p>
                                             (จำนวนงวดที่ชำระตรงเวลา ÷ จำนวนงวดที่ถึงกำหนด) × 100
                                         </p>
                                     </div>
 
-                                    <div className="fhd-spend-breakdown">
-                                        <div className="fhd-spend-row">
+                                    <div className="fhd-breakdown">
+                                        <div className="fhd-breakdown-row">
                                             <span>งวดที่ชำระตรงเวลา</span>
                                             <strong>
                                                 {borrowMetrics.on_time_installments} งวด
                                             </strong>
                                         </div>
 
-                                        <div className="fhd-spend-row">
+                                        <div className="fhd-breakdown-row">
                                             <span>งวดที่ถึงกำหนดทั้งหมด</span>
                                             <strong>
                                                 {borrowMetrics.due_installments} งวด
@@ -1259,15 +1259,15 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <div className="fhd-spend-result">
+                                    <div className="fhd-result">
                                         <span>ผลการคำนวณ ODP</span>
 
                                         {borrowMetrics.odp_percentage == null ? (
-                                            <strong className="fhd-spend-no-result">
+                                            <strong className="fhd-no-result">
                                                 ยังไม่มีงวดหนี้รายเดือนที่ถึงกำหนดชำระ
                                             </strong>
                                         ) : (
-                                            <div className="fhd-spend-result-value">
+                                            <div className="fhd-result-value">
                                                 <strong>
                                                     {formatSpendMoney(
                                                         borrowMetrics.odp_percentage
@@ -1291,18 +1291,18 @@ function FinHealthDetail() {
                                 </section>
 
                                 {/* Borrow score */}
-                                <section className="fhd-card fhd-spend-total-card">
+                                <section className="fhd-card fhd-score-card">
                                     <h2>คะแนนด้านหนี้สิน</h2>
                                     <p>
                                         คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน DSR และ ODP
                                     </p>
 
-                                    <div className="fhd-spend-formula">
-                                        <span className="fhd-spend-label">สูตรคำนวณ</span>
+                                    <div className="fhd-formula">
+                                        <span className="fhd-formula-label">สูตรคำนวณ</span>
                                         <p>(คะแนน DSR + คะแนน ODP) ÷ 2</p>
                                     </div>
 
-                                    <p className="fhd-spend-message">
+                                    <p className="fhd-message">
                                         ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
                                         เนื่องจากยังไม่ได้กำหนดเกณฑ์
                                         แปลงค่า DSR และ ODP เป็นระดับคะแนน
@@ -1311,7 +1311,7 @@ function FinHealthDetail() {
                             </>
                         ) : (
                             <section className="fhd-card">
-                                <p className="fhd-spend-message">
+                                <p className="fhd-message">
                                     ยังไม่มีข้อมูลสำหรับคำนวณ
                                 </p>
                             </section>

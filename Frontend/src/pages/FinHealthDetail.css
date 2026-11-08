@@ -521,30 +521,30 @@
 
 /* การ์ดอัตราค่าใช้จ่ายต่อรายได้ */
 
-.fhd-spend-card h2 {
+.fhd-indicator-card h2 {
     margin-bottom: 8px;
 }
 
-.fhd-card .fhd-spend-description {
+.fhd-card .fhd-indicator-description {
     margin: 0 0 18px;
     color: #75847c;
     font-size: 13px;
     line-height: 1.8;
 }
 
-.fhd-spend-formula {
+.fhd-formula {
     padding: 14px;
     border-radius: 12px;
     background: #edf7f1;
 }
 
-.fhd-spend-label {
+.fhd-formula-label {
     color: #24815e;
     font-size: 11px;
     font-weight: 700;
 }
 
-.fhd-spend-formula p {
+.fhd-formula p {
     margin: 7px 0 0;
     color: #285b43;
     font-size: 13px;
@@ -553,21 +553,21 @@
     overflow-wrap: anywhere;
 }
 
-.fhd-spend-period {
+.fhd-period {
     margin-top: 20px;
     color: #728078;
     font-size: 12px;
     font-weight: 600;
 }
 
-.fhd-spend-breakdown {
+.fhd-breakdown {
     margin-top: 10px;
     border: 1px solid #e8eeeb;
     border-radius: 12px;
     overflow: hidden;
 }
 
-.fhd-spend-row {
+.fhd-breakdown-row {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -576,11 +576,11 @@
     border-bottom: 1px solid #edf0ee;
 }
 
-.fhd-spend-row:last-child {
+.fhd-breakdown-row:last-child {
     border-bottom: 0;
 }
 
-.fhd-spend-row span {
+.fhd-breakdown-row span {
     flex: 1;
     min-width: 0;
     color: #65776c;
@@ -588,7 +588,7 @@
     line-height: 1.7;
 }
 
-.fhd-spend-row strong {
+.fhd-breakdown-row strong {
     flex-shrink: 0;
     color: #34483c;
     font-size: 12px;
@@ -597,117 +597,63 @@
     overflow-wrap: anywhere;
 }
 
-.fhd-spend-row-total {
+.fhd-breakdown-row-total {
     background: #f5faf7;
 }
 
-.fhd-spend-row-total strong {
+.fhd-breakdown-row-total strong {
     color: #16845f;
 }
-.fhd-spend-result {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-}
-
-.fhd-spend-result-card {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 10px;
-    padding: 16px;
-    border-radius: 12px;
-    background: var(--color-background);
-}
-
-.fhd-spend-result-label {
-    font-size: 14px;
-    color: var(--color-text-secondary);
-}
-
-.fhd-spend-result-value {
-    display: flex;
-    align-items: baseline;
-    gap: 5px;
-}
-
-.fhd-spend-result-value strong {
-    font-size: 24px;
-    font-weight: 700;
-}
-
-.fhd-spend-no-result {
-    font-size: 14px;
-}
-
-.fhd-spend-message,
-.fhd-spend-error {
-    margin-top: 16px !important;
-    font-size: 12px !important;
-    line-height: 1.8 !important;
-}
-
-.fhd-spend-error {
-    color: #b42318 !important;
-}
-
-
-.fhd-save-result {
+.fhd-result {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
     margin-top: 16px;
 }
 
-.fhd-save-result-card {
+.fhd-result-card {
     min-width: 0;
     padding: 16px;
     border-radius: 12px;
     background: var(--color-save-light);
 }
 
-.fhd-save-result-label {
+.fhd-result-label {
     display: block;
     margin-bottom: 8px;
-    font-size: 14px;
     color: var(--color-text-secondary);
+    font-size: 14px;
 }
 
-.fhd-save-result-value {
+.fhd-result-value {
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
     gap: 5px;
 }
 
-.fhd-save-result-value strong {
+.fhd-result-value strong {
     font-size: 24px;
     font-weight: 700;
 }
 
-.fhd-save-result-value span {
+.fhd-result-value span {
     font-size: 14px;
 }
 
-/* Indicator heading */
-.fhd-indicator-heading {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 16px;
+.fhd-no-result {
+    font-size: 14px;
 }
 
-.fhd-indicator-number {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 38px;
-    height: 38px;
-    border-radius: 12px;
-    background: #f1f5f9;
-    color: #475569;
-    font-size: 13px;
-    font-weight: 700;
+.fhd-message,
+.fhd-error {
+    margin-top: 16px !important;
+    font-size: 12px !important;
+    line-height: 1.8 !important;
+}
+
+.fhd-error {
+    color: #b42318 !important;
 }
 
 .fhd-indicator-heading h2 {
@@ -843,31 +789,24 @@
 }
 
 @media (min-width: 600px) {
-    .fhd-spend-row {
+    .fhd-breakdown-row {
         padding: 15px 17px;
     }
 
-    .fhd-spend-row span,
-    .fhd-spend-row strong {
+    .fhd-breakdown-row span,
+    .fhd-breakdown-row strong {
         font-size: 14px;
     }
 
-    .fhd-spend-result {
-        padding: 22px;
-    }
-
-    .fhd-spend-result-value strong {
-        font-size: 42px;
-    }
 }
 
 @media (max-width: 380px) {
-    .fhd-spend-row {
+    .fhd-breakdown-row {
         flex-direction: column;
         gap: 4px;
     }
 
-    .fhd-spend-row strong {
+    .fhd-breakdown-row strong {
         text-align: left;
     }
 }
