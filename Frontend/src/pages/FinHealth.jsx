@@ -227,7 +227,7 @@ function FinHealth() {
             <header className="fh-header">
                 <div className="fh-header-top">
                     <div>
-                        <h1>สุขภาพการเงินของคุณ</h1>
+                        <h1>คะแนนสุขภาพการเงิน</h1>
                         <p>
                             ติดตามพฤติกรรมทางการเงินและพัฒนาสุขภาพการเงินของคุณ
                         </p>
@@ -242,26 +242,13 @@ function FinHealth() {
                         <span>เกณฑ์คะแนน</span>
                     </button> */}
                 </div>
-
-                <div className="fh-update-info">
-                    <span className="fh-update-dot" />
-                    <span>
-                        อัปเดตล่าสุด:{' '}
-                        {lastUpdated || 'ยังไม่มีข้อมูลการประเมิน'}
-                    </span>
-                </div>
             </header>
 
             <main className="fh-main">
                 {/* CURRENT SCORES */}
                 <section className="fh-section">
                     <div className="fh-section-heading">
-                        <div>
-                            <h2>คะแนนสุขภาพการเงิน</h2>
-                            <p>
-                                แบ่งออกเป็น 3 ด้านตามการใช้งานแต่ละฟีเจอร์ ดังนี้
-                            </p>
-                        </div>
+                        <p>แบ่งออกเป็น 3 ด้านตามการใช้งานแต่ละฟีเจอร์ ดังนี้</p>
                     </div>
 
                     <div className="fh-score-grid">

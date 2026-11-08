@@ -78,23 +78,6 @@
     transform: scale(0.97);
 }
 
-.fh-update-info {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    margin-top: 22px;
-    color: #effff8;
-    font-size: 11px;
-}
-
-.fh-update-dot {
-    width: 7px;
-    height: 7px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    background: #d9ff9e;
-}
-
 /* =========================
    MAIN CONTENT
 ========================= */
@@ -119,13 +102,6 @@
     margin-bottom: 15px;
 }
 
-.fh-section-heading h2 {
-    margin: 0;
-    color: #263a31;
-    font-size: 17px;
-    font-weight: 800;
-    line-height: 1.5;
-}
 
 .fh-section-heading p {
     margin: 4px 0 0;
