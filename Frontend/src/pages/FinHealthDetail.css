@@ -617,8 +617,6 @@
 .fhd-result-card {
     min-width: 0;
     padding: 16px;
-    border-radius: 12px;
-    background: var(--color-save-light);
 }
 
 .fhd-result-label {
@@ -626,6 +624,7 @@
     margin-bottom: 8px;
     color: var(--color-text-secondary);
     font-size: 14px;
+    font-weight: 400;
 }
 
 .fhd-result-value {
@@ -634,7 +633,8 @@
     flex-wrap: wrap;
     gap: 5px;
     padding: 10px 12px;
-    border-radius: 10px;
+    border: 1px solid #17824b;
+    border-radius: 12px;
     background: #fff;
 }
 
