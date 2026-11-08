@@ -32,7 +32,33 @@ function calculateEirScore(eir) {
         Math.max(0, Math.min(100, score)) * 100
     ) / 100;
 }
+// Calculate Saving Rate Score
+function calculateSrScore(sr) {
+    if (sr == null || !Number.isFinite(Number(sr))) {
+        return null;
+    }
 
+    return Math.round(
+        Math.max(0, Math.min(100, Number(sr) * 5)) * 100
+    ) / 100;
+}
+
+// Get Saving Rate Level
+function getSrLevel(sr) {
+    if (sr == null || !Number.isFinite(Number(sr))) {
+        return null;
+    }
+
+    const rate = Number(sr);
+
+    if (rate <= 0) return 'ไม่มีเงินออม หรือไม่มีการออมเงิน';
+    if (rate < 5) return 'มีการออมเงินในระดับต่ำมาก';
+    if (rate < 10) return 'มีการออมเงินในระดับต่ำ';
+    if (rate < 15) return 'มีการออมเงินในระดับปานกลาง';
+    if (rate < 20) return 'มีการออมเงินในระดับดี';
+
+    return 'มีการออมเงินในระดับดีมาก';
+}
 function FinHealthDetail() {
     const navigate = useNavigate();
     const { id } = useParams();
@@ -261,7 +287,30 @@ function FinHealthDetail() {
 
     const saveMonths = saveMetrics?.monthly_breakdown || [];
     const eirScore = calculateEirScore(spendMetrics?.expense_ratio);
+
     const trcScore = spendMetrics?.trc_score;
+    const srScore = calculateSrScore(saveMetrics?.saving_rate);
+    const srLevel = getSrLevel(saveMetrics?.saving_rate);
+
+    // Saving Consistency
+    const scFrequency = saveMetrics?.sc_recording_frequency;
+    const scDistribution = saveMetrics?.sc_recording_distribution;
+
+    const scScore =
+        scFrequency == null ||
+            scDistribution == null ||
+            !Number.isFinite(Number(scFrequency)) ||
+            !Number.isFinite(Number(scDistribution))
+            ? null
+            : Math.round(
+                ((Number(scFrequency) + Number(scDistribution)) / 2) * 100
+            ) / 100;
+
+    // Saving Total Score
+    const saveTotalScore =
+        srScore == null || scScore == null
+            ? null
+            : Math.round(((srScore + scScore) / 2) * 100) / 100;
 
     const spendTotalScore =
         eirScore == null ||
@@ -707,6 +756,40 @@ function FinHealthDetail() {
                             </section>
                         ) : saveMetrics ? (
                             <>
+                                {/* Save Total Score */}
+                                <section className="fhd-card fhd-save-total-card">
+                                    <h2>คะแนนด้านการออม</h2>
+
+                                    <p>
+                                        คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน SR และ SC
+                                    </p>
+
+                                    <div className="fhd-save-formula">
+                                        <span className="fhd-save-label">สูตรคำนวณ</span>
+                                        <p>(คะแนน SR + คะแนน SC) ÷ 2</p>
+                                    </div>
+
+                                    <div className="fhd-save-result">
+                                        <div className="fhd-save-result-card">
+                                            <span className="fhd-save-result-label">
+                                                คะแนนเฉลี่ยด้านการออม
+                                            </span>
+
+                                            {saveTotalScore == null ? (
+                                                <strong className="fhd-spend-no-result">
+                                                    ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
+                                                    เนื่องจากข้อมูลคะแนนไม่ครบถ้วน
+                                                </strong>
+                                            ) : (
+                                                <div className="fhd-save-result-value">
+                                                    <strong>{formatSpendMoney(saveTotalScore)}</strong>
+                                                    <span>/ 100</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </section>
+
                                 {/* Saving Rate */}
                                 <section className="fhd-card">
                                     <div className="fhd-indicator-heading">
@@ -778,32 +861,57 @@ function FinHealthDetail() {
                                         </div>
                                     </div>
 
-                                    <div className="fhd-spend-result">
-                                        <span>ผลการคำนวณ SR</span>
+                                    <div className="fhd-save-result">
+                                        {/* Saving Rate */}
+                                        <div className="fhd-save-result-card">
+                                            <span className="fhd-save-result-label">
+                                                ผลการคำนวณ SR
+                                            </span>
 
-                                        {saveMetrics.saving_rate == null ? (
-                                            <strong className="fhd-spend-no-result">
-                                                ยังไม่สามารถคำนวณได้
-                                                เนื่องจากไม่มีรายได้สุทธิ
-                                            </strong>
-                                        ) : (
-                                            <div className="fhd-spend-result-value">
-                                                <strong>
-                                                    {formatSpendMoney(saveMetrics.saving_rate)}
+                                            {saveMetrics.saving_rate == null ? (
+                                                <strong className="fhd-spend-no-result">
+                                                    ยังไม่สามารถคำนวณได้
+                                                    เนื่องจากไม่มีรายได้สุทธิ
                                                 </strong>
-                                                <span>%</span>
-                                            </div>
-                                        )}
+                                            ) : (
+                                                <div className="fhd-save-result-value">
+                                                    <strong>
+                                                        {formatSpendMoney(saveMetrics.saving_rate)}
+                                                    </strong>
+                                                    <span>%</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Saving Rate Score */}
+                                        <div className="fhd-save-result-card">
+                                            <span className="fhd-save-result-label">
+                                                คะแนน SR
+                                            </span>
+
+                                            {srScore == null ? (
+                                                <strong className="fhd-spend-no-result">
+                                                    ยังไม่มีคะแนน
+                                                </strong>
+                                            ) : (
+                                                <>
+                                                    <div className="fhd-save-result-value">
+                                                        <strong>{formatSpendMoney(srScore)}</strong>
+                                                        <span>/ 100</span>
+                                                    </div>
+
+                                                    <p className="fhd-spend-message">{srLevel}</p>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 </section>
 
                                 {/* Saving Consistency */}
+                                {/* Saving Consistency */}
                                 <section className="fhd-card">
                                     <div className="fhd-indicator-heading">
-                                        <span className="fhd-indicator-number">
-                                            02
-                                        </span>
-
+                                        <span className="fhd-indicator-number">02</span>
                                         <div>
                                             <h2>ความสม่ำเสมอในการออม</h2>
                                             <p>Saving Consistency (SC)</p>
@@ -811,113 +919,190 @@ function FinHealthDetail() {
                                     </div>
 
                                     <p className="fhd-spend-description">
-                                        ตรวจสอบจำนวนเดือนที่มีการออมสุทธิ
-                                        ในช่วงเวลาที่ใช้ประเมิน
+                                        ประเมินความสม่ำเสมอในการออมเงินภายใน 1 เดือน
+                                        โดยพิจารณาทั้งจำนวนวันที่มีการออมและการกระจายตัว
+                                        ของวันที่มีการออมตลอดทั้งเดือน
                                     </p>
 
-                                    <div className="fhd-spend-formula">
-                                        <span className="fhd-spend-label">
-                                            สูตรคำนวณ
+                                    <div className="fhd-spend-period">
+                                        ข้อมูลเดือน{' '}
+                                        {formatThaiMonth(saveMetrics.year, saveMetrics.month)}
+                                    </div>
+
+                                    {/* Saving Frequency */}
+                                    <div className="fhd-save-formula">
+                                        <span className="fhd-save-label">
+                                            1. Saving Frequency (SF)
                                         </span>
                                         <p>
-                                            (จำนวนเดือนที่มีการออม ÷ จำนวนเดือนที่ใช้ประเมิน) × 100
+                                            (จำนวนวันที่มีการออม ÷ จำนวนวันที่ใช้ประเมิน) × 100
                                         </p>
                                     </div>
 
                                     <div className="fhd-trc-summary">
                                         <div>
-                                            <span>เดือนที่มีการออม</span>
+                                            <span>วันที่มีการออม</span>
                                             <strong>
-                                                {saveMetrics.sc_months}
+                                                {saveMetrics.sc_recorded_days}
                                                 {' / '}
-                                                {saveMetrics.sc_period_months}
-                                                {' เดือน'}
+                                                {saveMetrics.sc_days_evaluated}
+                                                {' วัน'}
                                             </strong>
                                         </div>
 
                                         <div className="fhd-trc-percentage">
-                                            <span>ผลการคำนวณ SC</span>
+                                            <span>ผลการคำนวณ SF</span>
                                             <strong>
-                                                {formatSpendMoney(saveMetrics.saving_consistency)}%
+                                                {formatSpendMoney(scFrequency)}%
                                             </strong>
                                         </div>
                                     </div>
-                                </section>
 
-                                {/* Monthly Breakdown */}
-                                <section className="fhd-card">
-                                    <h2>รายละเอียดข้อมูลรายเดือน</h2>
+                                    {/* Saving Distribution */}
+                                    <div className="fhd-save-formula">
+                                        <span className="fhd-save-label">
+                                            2. Saving Distribution (SD)
+                                        </span>
+                                        <p>
+                                            (จำนวนช่วงที่มีการออม ÷ 4) × 100
+                                        </p>
+                                    </div>
 
+                                    <div className="fhd-trc-summary">
+                                        <div>
+                                            <span>ช่วงที่มีการออม</span>
+                                            <strong>
+                                                {saveMetrics.sc_recorded_periods}
+                                                {' / '}
+                                                {saveMetrics.sc_total_periods}
+                                                {' ช่วง'}
+                                            </strong>
+                                        </div>
+
+                                        <div className="fhd-trc-percentage">
+                                            <span>ผลการคำนวณ SD</span>
+                                            <strong>
+                                                {formatSpendMoney(scDistribution)}%
+                                            </strong>
+                                        </div>
+                                    </div>
+
+                                    {/* SC Score */}
+                                    <div className="fhd-save-result">
+                                        <div className="fhd-save-result-card">
+                                            <span className="fhd-save-result-label">
+                                                คะแนน SC
+                                            </span>
+
+                                            {scScore == null ? (
+                                                <strong className="fhd-spend-no-result">
+                                                    ยังไม่มีคะแนน
+                                                </strong>
+                                            ) : (
+                                                <div className="fhd-save-result-value">
+                                                    <strong>{formatSpendMoney(scScore)}</strong>
+                                                    <span>/ 100</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="fhd-save-formula">
+                                        <span className="fhd-save-label">
+                                            สูตรคำนวณคะแนน SC
+                                        </span>
+                                        <p>(คะแนน SF + คะแนน SD) ÷ 2</p>
+                                    </div>
+
+                                    {/* รายละเอียด 4 ช่วง */}
                                     <div className="fhd-trc-month-list">
-                                        {saveMonths.map((item) => (
+                                        <h3>รายละเอียดการออมในแต่ละช่วง</h3>
+
+                                        {(saveMetrics.sc_periods || []).map((item) => (
                                             <div
                                                 className="fhd-trc-month-item"
-                                                key={`${item.year}-${item.month}`}
+                                                key={item.period}
                                             >
                                                 <div className="fhd-trc-month-name">
-                                                    <strong>
-                                                        {formatThaiMonth(
-                                                            item.year,
-                                                            item.month
-                                                        )}
-                                                    </strong>
+                                                    <strong>ช่วงที่ {item.period}</strong>
 
                                                     <span>
-                                                        ฝาก {formatSpendMoney(item.deposit)} บาท
-                                                        {' · '}
-                                                        ถอน {formatSpendMoney(item.withdraw)} บาท
-                                                        {' · '}
-                                                        ออมสุทธิ {formatSpendMoney(item.net_saving)} บาท
+                                                        วันที่ {item.start_day} - {item.end_day}
                                                     </span>
+
+                                                    {item.recorded_days?.length > 0 && (
+                                                        <span>
+                                                            วันที่มีการออม: {item.recorded_days.join(', ')}
+                                                        </span>
+                                                    )}
                                                 </div>
 
                                                 <span
-                                                    className={`fhd-trc-status ${item.net_saving > 0
-                                                        ? 'is-complete'
-                                                        : 'is-incomplete'
+                                                    className={`fhd-trc-status ${item.has_records
+                                                            ? 'is-complete'
+                                                            : 'is-incomplete'
                                                         }`}
                                                 >
-                                                    {item.net_saving > 0
-                                                        ? 'มีการออม'
-                                                        : 'ไม่มีการออมสุทธิ'}
+                                                    {item.has_records ? 'มีการออม' : 'ไม่มีการออม'}
                                                 </span>
                                             </div>
                                         ))}
                                     </div>
 
+                                    {/* รายละเอียดรายวัน */}
+                                    <div className="fhd-trc-month-list">
+                                        <h3>รายละเอียดการออมรายวัน</h3>
+
+                                        {(saveMetrics.sc_daily_records || []).length > 0 ? (
+                                            saveMetrics.sc_daily_records.map((item) => (
+                                                <div
+                                                    className="fhd-trc-month-item"
+                                                    key={item.date}
+                                                >
+                                                    <div className="fhd-trc-month-name">
+                                                        <strong>วันที่ {item.day}</strong>
+
+                                                        <span>
+                                                            ฝาก {formatSpendMoney(item.deposit)} บาท
+                                                            {' · '}
+                                                            ถอน {formatSpendMoney(item.withdraw)} บาท
+                                                        </span>
+
+                                                        <span>
+                                                            ออมสุทธิ {formatSpendMoney(item.net_saving)} บาท
+                                                        </span>
+                                                    </div>
+
+                                                    <span
+                                                        className={`fhd-trc-status ${Number(item.net_saving) > 0
+                                                                ? 'is-complete'
+                                                                : 'is-incomplete'
+                                                            }`}
+                                                    >
+                                                        {Number(item.net_saving) > 0
+                                                            ? 'มีการออม'
+                                                            : 'ไม่มีการออม'}
+                                                    </span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="fhd-spend-message">
+                                                ยังไม่มีข้อมูลการออมในเดือนนี้
+                                            </p>
+                                        )}
+                                    </div>
+
                                     <div className="fhd-trc-note">
                                         <strong>หมายเหตุ</strong>
                                         <p>
-                                            ระบบใช้ข้อมูลย้อนหลัง 3 เดือน รวมเดือนปัจจุบัน
-                                            โดยคำนวณจำนวนเงินออมจากยอดฝากหักยอดถอน
-                                            และนับเดือนที่มีการออมเมื่อยอดฝากสุทธิมากกว่า 0 บาท
+                                            ระบบนับวันที่มียอดฝากหักยอดถอนสุทธิมากกว่า 0 บาท
+                                            เป็นวันที่มีการออม และแบ่งช่วงการประเมินเป็นวันที่
+                                            1–7, 8–14, 15–21 และวันที่ 22 จนถึงวันสุดท้ายของเดือน
+                                            สำหรับเดือนปัจจุบัน ระบบจะประเมินเฉพาะวันที่ผ่านไปแล้ว
                                         </p>
                                     </div>
                                 </section>
 
-                                {/* Save Score */}
-                                <section className="fhd-card fhd-spend-total-card">
-                                    <h2>คะแนนด้านการออม</h2>
-
-                                    <p>
-                                        คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน SR และ SC
-                                    </p>
-
-                                    <div className="fhd-spend-formula">
-                                        <span className="fhd-spend-label">
-                                            สูตรคำนวณ
-                                        </span>
-                                        <p>
-                                            (คะแนน SR + คะแนน SC) ÷ 2
-                                        </p>
-                                    </div>
-
-                                    <p className="fhd-spend-message">
-                                        ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
-                                        เนื่องจากยังไม่ได้กำหนดเกณฑ์
-                                        แปลงค่า SR และ SC เป็นระดับคะแนน
-                                    </p>
-                                </section>
                             </>
                         ) : (
                             <section className="fhd-card">

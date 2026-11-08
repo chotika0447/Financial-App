@@ -61,6 +61,19 @@ const finHealthCriteria = [
 
         indicators: [
             {
+                id: 'SR',
+                name: 'Saving Rate (SR)',
+                title: 'อัตราการออม',
+                description:
+                    'วัดสัดส่วนเงินออมสุทธิเมื่อเทียบกับรายได้สุทธิในช่วงเวลาที่ใช้ประเมิน',
+
+                formula:
+                    '(จำนวนเงินออมสุทธิ ÷ รายได้สุทธิ) × 100',
+
+                unit: '%',
+                direction: 'higher',
+            },
+            {
                 id: 'SC',
                 name: 'Saving Consistency (SC)',
                 title: 'ความสม่ำเสมอในการออม',
@@ -75,7 +88,7 @@ const finHealthCriteria = [
             },
         ],
 
-        formula: 'คะแนน SC',
+        formula: '(คะแนน SR + คะแนน SC) ÷ 2',
 
         target:
             'มีการออมเงินอย่างสม่ำเสมอ โดยพิจารณาเฉพาะเดือนที่มีข้อมูลเพียงพอ',

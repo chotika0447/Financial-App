@@ -651,6 +651,44 @@
     color: #b42318 !important;
 }
 
+
+.fhd-save-result {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.fhd-save-result-card {
+    min-width: 0;
+    padding: 16px;
+    border-radius: 12px;
+    background: var(--color-save-light);
+}
+
+.fhd-save-result-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+.fhd-save-result-value {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.fhd-save-result-value strong {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.fhd-save-result-value span {
+    font-size: 14px;
+}
+
 /* Indicator heading */
 .fhd-indicator-heading {
     display: flex;
