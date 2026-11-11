@@ -43,7 +43,7 @@ class Savings(models.Model):
         decimal_places=2,
         default=0.00
     )
-    #วันที่กสิ้นสุดเป้าหมาย
+    #วันที่สิ้นสุดเป้าหมาย
     target_date = models.DateField(
         null=True,
         blank=True

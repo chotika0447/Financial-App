@@ -203,10 +203,10 @@
     line-height: 1.4;
 }
 
-.income-card.dashboard-card-value {
+.income-card .dashboard-card-value {
     color: #329b70;
 }
-.expense-card.dashboard-card-value {
+.expense-card .dashboard-card-value {
     color: #e36d6d;
 }
 

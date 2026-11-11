@@ -16,6 +16,7 @@ function CompletedWallets({ wallets }) {
                         date={wallet.date}
                         balance={wallet.balance}
                         isCompleted={true}
+                        endDate={wallet.endDate}
                         />
                     ))
                 )}

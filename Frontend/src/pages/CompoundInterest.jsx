@@ -38,15 +38,19 @@ function CompoundInterest() {
 		principal >= 0 &&
 		interestRate >= 0 &&
 		years > 0 &&
-		compoundingFrequency > 0;
+		compoundingFrequency > 0 &&
+		Number.isInteger(compoundingFrequency);
 
-	const futureValue = validInputs
-		? principal *
-		Math.pow(
-			1 + interestRate / 100 / compoundingFrequency,
-			compoundingFrequency * years
-		)
-		: 0;
+	let futureValue = 0;
+	if (validInputs) {
+		futureValue = principal * Math.pow(1 + interestRate / 100 / compoundingFrequency,compoundingFrequency * years
+	);
+		if(!Number.isFinite(futureValue) || futureValue < 0) {
+			futureValue = 0;
+		}
+	}else {
+		futureValue = 0;
+	}
 
 	const formatMoney = (amount) =>
 		amount.toLocaleString('th-TH', {

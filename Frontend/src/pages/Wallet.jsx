@@ -10,7 +10,6 @@ import CompletedWallets from '../components/CompletedWallets';
 
 function Wallet() {
     const navigate = useNavigate()
-
     const [wallets, setWallets] = useState([])
     const activeWallets = wallets.filter((wallet) => wallet.status === 'active')
     const completedWallets = wallets.filter((wallet) => wallet.status === 'completed')
@@ -19,24 +18,16 @@ function Wallet() {
     const [target, setTarget] = useState('')
     const [targetDate, setTargetDate] = useState('')
     const [editingWalletId, setEditingWalletId] = useState(null)
-
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState('')
-
-    const [transactions, setTransactions] = useState([])
-    const [transactionLoading, setTransactionLoading] = useState(true)
-    const [transactionError, setTransactionError] = useState('')
-
     const today = new Date().toISOString().split('T')[0]
-
-    const accessToken = () => sessionStorage.getItem('accessToken')
 
     //กำหนดจำนวนกระเป๋าเงินสูงสุด
     const maxWallets = 15;
     const isWalletLimitReached = activeWallets.length >= maxWallets;
 
-    //แปลงชื่อ field จาก Django ให้ตรงกับ WalletCard เดิม
+    //แปลงชื่อ field จาก Django ให้ตรงกับ WalletCard
     const normalizeWallet = (item) => ({
         id: item.saving_id,
         name: item.saving_name,
@@ -44,6 +35,7 @@ function Wallet() {
         date: item.target_date || '',
         balance: Number(item.balance || 0),
         status: item.status || 'active',
+        endDate: item.end_date || '',
     })
 
     // เรียก API และจัดการ error
@@ -55,12 +47,12 @@ function Wallet() {
         }
 
         const response = await fetch(url, {
-            ...options,
+            method: options.method || 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-                ...options.headers,
+                'Authorization': `Bearer ${token}`,
             },
+            body: options.body,
         })
 
         if (response.status === 204) {
@@ -85,21 +77,6 @@ function Wallet() {
         return data
     }
 
-    const fetchTransactions = async () => {
-        setTransactionLoading(true)
-        setTransactionError('')
-
-        try {
-            const data = await apiRequest('/savings/transactions/')
-            setTransactions(Array.isArray(data) ? data : [])
-        } catch (error) {
-            console.error('ไม่สามารถดึงประวัติการออมได้:', error)
-            setTransactionError(error.message)
-        } finally {
-            setTransactionLoading(false)
-        }
-    }
-
     //โหลดรายการจากฐานข้อมูลเมื่อเปิดหน้า
     const fetchWallets = async () => {
         setLoading(true)
@@ -117,7 +94,6 @@ function Wallet() {
 
     useEffect(() => {
         fetchWallets()
-        fetchTransactions()
     }, [])
 
     const fromTitle =
@@ -271,9 +247,6 @@ function Wallet() {
                 )
             )
 
-            //ดึงประวัติใหม่หลังฝากเงินสำเร็จ
-            await fetchTransactions()
-
             return true
         } catch (error) {
             alert(error.message)
@@ -299,42 +272,39 @@ function Wallet() {
                     wallet.id === id ? normalized : wallet
                 )
             )
-
-            //ดึงประวัติใหม่หลังถอนเงินสำเร็จ
-            await fetchTransactions()
-
             return true
         } catch (error) {
             alert(error.message)
             return false
         }
     }
-    //ฟังก์ชันจัดรูปแบบวันที่และจำนวนเงิน
-    const formatTransactionDate = (date) => {
-        if (!date) return '-'
-
-        return new Date(`${date}T00:00:00`).toLocaleDateString('th-TH', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-        })
-    }
-    const formatMoney = (amount) => {
-        return Number(amount || 0).toLocaleString('th-TH', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        })
-    }
 
     const totalSaving = wallets.reduce(
-        (total, wallet) => total + wallet.balance,
-        0
+        (total, wallet) => total + wallet.balance, 0
     )
 
     const totalTarget = wallets.reduce(
-        (total, wallet) => total + wallet.target,
-        0
+        (total, wallet) => total + wallet.target, 0
     )
+    //progress bar ของเงิน
+    let progress = 0
+    if (totalTarget > 0) {
+        progress = Math.min((totalSaving / totalTarget) * 100, 100)
+    }
+    if (progress < 0) {
+        progress = 0
+    }
+    //เปอร์เซ็นต์ของเงิน
+    let percent = 0
+    if (totalTarget > 0) {
+        percent = Math.round((totalSaving / totalTarget) * 100)
+    }
+
+    //ปุ่มตกลง
+    let buttonText = 'ตกลง'
+    if (saving) {
+        buttonText = 'กำลังบันทึก...'
+    }
 
     return (
         <div className="wallet-page">
@@ -362,19 +332,14 @@ function Wallet() {
                             <div
                                 className="wallet-summary-progress-fill"
                                 style={{
-                                    width: `${totalTarget > 0
-                                        ? Math.min((totalSaving / totalTarget) * 100, 100)
-                                        : 0
-                                        }%`,
+                                    width: `${progress}%`,
                                 }}
                             />
                         </div>
 
                         <p className="wallet-summary-percent">
-                            {totalTarget > 0
-                                ? Math.round((totalSaving / totalTarget) * 100)
-                                : 0}
-                            % ของเป้าหมายทั้งหมด
+                            {`${percent}% ของเป้าหมายทั้งหมด`}
+
                         </p>
                     </div>
                 </section>
@@ -385,7 +350,7 @@ function Wallet() {
                     </p>
                 )}
 
-                {/* ปุ่มลอยด้านขวา */}
+                {/* ปุ่ม calculate ด้านขวาล่าง */}
                 <div className="wallet-calculator-control">
                     <span className="wallet-calculator-label">
                         เครื่องมือคำนวณ
@@ -409,7 +374,7 @@ function Wallet() {
                         type="button"
                         className="wallet-add-button"
                         onClick={() => {
-                            if (wallets.filter((wallet) => wallet.status === 'active').length >= maxWallets) {
+                            if (isWalletLimitReached) {
                                 alert(`คุณสามารถสร้างกระเป๋าเงินออมได้สูงสุด ${maxWallets} กระเป๋า`)
                                 return
                             }
@@ -466,6 +431,9 @@ function Wallet() {
                                     onClick={() => {
                                         setShowForm(false)
                                         setEditingWalletId(null)
+                                        setName('')
+                                        setTarget('')
+                                        setTargetDate('')
                                     }}
                                 >
                                     ยกเลิก
@@ -476,7 +444,7 @@ function Wallet() {
                                     disabled={saving}
                                     onClick={addWallet}
                                 >
-                                    {saving ? 'กำลังบันทึก...' : 'ตกลง'}
+                                    {buttonText}
                                 </button>
                             </div>
                         </div>
@@ -512,81 +480,6 @@ function Wallet() {
                 </section>
 
                 <CompletedWallets wallets={completedWallets} />
-
-
-                {/*ส่วนต่อท้ายพื้นที่แสดงกระเป๋า ประวัติการฝาก-ถอน */}
-                {/* <section className="wallet-history-section">
-                    <h2 className="wallet-section-title">
-                        ประวัติการฝาก–ถอน
-                    </h2>
-
-                    {transactionLoading ? (
-                        <p className="wallet-history-empty">
-                            กำลังโหลดประวัติ...
-                        </p>
-                    ) : transactionError ? (
-                        <p className="wallet-error" role="alert">
-                            โหลดประวัติไม่สำเร็จ: {transactionError}
-                        </p>
-                    ) : transactions.length === 0 ? (
-                        <p className="wallet-history-empty">
-                            ยังไม่มีประวัติการฝาก–ถอน
-                        </p>
-                    ) : (
-                        <div className="wallet-history-list">
-                            {transactions.map((item) => {
-                                const isDeposit =
-                                    item.transaction_type === 'deposit'
-
-                                return (
-                                    <div
-                                        className="wallet-history-card"
-                                        key={item.transaction_id}
-                                    >
-                                        <div className="wallet-history-icon">
-                                            {isDeposit ? '💰' : '💸'}
-                                        </div>
-
-                                        <div className="wallet-history-info">
-                                            <h3>
-                                                {isDeposit ? 'ฝากเงิน' : 'ถอนเงิน'}
-                                            </h3>
-
-                                            <p>
-                                                {item.saving_name || 'กระเป๋าที่ถูกลบ'}
-                                            </p>
-
-                                            <span>
-                                                {formatTransactionDate(
-                                                    item.transaction_date
-                                                )}
-                                            </span>
-                                        </div>
-
-                                        <div className="wallet-history-amount">
-                                            <strong
-                                                className={
-                                                    isDeposit
-                                                        ? 'deposit-text'
-                                                        : 'withdraw-text'
-                                                }
-                                            >
-                                                {isDeposit ? '+' : '-'}
-                                                {formatMoney(item.amount)} บาท
-                                            </strong>
-
-                                            <span>
-                                                คงเหลือ {formatMoney(
-                                                    item.balance_after
-                                                )} บาท
-                                            </span>
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    )}
-                </section> */}
 
             </main>
 

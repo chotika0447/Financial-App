@@ -43,7 +43,7 @@ function SavingPlanChart({ monthlyIncome }) {
 				position: "bottom"
 			}
 		},
-		tooltips: {
+		tooltip: {
 			callbacks: {
 				label: function (context) {
 					const value = context.parsed;

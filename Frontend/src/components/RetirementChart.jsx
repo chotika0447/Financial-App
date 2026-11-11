@@ -5,7 +5,11 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 function RetirementChart({ monthlyExpenses, yearsInRetirement }) {
 	const years = Number(yearsInRetirement);
 	const monthly = Number(monthlyExpenses);
-
+	
+	if (monthlyExpenses === '' || yearsInRetirement === '' || !Number.isFinite(monthly) || !Number.isFinite(years) || monthly < 0 || years <= 0 || years > 100 || !Number.isInteger(years)) { 
+		return null; 
+	
+	}
 	const labels = []; 
 	const moneyData = []; 
 
@@ -17,7 +21,7 @@ function RetirementChart({ monthlyExpenses, yearsInRetirement }) {
  
 	moneyData.push(money); 
   } 
- 
+  	
 	const data = { 
 		labels: labels, 
 	
@@ -42,7 +46,7 @@ function RetirementChart({ monthlyExpenses, yearsInRetirement }) {
 		tooltip: { 
 			callbacks: { 
 			label: function(context) { 
-				return `${context.parsed.y.toLocaleString()} บาท`; 
+				return `${context.parsed.y.toLocaleString('th-TH')} บาท`; 
 			} 
 			} 
 		} 
@@ -52,16 +56,12 @@ function RetirementChart({ monthlyExpenses, yearsInRetirement }) {
 		y: { 
 			ticks: { 
 			callback: function(value) { 
-				return value.toLocaleString() + ' บาท'; 
+				return value.toLocaleString('th-TH') + ' บาท'; 
 			} 
 			} 
 		} 
 		} 
-	}; 
- 
-	if (!monthly || !years) { 
-		return null; 
-	} 
+	};  
 	
 	return ( 
 		<div className="retirement-chart"> 

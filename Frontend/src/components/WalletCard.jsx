@@ -10,6 +10,7 @@ function WalletCard({
 	onDelete,
 	onEdit,
 	isCompleted = false,
+	endDate
 }) {
 	const [amount, setAmount] = useState('')
 	const [withdrawAmount, setWithdrawAmount] = useState('')
@@ -101,6 +102,12 @@ function WalletCard({
       	<p className="wallet-info">
         วันที่เป้าหมาย: {date || '-'}
       	</p>
+
+		{isCompleted && (
+		<p className="wallet-info">
+			วันที่สำเร็จ: {endDate || '-'}
+	  	</p>
+		)}
 
       	<p className="wallet-progress-text">
         ความคืบหน้า: {progress.toFixed(2)}%

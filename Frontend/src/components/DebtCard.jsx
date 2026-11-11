@@ -183,10 +183,6 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
           onClick={() => onDelete?.(debt)}
           aria-label={`ลบรายการ ${debt.name}`}
           title="ลบรายการหนี้"
-          type="button"
-          onClick={() => onDelete?.(debt)}
-          aria-label={`ลบรายการ ${debt.name}`}
-          title="ลบรายการหนี้"
           className="
             w-[30px]
             h-[30px]

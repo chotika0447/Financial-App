@@ -8,18 +8,32 @@ function CompoundInterestChart({ presentValue, rate, numberOfPeriods, frequency 
     const periods = Number(numberOfPeriods);
     const compoundingFrequency = Number(frequency);
 
-    if (!present || !interestRate || !periods || !compoundingFrequency) { 
+    if (
+        presentValue === '' || 
+        rate === '' || 
+        numberOfPeriods === '' || 
+        frequency === '' ||
+        !Number.isFinite(present) ||
+        !Number.isFinite(interestRate) ||
+        !Number.isFinite(periods) ||
+        !Number.isFinite(compoundingFrequency) ||
+        present < 0 ||
+        interestRate < 0 ||
+        periods <= 0 ||
+        compoundingFrequency <= 0 ||
+        !Number.isInteger(compoundingFrequency)
+    ) { 
         return null; 
     } 
 
     const labels = []; 
     const moneyData = []; 
 
-    for (let year = 1; year <= periods; year++) { 
+    for (let year = 1; year <= Math.ceil(periods); year++) { 
+        const currentYear = Math.min(year, periods);
+    labels.push(`ปีที่ ${currentYear}`); 
  
-    labels.push(`ปีที่ ${year}`); 
- 
-    const money = present * Math.pow(1 + ((interestRate / 100) / compoundingFrequency), compoundingFrequency * year); 
+    const money = present * Math.pow(1 + ((interestRate / 100) / compoundingFrequency), compoundingFrequency * currentYear); 
     moneyData.push(money);
     } 
  
