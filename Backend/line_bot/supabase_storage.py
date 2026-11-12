@@ -68,3 +68,28 @@ def delete_receipt(path):
     bucket = os.environ["SUPABASE_RECEIPTS_BUCKET"]
 
     client.storage.from_(bucket).remove([path])
+import logging
+
+logger = logging.getLogger(__name__)
+
+def get_receipt_signed_url(path):
+    if not path or not path.startswith("receipts/"):
+        return None
+
+    try:
+        client = get_supabase_client()
+        bucket = os.environ["SUPABASE_RECEIPTS_BUCKET"]
+
+        result = client.storage.from_(bucket).create_signed_url(
+            path, 3600
+        )
+
+        return result.get("signedURL") or result.get("signedUrl")
+
+    except Exception as exc:
+        logger.warning(
+            "Cannot generate receipt URL for %s: %s",
+            path,
+            exc
+        )
+        return None
