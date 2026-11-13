@@ -84,8 +84,6 @@ function Wallet() {
 
         try {
             const data = await apiRequest('/savings/')
-            //แสดงข้อมูลจาก backend
-            console.log("ข้อมูลกระเป๋าเงิน:", data);
 
             setWallets(data.map(normalizeWallet))
         } catch (err) {
