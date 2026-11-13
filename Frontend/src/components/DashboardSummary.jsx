@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { authenticatedFetch as fetch } from '../utils/auth';
 import './DashboardSummary.css';
@@ -12,7 +13,7 @@ const toNumber = (value) => {
     const number = Number(value ?? 0);
     if (!Number.isFinite(number)) {
         return 0;
-    }else {
+    } else {
         return number;
     }
 };
@@ -24,7 +25,7 @@ const normalizeArray = (data) => {
     else if (Array.isArray(data?.results)) {
         return data.results;
     }
-    else{
+    else {
         return [];
     }
 };
@@ -191,13 +192,15 @@ export default function DashboardSummary({ compact = false, onClick }) {
             รายรับ: {
                 total: income,
                 color: "#69c9a6",
-                labels: incomeByDay.map((_, index) => `${index + 1}`),
+                labels: incomeByDay.map(
+                    (_, index) => `${index + 1}`),
                 values: incomeByDay,
             },
             รายจ่าย: {
                 total: expense,
                 color: "#fe9898",
-                labels: expenseByDay.map((_, index) => `${index + 1}`),
+                labels: expenseByDay.map(
+                    (_, index) => `${index + 1}`),
                 values: expenseByDay,
             },
             การออม: {
@@ -205,8 +208,7 @@ export default function DashboardSummary({ compact = false, onClick }) {
                 color: "#b3e0f0",
                 labels: savings.map(
                     (item, index) =>
-                        item.saving_name || item.name || `กระเป๋า ${index + 1}`
-                ),
+                        item.saving_name || item.name || `กระเป๋า ${index + 1}`),
                 values: savings.map((item) =>
                     toNumber(item.balance)
                 ),
@@ -231,7 +233,11 @@ export default function DashboardSummary({ compact = false, onClick }) {
     ]);
 
     const data = summaryData[activeTab];
-    const maxValue = Math.max(...data.values, 0);
+    const maxValue = Math.max(
+        ...summaryData.รายรับ.values,
+        ...summaryData.รายจ่าย.values,
+        0
+    );
 
     return (
         <section
@@ -266,7 +272,7 @@ export default function DashboardSummary({ compact = false, onClick }) {
                     <p className="home-dashboard-message">
                         กำลังโหลดข้อมูล...
                     </p>
-                // ตรวจสอบว่ามี error มั้ย    
+                    // ตรวจสอบว่ามี error มั้ย    
                 ) : error ? (
                     <div className="home-dashboard-message">
                         <p>{error}</p>
