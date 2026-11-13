@@ -10,6 +10,7 @@ function WalletCard({
 	onDelete,
 	onEdit,
 	isCompleted = false,
+	endDate
 }) {
 	const [amount, setAmount] = useState('')
 	const [withdrawAmount, setWithdrawAmount] = useState('')
@@ -29,6 +30,9 @@ function WalletCard({
 		targetDay && !Number.isNaN(targetDay.getTime())
 		? Math.ceil((targetDay.getTime() - today.getTime()) / 86400000)
 		: null
+
+	console.log("WalletCard ตรวจ:", { 
+		name, target, date, balance, isCompleted, endDate });
 
 	const handleDeposit = async () => {
 		const depositAmount = Number(amount)
@@ -101,6 +105,12 @@ function WalletCard({
       	<p className="wallet-info">
         วันที่เป้าหมาย: {date || '-'}
       	</p>
+
+		{isCompleted && (
+		<p className="wallet-info">
+			วันที่สำเร็จ: {endDate || '-'}
+	  	</p>
+		)}
 
       	<p className="wallet-progress-text">
         ความคืบหน้า: {progress.toFixed(2)}%
