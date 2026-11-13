@@ -31,9 +31,6 @@ function WalletCard({
 		? Math.ceil((targetDay.getTime() - today.getTime()) / 86400000)
 		: null
 
-	console.log("WalletCard ตรวจ:", { 
-		name, target, date, balance, isCompleted, endDate });
-
 	const handleDeposit = async () => {
 		const depositAmount = Number(amount)
 
