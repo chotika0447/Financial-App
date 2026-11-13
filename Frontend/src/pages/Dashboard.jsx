@@ -1,14 +1,13 @@
-
 import { useEffect, useMemo, useState } from "react";
 import { Bar } from "react-chartjs-2";
-import {Chart as ChartJS,CategoryScale,LinearScale,BarElement,Tooltip,Legend} from "chart.js";
-import {Wallet,ArrowDownCircle,ArrowUpCircle,CalendarDays,RefreshCw,PiggyBank} from "lucide-react";
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip, Legend } from "chart.js";
+import { Wallet, ArrowDownCircle, ArrowUpCircle, CalendarDays, RefreshCw, PiggyBank } from "lucide-react";
 import { authenticatedFetch as fetch } from "../utils/auth";
-
+import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import "./Dashboard.css";
 
-ChartJS.register(CategoryScale,LinearScale,BarElement,Tooltip,Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 const API_ENDPOINTS = [
     "/transactions/",
@@ -28,7 +27,15 @@ const getMonthDays = (monthValue) => {
     return new Date(year, month, 0).getDate();
 };
 
-const toNumber = (value) => Number(value ?? 0);
+const toNumber = (value) => {
+    const number = Number(value ?? 0);
+
+    if (!Number.isFinite(number)) {
+        return 0;
+    }
+
+    return number;
+};
 
 const normalizeArray = (data) => {
     if (Array.isArray(data)) return data;
@@ -105,6 +112,7 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [reloadKey, setReloadKey] = useState(0);
+    const navigate = useNavigate();
 
     // โหลดข้อมูลจาก Django API
     useEffect(() => {
@@ -225,7 +233,9 @@ export default function Dashboard() {
                 String(transaction.transaction_date).slice(8, 10)
             );
 
-            if (day < 1 || day > days) return;
+            if (!Number.isInteger(day) || day < 1 || day > days) {
+                return;
+            }
 
             const index = day - 1;
             const amount = toNumber(transaction.amount);
@@ -317,17 +327,20 @@ export default function Dashboard() {
     return (
         <div className="dashboard-page">
             <header className="dashboard-header">
-                <div>
-                    <p className="dashboard-header-title">แดชบอร์ด</p>
-                    <h1>Dashboard</h1>
+                <button
+					type="button"
+					className="dashboard-back-button"
+					onClick={() => navigate('/home/')}
+					aria-label="กลับไปหน้า Home"
+				>
+					‹
+				</button>
+                    <h1 className="dashboard-header-title">
+                        Dashboard
+                    </h1>
                     <p className="dashboard-header-subtitle">
                         สรุปภาพรวมการเงินของคุณ
                     </p>
-                </div>
-
-                <div className="dashboard-header-icon">
-                    <Wallet size={26} />
-                </div>
             </header>
 
             <section className="dashboard-filter">
@@ -469,7 +482,7 @@ export default function Dashboard() {
 
                             {savings.length === 0 && (
                                 <p className="dashboard-saving-empty">
-                                    ไม่มีข้อมูลกระเป๋าเงินออม
+                                    ไม่มีข้อมูลกระเป๋าเงินออมที่กำลังดำเนินการ
                                 </p>
                             )}
                         </div>
