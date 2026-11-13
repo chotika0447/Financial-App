@@ -8,32 +8,18 @@ function CompoundInterestChart({ presentValue, rate, numberOfPeriods, frequency 
     const periods = Number(numberOfPeriods);
     const compoundingFrequency = Number(frequency);
 
-    if (
-        presentValue === '' || 
-        rate === '' || 
-        numberOfPeriods === '' || 
-        frequency === '' ||
-        !Number.isFinite(present) ||
-        !Number.isFinite(interestRate) ||
-        !Number.isFinite(periods) ||
-        !Number.isFinite(compoundingFrequency) ||
-        present < 0 ||
-        interestRate < 0 ||
-        periods <= 0 ||
-        compoundingFrequency <= 0 ||
-        !Number.isInteger(compoundingFrequency)
-    ) { 
+    if (!present || !interestRate || !periods || !compoundingFrequency) { 
         return null; 
     } 
 
     const labels = []; 
     const moneyData = []; 
 
-    for (let year = 1; year <= Math.ceil(periods); year++) { 
-        const currentYear = Math.min(year, periods);
-    labels.push(`ปีที่ ${currentYear}`); 
+    for (let year = 1; year <= periods; year++) { 
  
-    const money = present * Math.pow(1 + ((interestRate / 100) / compoundingFrequency), compoundingFrequency * currentYear); 
+    labels.push(`ปีที่ ${year}`); 
+ 
+    const money = present * Math.pow(1 + ((interestRate / 100) / compoundingFrequency), compoundingFrequency * year); 
     moneyData.push(money);
     } 
  
@@ -45,7 +31,7 @@ function CompoundInterestChart({ presentValue, rate, numberOfPeriods, frequency 
             label: 'เงินในอนาคต', 
             data: moneyData, 
             tension: 0.3,
-            backgroundColor: '#b7f1f1',
+            backgroundColor: 'rgb(255, 157, 216)',
         } 
         ] 
     }; 
