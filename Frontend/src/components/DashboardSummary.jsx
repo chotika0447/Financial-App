@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { authenticatedFetch as fetch } from '../utils/auth';
 import './DashboardSummary.css';
@@ -8,17 +7,26 @@ const API_ENDPOINTS = [
     '/savings/',
     '/debts/',
 ];
-
+//ตรวจว่าเป็นตัวเลขที่ finite และไม่เป็น NaN ถ้าไม่ใช่ให้ return 0
 const toNumber = (value) => {
     const number = Number(value ?? 0);
-    return Number.isFinite(number) ? number : 0;
+    if (!Number.isFinite(number)) {
+        return 0;
+    }else {
+        return number;
+    }
 };
-
+//ตรวจสอบว่าเป็น array หรือไม่ ถ้าไม่ใช่ให้ return array ว่าง
 const normalizeArray = (data) => {
-    if (Array.isArray(data)) return data;
-    if (Array.isArray(data?.results))
+    if (Array.isArray(data)) {
+        return data;
+    }
+    else if (Array.isArray(data?.results)) {
         return data.results;
-    return [];
+    }
+    else{
+        return [];
+    }
 };
 
 const getCurrentMonth = () => {
@@ -130,7 +138,6 @@ export default function DashboardSummary({ compact = false, onClick }) {
         .reduce((sum, item) => sum + toNumber(item.amount), 0);
 
     // คำนวณเงินออม
-    const activeSavings = savings.filter((item) => item.status === 'active')
     const totalSavings = savings.reduce(
         (sum, item) => sum + toNumber(item.balance),
         0
@@ -171,7 +178,7 @@ export default function DashboardSummary({ compact = false, onClick }) {
                 String(item.transaction_date ?? "").slice(8, 10)
             );
 
-            if (day < 1 || day > daysInMonth) return;
+            if (!Number.isInteger(day) || day < 1 || day > daysInMonth) return;
 
             if (item.transaction_type === "income") {
                 incomeByDay[day - 1] += toNumber(item.amount);
@@ -196,11 +203,11 @@ export default function DashboardSummary({ compact = false, onClick }) {
             การออม: {
                 total: totalSavings,
                 color: "#b3e0f0",
-                labels: activeSavings.map(
+                labels: savings.map(
                     (item, index) =>
                         item.saving_name || item.name || `กระเป๋า ${index + 1}`
                 ),
-                values: activeSavings.map((item) =>
+                values: savings.map((item) =>
                     toNumber(item.balance)
                 ),
             },
@@ -228,7 +235,8 @@ export default function DashboardSummary({ compact = false, onClick }) {
 
     return (
         <section
-            className={`home-dashboard-summary ${compact ? "home-dashboard-compact" : "" } ${onClick ? 'clickable-dashboard' : ''}`}
+            className={`home-dashboard-summary ${compact ? "home-dashboard-compact" : ""
+                } ${onClick ? 'clickable-dashboard' : ''}`}
             onClick={onClick}
         >
             <h3>แดชบอร์ด</h3>
@@ -258,14 +266,16 @@ export default function DashboardSummary({ compact = false, onClick }) {
                     <p className="home-dashboard-message">
                         กำลังโหลดข้อมูล...
                     </p>
+                // ตรวจสอบว่ามี error มั้ย    
                 ) : error ? (
                     <div className="home-dashboard-message">
                         <p>{error}</p>
                         <button
                             type="button"
-                            onClick={() =>
-                                setReloadKey((key) => key + 1)
-                            }
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setReloadKey((key) => key + 1);
+                            }}
                         >
                             ลองใหม่
                         </button>
@@ -275,36 +285,39 @@ export default function DashboardSummary({ compact = false, onClick }) {
                         <strong className="home-dashboard-total">
                             {formatMoney(data.total)}
                         </strong>
-
+                        {/* ตรวจว่ามีข้อมูลทำกราฟมั้ย */}
                         {data.values.length === 0 ||
                             maxValue === 0 ? (
                             <p className="home-dashboard-message">
                                 ยังไม่มีข้อมูล{activeTab}
                             </p>
                         ) : (
-                            <div className="home-dashboard-chart">
-                                {data.values.map((value, index) => (
-                                    <div
-                                        className="home-dashboard-bar-item"
-                                        key={`${activeTab}-${index}`}
-                                    >
-                                        <div className="home-dashboard-bar-area">
-                                            <div
-                                                className="home-dashboard-bar"
-                                                style={{
-                                                    height: `${(value / maxValue) * 100}%`,
-                                                    backgroundColor: Array.isArray(data.color)
-                                                        ? data.color[index]
-                                                        : data.color,
-                                                }}
-                                            />
+                            <div className="home-dashboard-chart-wrapper">
+                                <div className="home-dashboard-chart">
+                                    {data.values.map((value, index) => (
+                                        <div
+                                            className="home-dashboard-bar-item"
+                                            key={`${activeTab}-${index}`}
+                                        >
+                                            <div className="home-dashboard-bar-area">
+                                                <div
+                                                    //ความสูงกับสีของกราฟ
+                                                    className="home-dashboard-bar"
+                                                    style={{
+                                                        height: `${(value / maxValue) * 100}%`,
+                                                        backgroundColor: Array.isArray(data.color)
+                                                            ? data.color[index]
+                                                            : data.color,
+                                                    }}
+                                                />
+                                            </div>
+                                            {/* แสดง label ของกราฟ */}
+                                            <span title={data.labels[index]}>
+                                                {data.labels[index]}
+                                            </span>
                                         </div>
-
-                                        <span title={data.labels[index]}>
-                                            {data.labels[index]}
-                                        </span>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         )}
 
