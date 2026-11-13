@@ -231,11 +231,21 @@ export default function DashboardSummary({ compact = false, onClick }) {
         totalBorrowed,
         totalLent,
     ]);
-
+    // ความสูงของกราฟเทียบกับค่ามากที่สุดของข้อมูลในแต่ละแท็บ
     const data = summaryData[activeTab];
-    const maxValue = Math.max(
+    const incomeExpenseData = Math.max(
         ...summaryData.รายรับ.values,
         ...summaryData.รายจ่าย.values,
+        0
+    );
+    const savingsData = Math.max(...summaryData.การออม.values, 0);
+    const debtData = Math.max(...summaryData.หนี้สิน.values, 0);
+    const maxValue = Math.max(
+        activeTab === "รายรับ" || activeTab === "รายจ่าย"
+            ? incomeExpenseData
+            : activeTab === "การออม"
+                ? savingsData
+                : debtData,
         0
     );
 
