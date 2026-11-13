@@ -1,6 +1,7 @@
 import WalletCard from '../components/WalletCard'
 
 function CompletedWallets({ wallets }) {
+    console.log("completed wallets:", wallets);
     return (
         <section className="completed-wallets">
             <h2 className="completed-wallets-title">กระเป๋าที่สำเร็จแล้ว</h2>
@@ -16,6 +17,7 @@ function CompletedWallets({ wallets }) {
                         date={wallet.date}
                         balance={wallet.balance}
                         isCompleted={true}
+                        endDate={wallet.endDate}
                         />
                     ))
                 )}
