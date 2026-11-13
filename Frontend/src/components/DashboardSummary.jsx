@@ -236,8 +236,6 @@ export default function DashboardSummary({ compact = false, onClick }) {
     const maxValue = Math.max(
         ...summaryData.รายรับ.values,
         ...summaryData.รายจ่าย.values,
-        ...summaryData.การออม.values,
-        ...summaryData.หนี้สิน.values,
         0
     );
 
