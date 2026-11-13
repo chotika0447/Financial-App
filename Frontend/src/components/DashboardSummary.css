@@ -71,7 +71,7 @@
     display: flex;
     align-items: stretch;
     justify-content: flex-start;
-    gap: 4px;
+    gap: 2px;
     padding-top: 8px;
     border-bottom: 1px solid #eee;
     background: repeating-linear-gradient(
