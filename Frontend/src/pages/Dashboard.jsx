@@ -1,14 +1,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Bar } from "react-chartjs-2";
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip, Legend } from "chart.js";
-import { Wallet, ArrowDownCircle, ArrowUpCircle, CalendarDays, RefreshCw, PiggyBank } from "lucide-react";
-import { authenticatedFetch as fetch } from "../utils/auth";
+import {Chart as ChartJS,CategoryScale,LinearScale,BarElement,Tooltip,Legend} from "chart.js";
+import {Wallet,ArrowDownCircle,ArrowUpCircle,CalendarDays,RefreshCw,PiggyBank} from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import "./Dashboard.css";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+ChartJS.register(CategoryScale,LinearScale,BarElement,Tooltip,Legend);
 
 const API_ENDPOINTS = [
     "/transactions/",
@@ -28,15 +27,7 @@ const getMonthDays = (monthValue) => {
     return new Date(year, month, 0).getDate();
 };
 
-const toNumber = (value) => {
-    const number = Number(value ?? 0);
-
-    if (!Number.isFinite(number)) {
-        return 0;
-    }
-
-    return number;
-};
+const toNumber = (value) => Number(value ?? 0);
 
 const normalizeArray = (data) => {
     if (Array.isArray(data)) return data;
@@ -179,13 +170,13 @@ export default function Dashboard() {
     const balance = income - expense;
 
     // รวมยอดเงินออมและเป้าหมายที่ยังดำเนินการ
-    const activeSavings = savings.filter(
-        (item) => item.status === "active"
-    );
-
-    const totalSavings = activeSavings.reduce(
+    const totalSavings = savings.reduce(
         (sum, item) => sum + toNumber(item.balance),
         0
+    );
+
+    const activeSavings = savings.filter(
+        (item) => item.status === "active"
     );
 
     const totalTargets = activeSavings.reduce(
@@ -233,9 +224,7 @@ export default function Dashboard() {
                 String(transaction.transaction_date).slice(8, 10)
             );
 
-            if (!Number.isInteger(day) || day < 1 || day > days) {
-                return;
-            }
+            if (day < 1 || day > days) return;
 
             const index = day - 1;
             const amount = toNumber(transaction.amount);
@@ -479,7 +468,7 @@ export default function Dashboard() {
 
                             {savings.length === 0 && (
                                 <p className="dashboard-saving-empty">
-                                    ไม่มีข้อมูลกระเป๋าเงินออมที่กำลังดำเนินการ
+                                    ไม่มีข้อมูลกระเป๋าเงินออม
                                 </p>
                             )}
                         </div>

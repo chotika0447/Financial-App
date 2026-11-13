@@ -1,6 +1,5 @@
 
 import { useState, useEffect, useMemo } from 'react';
-import { authenticatedFetch as fetch } from '../utils/auth';
 import './DashboardSummary.css';
 
 const API_ENDPOINTS = [
@@ -8,31 +7,22 @@ const API_ENDPOINTS = [
     '/savings/',
     '/debts/',
 ];
-//ตรวจว่าเป็นตัวเลขที่ finite และไม่เป็น NaN ถ้าไม่ใช่ให้ return 0
+
 const toNumber = (value) => {
     const number = Number(value ?? 0);
-    if (!Number.isFinite(number)) {
-        return 0;
-    }else {
-        return number;
-    }
+    return Number.isFinite(number) ? number : 0;
 };
-//ตรวจสอบว่าเป็น array หรือไม่ ถ้าไม่ใช่ให้ return array ว่าง
+
 const normalizeArray = (data) => {
-    if (Array.isArray(data)) {
-        return data;
-    }
-    else if (Array.isArray(data?.results)) {
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.results))
         return data.results;
-    }
-    else{
-        return [];
-    }
+    return [];
 };
 
 const getCurrentMonth = () => {
     const data = new Date();
-    return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+    return `${data.getFullYear()}-${String(data.getMonth()+1).padStart(2,'0')}`;
 };
 
 const formatMoney = (value) =>
@@ -47,7 +37,7 @@ async function fetchAPI(url, token) {
         headers: {
             Authorization: `Bearer ${token}`,
         },
-    });
+    });    
     if (response.status === 401) {
         throw new Error("Session หมดอายุ กรุณาเข้าสู่ระบบใหม่");
     }
@@ -59,7 +49,7 @@ async function fetchAPI(url, token) {
     return response.json();
 }
 
-export default function DashboardSummary({ compact = false, onClick }) {
+export default function DashboardSummary({compact=false, onClick}) {
     const [activeTab, setActiveTab] = useState("รายรับ");
     const [selectedMonth] = useState(getCurrentMonth);
 
@@ -72,8 +62,8 @@ export default function DashboardSummary({ compact = false, onClick }) {
     const [reloadKey, setReloadKey] = useState(0);
 
 
-    //โหลดข้อมูลจากBackend
-    useEffect(() => {
+//โหลดข้อมูลจากBackend
+useEffect(() => {
         let cancelled = false;
 
         async function loadData() {
@@ -139,6 +129,7 @@ export default function DashboardSummary({ compact = false, onClick }) {
         .reduce((sum, item) => sum + toNumber(item.amount), 0);
 
     // คำนวณเงินออม
+    const activeSavings = savings.filter((item) => item.status === 'active')
     const totalSavings = savings.reduce(
         (sum, item) => sum + toNumber(item.balance),
         0
@@ -163,8 +154,8 @@ export default function DashboardSummary({ compact = false, onClick }) {
             0
         );
 
-    //เตรียมข้อมูลทำกราฟ
-    const summaryData = useMemo(() => {
+//เตรียมข้อมูลทำกราฟ
+const summaryData = useMemo(() => {
         const daysInMonth = new Date(
             Number(selectedMonth.slice(0, 4)),
             Number(selectedMonth.slice(5, 7)),
@@ -179,7 +170,7 @@ export default function DashboardSummary({ compact = false, onClick }) {
                 String(item.transaction_date ?? "").slice(8, 10)
             );
 
-            if (!Number.isInteger(day) || day < 1 || day > daysInMonth) return;
+            if (day < 1 || day > daysInMonth) return;
 
             if (item.transaction_type === "income") {
                 incomeByDay[day - 1] += toNumber(item.amount);
@@ -204,18 +195,18 @@ export default function DashboardSummary({ compact = false, onClick }) {
             การออม: {
                 total: totalSavings,
                 color: "#b3e0f0",
-                labels: savings.map(
+                labels: activeSavings.map(
                     (item, index) =>
                         item.saving_name || item.name || `กระเป๋า ${index + 1}`
                 ),
-                values: savings.map((item) =>
+                values: activeSavings.map((item) =>
                     toNumber(item.balance)
                 ),
             },
             หนี้สิน: {
                 total: totalBorrowed + totalLent,
-                color: ['#ffb936', '#ec5e5e'],
-                labels: ['ยืมจากคนอื่น', 'ให้คนอื่นยืม'],
+                color: ['#ffb936','#ec5e5e'],
+                labels: ['ยืมจากคนอื่น', '.ให้คนอื่นยืม'],
                 values: [totalBorrowed, totalLent]
             },
         };
@@ -236,8 +227,9 @@ export default function DashboardSummary({ compact = false, onClick }) {
 
     return (
         <section
-            className={`home-dashboard-summary ${compact ? "home-dashboard-compact" : ""
-                } ${onClick ? 'clickable-dashboard' : ''}`}
+            className={`home-dashboard-summary ${
+                compact ? "home-dashboard-compact" : ""
+            } ${onClick ? 'clickable-dashboard' : ''}`}
             onClick={onClick}
         >
             <h3>แดชบอร์ด</h3>
@@ -267,16 +259,14 @@ export default function DashboardSummary({ compact = false, onClick }) {
                     <p className="home-dashboard-message">
                         กำลังโหลดข้อมูล...
                     </p>
-                // ตรวจสอบว่ามี error มั้ย    
                 ) : error ? (
                     <div className="home-dashboard-message">
                         <p>{error}</p>
                         <button
                             type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setReloadKey((key) => key + 1);
-                            }}
+                            onClick={() =>
+                                setReloadKey((key) => key + 1)
+                            }
                         >
                             ลองใหม่
                         </button>
@@ -286,45 +276,44 @@ export default function DashboardSummary({ compact = false, onClick }) {
                         <strong className="home-dashboard-total">
                             {formatMoney(data.total)}
                         </strong>
-                        {/* ตรวจว่ามีข้อมูลทำกราฟมั้ย */}
+
                         {data.values.length === 0 ||
-                            maxValue === 0 ? (
+                        maxValue === 0 ? (
                             <p className="home-dashboard-message">
                                 ยังไม่มีข้อมูล{activeTab}
                             </p>
                         ) : (
-                            <div className="home-dashboard-chart-wrapper">
-                                <div className="home-dashboard-chart">
-                                    {data.values.map((value, index) => (
-                                        <div
-                                            className="home-dashboard-bar-item"
-                                            key={`${activeTab}-${index}`}
-                                        >
-                                            <div className="home-dashboard-bar-area">
-                                                <div
-                                                    //ความสูงกับสีของกราฟ
-                                                    className="home-dashboard-bar"
-                                                    style={{
-                                                        height: `${(value / maxValue) * 100}%`,
-                                                        backgroundColor: Array.isArray(data.color)
-                                                            ? data.color[index]
-                                                            : data.color,
-                                                    }}
-                                                />
-                                            </div>
-                                            {/* แสดง label ของกราฟ */}
-                                            <span title={data.labels[index]}>
-                                                {data.labels[index]}
-                                            </span>
+                            <div className="home-dashboard-chart">
+                                {data.values.map((value, index) => (
+                                    <div
+                                        className="home-dashboard-bar-item"
+                                        key={`${activeTab}-${index}`}
+                                    >
+                                        <div className="home-dashboard-bar-area">
+                                            <div
+                                                className="home-dashboard-bar"
+                                                style={{
+                                                    height: `${
+                                                        (value / maxValue) *
+                                                        100
+                                                    }%`,
+                                                    backgroundColor: data.color,
+                                                }}
+                                                title={`${data.labels[index]}: ${formatMoney(value)}`}
+                                            />
                                         </div>
-                                    ))}
-                                </div>
+
+                                        <span title={data.labels[index]}>
+                                            {data.labels[index]}
+                                        </span>
+                                    </div>
+                                ))}
                             </div>
                         )}
 
                         <p className="home-dashboard-note">
                             {activeTab === "รายรับ" ||
-                                activeTab === "รายจ่าย"
+                            activeTab === "รายจ่าย"
                                 ? "ยอดแยกตามวันของเดือนปัจจุบัน"
                                 : "ข้อมูลจากรายการที่บันทึกไว้"}
                         </p>
