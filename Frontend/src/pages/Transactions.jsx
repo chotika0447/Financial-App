@@ -25,7 +25,7 @@ import './Transactions.css';
 const emptyForm = () => ({
   transaction_type: 'expense',
   amount: '',
-  item_name: '',
+  name: '',
   category: '',
   // receipt: null,
   account: '',
@@ -323,7 +323,7 @@ function Transactions() {
       const categoryMatched = filterCategory === 'all' || (
         `${transaction.transaction_type}:${transaction.category}` === filterCategory
       );
-      const text = [transaction.item_name, transaction.description, transaction.category_name,
+      const text = [transaction.name, transaction.description, transaction.category_name,
         transaction.account, transaction.amount].filter(Boolean).join(' ').toLowerCase();
       return typeMatched && dateMatched && categoryMatched && (!keyword || text.includes(keyword));
     });
@@ -416,8 +416,8 @@ function Transactions() {
       amount:
         transaction.amount || '',
 
-      item_name:
-        transaction.item_name || '',
+      name:
+        transaction.name || '',
 
       category:
         transaction.category || '',
@@ -659,7 +659,7 @@ function Transactions() {
       form.amount
     );
 
-    payload.append('item_name', form.item_name.trim());
+    payload.append('name', form.name.trim());
 
     payload.append(
       'transaction_date',
@@ -777,7 +777,7 @@ function Transactions() {
 
   async function remove(transaction) {
     const label =
-      transaction.item_name ||
+      transaction.name ||
       transaction.category_name ||
       'รายการนี้';
 
@@ -1081,7 +1081,7 @@ function Transactions() {
                   'income';
 
                 const name =
-                  transaction.item_name ||
+                  transaction.name ||
                   transaction.category_name ||
                   (income
                     ? 'รายรับ'
@@ -1344,14 +1344,14 @@ function Transactions() {
 
               {/* ชื่อรายการแยกจากรายละเอียดที่ใช้จดโน้ต */}
               <div className="form-group full">
-                <label htmlFor="item_name">ชื่อรายการ *</label>
+                <label htmlFor="name">ชื่อรายการ *</label>
                 <input
-                  id="item_name"
-                  name="item_name"
+                  id="name"
+                  name="name"
                   type="text"
                   maxLength={200}
                   placeholder="เช่น ชาเขียว"
-                  value={form.item_name}
+                  value={form.name}
                   onChange={change}
                   required
                 />

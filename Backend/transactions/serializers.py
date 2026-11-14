@@ -17,7 +17,7 @@ NEW_PREFIX = "receipts/transactions/"
 
 class TransactionSerializer(serializers.ModelSerializer):
 
-    item_name = serializers.CharField(
+    name = serializers.CharField(
         required=True,
         allow_blank=False,
         trim_whitespace=True,
@@ -96,7 +96,7 @@ class TransactionSerializer(serializers.ModelSerializer):
             "id",
             "amount",
             "transaction_type",
-            "item_name",
+            "name",
             "description",
             "transaction_date",
             "category",
@@ -139,7 +139,7 @@ class TransactionSerializer(serializers.ModelSerializer):
 
         return attrs
 
-    def validate_item_name(self, value):
+    def validate_name(self, value):
         if not value or not value.strip():
             raise serializers.ValidationError(
                 "กรุณาระบุชื่อรายการ"

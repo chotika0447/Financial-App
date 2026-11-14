@@ -769,7 +769,7 @@ def build_transaction_flex(item):
                      "weight": "bold", "size": "xxl", "color": "#805035"},
                     {"type": "separator", "margin": "md", "color": "#E8DCC8"},
                     detail(f"ประเภท: {type_label}"),
-                    detail(f"รายการ: {item.item_name or 'ไม่ระบุ'}"),
+                    detail(f"รายการ: {item.name or 'ไม่ระบุ'}"),
                     detail(f"หมวดหมู่: {category_text}"),
                     detail(f"ช่องทาง: {item.account or 'ไม่ระบุ'}"),
                     detail(f"วันที่: {date_text}"),
@@ -900,7 +900,7 @@ def build_transaction_preview_flex(data):
                         "color": "#E8DCC8"
                     },
                     detail("ประเภท", type_label),
-                    detail("รายการ", data.get("item_name") or "-"),
+                    detail("รายการ", data.get("name") or "-"),
                     detail("หมวดหมู่", category_text),
                     detail("ช่องทาง", data.get("account") or "-"),
                     detail("วันที่", date_text),
@@ -1051,7 +1051,7 @@ def confirm_pending_transaction(line_user_id, user, token):
                 user=user,
                 amount=amount,
                 transaction_type=transaction_type,
-                item_name=data.get("item_name", ""),
+                name=data.get("name", ""),
                 description=data.get("description", ""),
                 category=category,
                 sub_category=data.get("sub_category", ""),
@@ -1562,7 +1562,7 @@ def build_daily_summary_flex(user):
         for item in items:
             transaction_rows.append(
                 make_row(
-                    f"{  item.item_name or 'ไม่ระบุชื่อรายการ'}",
+                    f"{  item.name or 'ไม่ระบุชื่อรายการ'}",
                     item.amount,
                     color,
                 )
@@ -2162,9 +2162,9 @@ def handle_text_message(text, line_user_id):
             if parsed_amount and parsed_amount > 0:
                 data["amount"] = str(parsed_amount)
 
-            data["item_name"] = (
-                result.get("item_name")
-                or data.get("item_name")
+            data["name"] = (
+                result.get("name")
+                or data.get("name")
                 or command
             )
 
@@ -2209,8 +2209,8 @@ def handle_text_message(text, line_user_id):
 
             data["description"] = command
 
-            if not data.get("item_name"):
-                data["item_name"] = command
+            if not data.get("name"):
+                data["name"] = command
 
         if not data.get("amount") or Decimal(str(data["amount"])) <= 0:
 
@@ -2302,7 +2302,7 @@ def handle_text_message(text, line_user_id):
         "user_id": user.uid,
         "amount": str(amount),
         "transaction_type": transaction_type,
-        "item_name": result.get("item_name") or "",
+        "name": result.get("name") or "",
         "description": result.get("description") or "",
         "category_id": category.pk if category else None,
         "sub_category": result.get("sub_category") or "",
@@ -2588,7 +2588,7 @@ def handle_image_message(message_id, line_user_id):
         "user_id": user.uid,
         "amount": None,
         "transaction_type": transaction_type,
-        "item_name": "",
+        "name": "",
         "description": "",
         "category_id": category.pk if category else None,
         "sub_category": "",

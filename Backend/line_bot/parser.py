@@ -96,28 +96,28 @@ def remove_ranges(text, ranges):
     return text
 
 
-def clean_item_name(item_name, transaction_type, matched_account):
+def clean_name(name, transaction_type, matched_account):
     """ลบชื่อบัญชี หน่วยเงิน และคำขึ้นต้น โดยรักษาชื่อสินค้าจริง"""
     if matched_account:
-        item_name = remove_keyword(item_name, matched_account)
+        name = remove_keyword(name, matched_account)
 
     # ลบหน่วยเงินที่ติดกับยอดเงินหรือแยกด้วยช่องว่าง
-    item_name = re.sub(r"(?:บาท|บ\.|฿|THB|baht)", " ", item_name, flags=re.IGNORECASE)
-    item_name = " ".join(item_name.split())
+    name = re.sub(r"(?:บาท|บ\.|฿|THB|baht)", " ", name, flags=re.IGNORECASE)
+    name = " ".join(name.split())
 
     if transaction_type == "expense":
         for store in STORE_MARKETS:
-            if item_name.lower().endswith(store) and len(item_name) > len(store):
-                item_name = item_name[:-len(store)].strip()
+            if name.lower().endswith(store) and len(name) > len(store):
+                name = name[:-len(store)].strip()
                 break
 
     for prefix, removal in PREFIX_REMOVALS:
-        if item_name.startswith(prefix):
+        if name.startswith(prefix):
             if removal:
-                item_name = item_name[len(removal):]
+                name = name[len(removal):]
             break
 
-    return item_name.strip(" -, :\t")
+    return name.strip(" -, :\t")
 
 
 # วิเคราะห์ข้อความทางการเงิน
@@ -239,9 +239,9 @@ def parse_financial_message(text, transaction_type):
     if len(found_accounts) > 1:
         return {"success": False, "message": "พบหลายช่องทาง กรุณาระบุช่องทางเดียว"}
 
-    item_name = remove_ranges(text, amount_ranges)
-    item_name = clean_item_name(item_name, transaction_type, matched_account)
-    if not item_name:
+    name = remove_ranges(text, amount_ranges)
+    name = name(name, transaction_type, matched_account)
+    if not name:
         return {"success": False, "message": "กรุณาระบุชื่อรายการด้วย เช่น ชาเขียว 20"}
 
     # หมวดหมู่หลักตรงกับ Supabase
@@ -575,7 +575,7 @@ def parse_financial_message(text, transaction_type):
         "category": category,
         "sub_category": sub_category,
         "account": account,
-        "item_name": item_name,
+        "name": name,
         "description": description,
         "is_known_brand": is_known_brand,
     }
