@@ -1,12 +1,13 @@
-
 import logging
 import os
-import time
 import socket
 import ssl
-
+import time
 from pathlib import Path
+from urllib.parse import urlsplit
+
 from dotenv import load_dotenv
+from paddleocr import PaddleOCRClient
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -33,70 +34,83 @@ def _to_dict(value):
     return {}
 
 
+def _find_blocks(data):
+    """ค้นหาบล็อกข้อความในผลลัพธ์ OCR"""
+    if isinstance(data, dict):
+        blocks = data.get("parsing_res_list")
+        if isinstance(blocks, list):
+            return blocks
+
+        for value in data.values():
+            found = _find_blocks(value)
+            if found:
+                return found
+
+    elif isinstance(data, list):
+        for value in data:
+            found = _find_blocks(value)
+            if found:
+                return found
+
+    return []
+
+
+def _find_markdown(data):
+    """ค้นหาข้อความสำรอง หากผลลัพธ์ไม่มีบล็อกข้อความ"""
+    if isinstance(data, dict):
+        for key in ("markdown_text", "text"):
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
+                return value
+
+        for value in data.values():
+            found = _find_markdown(value)
+            if found:
+                return found
+
+    return None
+
+
 def _extract_page_text(page):
     data = _to_dict(page)
-
-    def find_blocks(obj):
-        if isinstance(obj, dict):
-            blocks = obj.get("parsing_res_list")
-
-            if isinstance(blocks, list):
-                return blocks
-
-            for value in obj.values():
-                found = find_blocks(value)
-                if found:
-                    return found
-
-        elif isinstance(obj, list):
-            for value in obj:
-                found = find_blocks(value)
-                if found:
-                    return found
-
-        return []
-
-    blocks = find_blocks(data)
+    blocks = _find_blocks(data)
 
     if blocks:
         texts = []
-
         for block in blocks:
-            block_data = _to_dict(block)
-            content = block_data.get("block_content")
-
-            if content:
-                texts.append(str(content).strip())
+            content = _to_dict(block).get("block_content")
+            if isinstance(content, str) and content.strip():
+                texts.append(content.strip())
 
         if texts:
             return texts
 
-    def find_markdown(obj):
-        if isinstance(obj, dict):
-            for key in ("markdown_text", "text"):
-                value = obj.get(key)
-
-                if isinstance(value, str) and value.strip():
-                    return value
-
-            for value in obj.values():
-                found = find_markdown(value)
-
-                if found:
-                    return found
-
-        return None
-
-    markdown = find_markdown(data)
-
+    markdown = _find_markdown(data)
     if markdown:
-        return [
-            line.strip()
-            for line in markdown.splitlines()
-            if line.strip()
-        ]
+        return [line.strip() for line in markdown.splitlines() if line.strip()]
 
     raise ValueError("Cannot extract text from PaddleOCR-VL result")
+
+
+def _is_valid_image_url(file_url):
+    """รับเฉพาะ HTTPS URL ที่ไม่มีช่องว่างหรือข้อมูลล็อกอินใน URL"""
+    if not isinstance(file_url, str) or not file_url:
+        return False
+
+    for char in file_url:
+        if char.isspace():
+            return False
+
+    try:
+        parsed_url = urlsplit(file_url)
+        return (
+            parsed_url.scheme == "https"
+            and bool(parsed_url.hostname)
+            and not parsed_url.username
+            and not parsed_url.password
+        )
+    except ValueError:
+        return False
 
 
 def _check_tls_connection():
@@ -149,6 +163,10 @@ def _is_network_error(error):
             "networkerror",
             "sslerror",
             "connectionerror",
+            "connectionreseterror",
+            "connectionabortederror",
+            "connectionrefusederror",
+            "brokenpipeerror",
             "timeout",
         )):
             return True
@@ -159,6 +177,7 @@ def _is_network_error(error):
             "connection reset",
             "connection aborted",
             "connection refused",
+            "broken pipe",
             "timed out",
             "eof occurred",
             "max retries exceeded",
@@ -173,14 +192,14 @@ def _is_network_error(error):
 def run_ocr(file_url):
     start = time.perf_counter()
 
-    token = os.getenv("PADDLEOCR_ACCESS_TOKEN")
+    token = (os.getenv("PADDLEOCR_ACCESS_TOKEN") or "").strip()
 
     if not token:
         raise RuntimeError(
             "PADDLEOCR_ACCESS_TOKEN is not configured"
         )
 
-    if not file_url or not file_url.startswith("https://"):
+    if not _is_valid_image_url(file_url):
         raise ValueError("Invalid OCR image URL")
 
     logger.info(
@@ -206,8 +225,8 @@ def run_ocr(file_url):
 
             client = PaddleOCRClient(
                 token=token,
-                request_timeout=300,
-                poll_timeout=600,
+                request_timeout=60,
+                poll_timeout=120,
             )
 
             result = client.parse_document(
@@ -234,6 +253,8 @@ def run_ocr(file_url):
                 logger.warning(
                     "OCR API: network error detected, retrying with a new client"
                 )
+
+                time.sleep(2)  # รอ 2 วินาทีก่อนลองใหม่
                 continue
 
             raise
@@ -251,9 +272,13 @@ def run_ocr(file_url):
     if result is None:
         raise RuntimeError("PaddleOCR API returned no result")
 
+    pages = getattr(result, "pages", None)
+    if not isinstance(pages, (list, tuple)) or not pages:
+        raise ValueError("PaddleOCR API returned no valid pages")
+
     raw_pages = []
 
-    for page in result.pages:
+    for page in pages:
         texts = _extract_page_text(page)
 
         raw_pages.append({
@@ -263,8 +288,8 @@ def run_ocr(file_url):
             }
         })
 
-    if not raw_pages:
-        raise ValueError("PaddleOCR API returned no pages")
+    if not any(page["res"]["rec_texts"] for page in raw_pages):
+        raise ValueError("PaddleOCR API returned no readable text")
 
     logger.info(
         "OCR API: completed model=%s pages=%d total=%.2fs",

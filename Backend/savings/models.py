@@ -29,14 +29,7 @@ class Savings(models.Model):
         decimal_places=2,
         default=0.00
     )
-    #วันที่สร้าง
-    created_at = models.DateTimeField(
-        auto_now_add=True
-    )
-    #วันที่แก้ไขล่าสุด
-    updated_at = models.DateTimeField(
-        auto_now=True
-    )
+    
     #จำนวนเงินเป้าหมาย
     target = models.DecimalField(
         max_digits=8,
@@ -68,6 +61,14 @@ class Savings(models.Model):
     end_date = models.DateField(
         null=True,
         blank=True
+    )
+    #วันที่สร้าง
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+    #วันที่แก้ไขล่าสุด
+    updated_at = models.DateTimeField(
+        auto_now=True
     )
 
     def __str__(self):

@@ -24,7 +24,7 @@ class Transaction(models.Model):
         choices=TransactionType.choices
     )
 
-    item_name = models.CharField(
+    name = models.CharField(
         max_length=200,
         blank=True
     )

@@ -1,8 +1,8 @@
 import logging
-from decimal import Decimal, ROUND_HALF_UP
-from datetime import date
+from decimal import Decimal
 from calendar import monthrange
 
+from django.db import transaction as db_transaction
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -31,68 +31,51 @@ from line_bot.supabase_storage import (
 logger = logging.getLogger(__name__)
 
 
+def cleanup_new_receipt(path):
+    # Never delete legacy receipts: their storage location is ambiguous.
+    if not path or not path.startswith("receipts/transactions/"):
+        return
+    try:
+        delete_receipt(path)
+    except Exception:
+        logger.exception("Failed to delete receipt: %s", path)
+
+
+
+
 class TransactionListCreateView(APIView):
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
-        transactions = Transaction.objects.filter(
-            user=request.user
-        ).order_by(
-            "-transaction_date",
-            "-transaction_time",
-            "-created_at",
-            "-id"
+        transactions = Transaction.objects.filter(user=request.user).order_by(
+            "-transaction_date", "-transaction_time", "-created_at", "-id"
         )
 
-        transaction_type = request.query_params.get(
-            "transaction_type"
-        )
+        transaction_type = request.query_params.get("transaction_type")
 
         if transaction_type:
-
             if transaction_type not in Transaction.TransactionType.values:
                 return Response(
-                    {
-                        "transaction_type": [
-                            "Choose income or expense."
-                        ]
-                    },
-                    status=status.HTTP_400_BAD_REQUEST
+                    {"transaction_type": ["Choose income or expense."]},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
+            transactions = transactions.filter(transaction_type=transaction_type)
 
-            transactions = transactions.filter(
-                transaction_type=transaction_type
-            )
-
-        serializer = TransactionSerializer(
-            transactions,
-            many=True
-        )
-
+        serializer = TransactionSerializer(transactions, many=True)
         return Response(serializer.data)
 
     def post(self, request):
 
-        serializer = TransactionSerializer(
-            data=request.data
-        )
+        serializer = TransactionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        if serializer.is_valid():
-
-            new_transaction = serializer.save(
-                user=request.user
-            )
-
-            return Response(
-                TransactionSerializer(new_transaction).data,
-                status=status.HTTP_201_CREATED
-            )
-
+        new_transaction = serializer.save(user=request.user)
         return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
+            TransactionSerializer(new_transaction).data,
+            status=status.HTTP_201_CREATED,
         )
 
 
@@ -113,10 +96,7 @@ class TransactionDetailView(APIView):
 
     def get(self, request, pk):
 
-        transaction_item = self.get_object(
-            request,
-            pk
-        )
+        transaction_item = self.get_object(request, pk)
 
         if transaction_item is None:
             return Response(
@@ -124,10 +104,7 @@ class TransactionDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        serializer = TransactionSerializer(
-            transaction_item
-        )
-
+        serializer = TransactionSerializer(transaction_item)
         return Response(serializer.data)
 
     def put(self, request, pk):
@@ -137,63 +114,53 @@ class TransactionDetailView(APIView):
         return self.update(request, pk, partial=True)
 
     def update(self, request, pk, partial):
-
-        transaction_item = self.get_object(
-            request,
-            pk
-        )
-
+        transaction_item = self.get_object(request, pk)
         if transaction_item is None:
+            return Response({"error": "Transaction not found"}, status=404)
+
+        remove_receipt = str(request.data.get("remove_receipt", "")).lower() == "true"
+        new_image = request.FILES.get("receipt")
+        if remove_receipt and new_image:
             return Response(
-                {"error": "Transaction not found"},
-                status=status.HTTP_404_NOT_FOUND
+                {"receipt": ["Cannot upload and remove a receipt together."]},
+                status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Remove is a separate action, not a nullable image upload.
+        # Copy request data so the original request remains unchanged.
+        update_data = request.data.copy()
+        if remove_receipt:
+            update_data.pop("receipt", None)
 
         serializer = TransactionSerializer(
-            transaction_item,
-            data=request.data,
-            partial=partial
+            transaction_item, data=update_data, partial=partial
         )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        if serializer.is_valid():
-
+        old_path = transaction_item.receipt.name if transaction_item.receipt else None
+        with db_transaction.atomic():
             transaction_item = serializer.save()
-
-            if request.data.get("remove_receipt") == "true":
+            if remove_receipt:
                 transaction_item.receipt = None
-                transaction_item.save(
-                    update_fields=["receipt"]
-                )
+                transaction_item.save(update_fields=["receipt"])
+            new_path = transaction_item.receipt.name if transaction_item.receipt else None
+            if old_path and old_path != new_path:
+                db_transaction.on_commit(lambda path=old_path: cleanup_new_receipt(path))
 
-            return Response(
-                TransactionSerializer(
-                    transaction_item
-                ).data
-            )
-
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response(TransactionSerializer(transaction_item).data)
 
     def delete(self, request, pk):
-
-        transaction_item = self.get_object(
-            request,
-            pk
-        )
-
+        transaction_item = self.get_object(request, pk)
         if transaction_item is None:
-            return Response(
-                {"error": "Transaction not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "Transaction not found"}, status=404)
 
-        transaction_item.delete()
-
-        return Response(
-            status=status.HTTP_204_NO_CONTENT
-        )
+        old_path = transaction_item.receipt.name if transaction_item.receipt else None
+        with db_transaction.atomic():
+            transaction_item.delete()
+            if old_path:
+                db_transaction.on_commit(lambda path=old_path: cleanup_new_receipt(path))
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ReceiptOCRView(APIView):
@@ -368,14 +335,8 @@ class FinHealthSpendView(APIView):
         # EIR: Expense-to-Income Ratio
         if net_monthly_income > 0:
 
-            expense_ratio = (
-                expense_total
-                / net_monthly_income
-                * Decimal("100")
-            ).quantize(
-                Decimal("0.01"),
-                rounding=ROUND_HALF_UP
-            )
+            expense_ratio = expense_total / net_monthly_income * 100
+            expense_ratio = round(expense_ratio, 2)
 
         else:
             expense_ratio = None
@@ -436,14 +397,8 @@ class FinHealthSpendView(APIView):
 
         recorded_days = len(daily_records)
 
-        recording_frequency = (
-            Decimal(recorded_days)
-            / Decimal(days_evaluated)
-            * Decimal("100")
-        ).quantize(
-            Decimal("0.01"),
-            rounding=ROUND_HALF_UP
-        )
+        recording_frequency = Decimal(recorded_days) / Decimal(days_evaluated) * 100
+        recording_frequency = round(recording_frequency, 2)
 
         # 2. Recording Distribution (RD)
         # แบ่งเดือนออกเป็น 4 ช่วง
@@ -502,14 +457,8 @@ class FinHealthSpendView(APIView):
                 "has_records": has_records,
             })
 
-        recording_distribution = (
-            Decimal(recorded_periods)
-            / Decimal("4")
-            * Decimal("100")
-        ).quantize(
-            Decimal("0.01"),
-            rounding=ROUND_HALF_UP
-        )
+        recording_distribution = Decimal(recorded_periods) / 4 * 100
+        recording_distribution = round(recording_distribution, 2)
 
         # 3. TRC Score
         # (RF + RD) / 2
@@ -518,10 +467,7 @@ class FinHealthSpendView(APIView):
             recording_frequency + recording_distribution
         ) / Decimal("2")
 
-        trc_score = trc_score.quantize(
-            Decimal("0.01"),
-            rounding=ROUND_HALF_UP
-        )
+        trc_score = round(trc_score, 2)
 
         return Response({
             # EIR

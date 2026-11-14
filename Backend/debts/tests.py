@@ -1,11 +1,43 @@
 from contextlib import nullcontext
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
 
+from .management.commands.send_due_debt_reminders import is_reminder_date
 from .models import Debts
 from .views import DebtListCreateView
+
+
+class ScheduledDebtReminderDateTests(SimpleTestCase):
+    def test_one_time_reminder_is_scheduled_only_on_start_date(self):
+        debt = MagicMock(reminder_days_before=3, reminder_repeat=False)
+        due_date = date(2026, 12, 31)
+
+        self.assertTrue(
+            is_reminder_date(debt, due_date, date(2026, 12, 28))
+        )
+        self.assertFalse(
+            is_reminder_date(debt, due_date, date(2026, 12, 29))
+        )
+
+    def test_repeated_reminder_is_scheduled_each_day_until_due_date(self):
+        debt = MagicMock(reminder_days_before=2, reminder_repeat=True)
+        due_date = date(2026, 12, 31)
+
+        self.assertTrue(
+            is_reminder_date(debt, due_date, date(2026, 12, 29))
+        )
+        self.assertTrue(
+            is_reminder_date(debt, due_date, due_date)
+        )
+        self.assertFalse(
+            is_reminder_date(debt, due_date, date(2026, 12, 28))
+        )
+        self.assertFalse(
+            is_reminder_date(debt, due_date, date(2027, 1, 1))
+        )
 
 
 class LinkedDebtCreationTests(SimpleTestCase):

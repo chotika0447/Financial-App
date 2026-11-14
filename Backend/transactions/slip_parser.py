@@ -1,438 +1,221 @@
-
-# แยกข้อมูลจากข้อความ OCR ของสลิป SCB
+"""Parse OCR text from Thai bank transfer slips. No database or network access."""
 import re
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
+THAI_MONTHS = {"ม.ค.": 1, "ก.พ.": 2, "มี.ค.": 3, "เม.ย.": 4, "พ.ค.": 5, "มิ.ย.": 6, "ก.ค.": 7, "ส.ค.": 8, "ก.ย.": 9, "ต.ค.": 10, "พ.ย.": 11, "ธ.ค.": 12}
+SENDER_KEYWORDS = [r"จาก", r"FROM", r"ผู้โอน", r"ชื่อผู้โอน", r"ผู้ชำระ", r"ผู้ชำระเงิน", r"โอนจาก", r"ต้นทาง"]
+RECEIVER_KEYWORDS = [r"ไปยัง", r"TO", r"ผู้รับ", r"ชื่อผู้รับ", r"ผู้รับเงิน", r"ผู้รับโอน", r"ปลายทาง", r"โอนไปยัง"]
+AMOUNT_KEYWORDS = [r"จำนวนเงิน", r"จำนวน", r"AMOUNT", r"TRANSFER\s+AMOUNT", r"TOTAL\s+AMOUNT", r"ยอดเงิน", r"ยอดโอน", r"ยอดชำระ", r"เงินที่โอน"]
+MEMO_KEYWORDS = [r"บันทึกช่วยจำ", r"NOTE", r"MEMO", r"REMARKS?", r"หมายเหตุ", r"รายละเอียด"]
+FEE_KEYWORDS = [r"ค่าธรรมเนียม", r"FEE", r"SERVICE\s+FEE", r"TRANSACTION\s+FEE"]
+PROVIDER_INFO_KEYWORDS = [r"ข้อมูลเพิ่มเติมจากผู้ให้บริการ", r"ADDITIONAL\s+INFORMATION", r"PROVIDER\s+INFORMATION", r"ข้อมูลเพิ่มเติม"]
+IGNORE_TEXT = {"จาก", "ไปยัง", "จำนวนเงิน", "บันทึกช่วยจำ", "ค่าธรรมเนียม", "ข้อมูลเพิ่มเติมจากผู้ให้บริการ", "ผู้รับเงินสามารถสแกนคิวอาร์โค้ดนี้", "เพื่อตรวจสอบสถานะการโอนเงิน", "เพื่อตรวจสอบสถานะการจ่ายเงิน", "เพื่อตรวจสอบสถานะการเติมเงิน"}
 
-# ชื่อเดือนภาษาไทย
-THAI_MONTHS = {
-    "ม.ค.": 1,
-    "ก.พ.": 2,
-    "มี.ค.": 3,
-    "เม.ย.": 4,
-    "พ.ค.": 5,
-    "มิ.ย.": 6,
-    "ก.ค.": 7,
-    "ส.ค.": 8,
-    "ก.ย.": 9,
-    "ต.ค.": 10,
-    "พ.ย.": 11,
-    "ธ.ค.": 12,
-}
-
-
-# คำที่ใช้ระบุผู้ส่ง
-SENDER_KEYWORDS = [
-    r"จาก",
-    r"FROM",
-    r"ผู้โอน",
-    r"ชื่อผู้โอน",
-    r"ผู้ชำระ",
-    r"ผู้ชำระเงิน",
-    r"โอนจาก",
-    r"ต้นทาง",
-]
-
-# คำที่ใช้ระบุผู้รับ
-RECEIVER_KEYWORDS = [
-    r"ไปยัง",
-    r"TO",
-    r"ผู้รับ",
-    r"ชื่อผู้รับ",
-    r"ผู้รับเงิน",
-    r"ผู้รับโอน",
-    r"ปลายทาง",
-    r"โอนไปยัง",
-]
-
-# คำที่ใช้ระบุจำนวนเงิน
-AMOUNT_KEYWORDS = [
-    r"จำนวนเงิน",
-    r"จำนวน",
-    r"AMOUNT",
-    r"TRANSFER\s+AMOUNT",
-    r"TOTAL\s+AMOUNT",
-    r"ยอดเงิน",
-    r"ยอดโอน",
-    r"ยอดชำระ",
-    r"เงินที่โอน",
-]
-
-# คำที่ใช้ระบุบันทึกช่วยจำ
-MEMO_KEYWORDS = [
-    r"บันทึกช่วยจำ",
-    r"NOTE",
-    r"MEMO",
-    r"REMARKS?",
-    r"หมายเหตุ",
-    r"รายละเอียด",
-]
-
-# คำที่ใช้ระบุค่าธรรมเนียม
-FEE_KEYWORDS = [
-    r"ค่าธรรมเนียม",
-    r"FEE",
-    r"SERVICE\s+FEE",
-    r"TRANSACTION\s+FEE",
-]
-
-# คำที่ใช้ระบุข้อมูลเพิ่มเติมจากผู้ให้บริการ
-PROVIDER_INFO_KEYWORDS = [
-    r"ข้อมูลเพิ่มเติมจากผู้ให้บริการ",
-    r"ADDITIONAL\s+INFORMATION",
-    r"PROVIDER\s+INFORMATION",
-    r"ข้อมูลเพิ่มเติม",
-]
-
-# ข้อความที่ไม่ควรนำมาเป็นชื่อ
-IGNORE_TEXT = {
-    "จาก",
-    "ไปยัง",
-    "จำนวนเงิน",
-    "บันทึกช่วยจำ",
-    "ค่าธรรมเนียม",
-    "ข้อมูลเพิ่มเติมจากผู้ให้บริการ",
-    "ผู้รับเงินสามารถสแกนคิวอาร์โค้ดนี้",
-    "เพื่อตรวจสอบสถานะการโอนเงิน",
-    "เพื่อตรวจสอบสถานะการจ่ายเงิน",
-    "เพื่อตรวจสอบสถานะการเติมเงิน",
-}
 
 def is_thai_text(value):
-    """ตรวจสอบว่าข้อความมีอักษรไทยหรือไม่"""
-    if not value:
-        return False
+    return bool(value and re.search(r"[ก-๙]", str(value)))
 
-    return bool(re.search(r"[ก-๙]", str(value)))
 
 def get_ocr_texts(raw_pages, min_confidence=0.5):
-    """ดึงข้อความจาก OCR และกรองข้อความว่างหรือคะแนนต่ำ"""
-
+    """Read PaddleOCR pages safely, excluding low-confidence lines."""
     lines = []
-
-    for page in raw_pages:
-        data = page.get("res", page)
-
-        texts = data.get("rec_texts", [])
-        scores = data.get("rec_scores", [])
-
-        for i, text in enumerate(texts):
-            text = str(text).strip()
-
+    for page in raw_pages or []:
+        if not isinstance(page, dict):
+            continue
+        data = page.get("res") or page
+        if not isinstance(data, dict):
+            continue
+        texts = data.get("rec_texts") or []
+        scores = data.get("rec_scores") or []
+        if not isinstance(texts, (list, tuple)):
+            continue
+        if not isinstance(scores, (list, tuple)):
+            scores = []
+        for index, value in enumerate(texts):
+            text = str(value or "").strip()
             if not text:
                 continue
-
             score = None
-
-            if i < len(scores):
+            if index < len(scores):
                 try:
-                    score = float(scores[i])
+                    score = float(scores[index])
                 except (TypeError, ValueError):
                     pass
-
             if score is not None and score < min_confidence:
                 continue
-
-            lines.append({
-                "text": text,
-                "confidence": score,
-            })
-
+            lines.append({"text": text, "confidence": score})
     return lines
 
 
 def is_valid_name(text):
-    """
-    ยอมรับเฉพาะอักษรไทย/อังกฤษ ช่องว่าง จุด และขีดกลาง
-    ต้องมีตัวอักษรอย่างน้อยหนึ่งตัว และห้ามมีตัวเลข
-    """
-
-    if not text:
+    if not isinstance(text, str) or not text.strip():
         return False
-
     text = text.strip()
-
-    if text in IGNORE_TEXT:
+    if text in IGNORE_TEXT or re.search(r"\d", text):
         return False
+    has_letters = re.search(r"[ก-๙a-zA-Z]", text)
+    valid_characters = re.fullmatch(r"[ก-๙a-zA-Z\s.\-]+", text)
+    return bool(has_letters and valid_characters)
 
-    if re.search(r"\d", text):
-        return False
 
-    if not re.search(r"[ก-๙a-zA-Z]", text):
-        return False
+def _label_pattern(keywords):
+    sorted_keywords = sorted(keywords, key=len, reverse=True)
+    patterns = []
+    for keyword in sorted_keywords:
+        patterns.append(rf"(?<![A-Za-z])(?:{keyword})(?![A-Za-z])")
+    return "|".join(patterns)
 
-    return bool(re.fullmatch(r"[ก-๙a-zA-Z\s.\-]+", text))
 
+def _is_other_label(text):
+    all_keywords = (
+        SENDER_KEYWORDS + RECEIVER_KEYWORDS + AMOUNT_KEYWORDS
+        + MEMO_KEYWORDS + FEE_KEYWORDS + PROVIDER_INFO_KEYWORDS
+    )
+    pattern = rf"^\s*(?:{_label_pattern(all_keywords)})\s*[:：]?"
+    return re.match(pattern, text, re.IGNORECASE) is not None
 
 
 def find_person_near_label(lines, keywords):
-    """ค้นหาชื่อจาก Keyword และตรวจสอบข้อความรอบข้าง"""
-
-    label_pattern = "|".join(
-        rf"(?<![A-Za-z])(?:{keyword})(?![A-Za-z])"
-        for keyword in keywords
-    )
-
+    pattern = _label_pattern(keywords)
     for index, item in enumerate(lines):
-        text = item["text"].strip()
-
-        match = re.search(
-            rf"^\s*(?:{label_pattern})\s*[:：]?\s*(.*?)\s*$",
-            text,
-            flags=re.IGNORECASE,
-        )
-
+        text = str(item.get("text") or "").strip()
+        match = re.match(rf"^\s*(?:{pattern})\s*[:：]?\s*(.*?)\s*$", text, re.IGNORECASE)
         if not match:
             continue
-
-        # กรณี Keyword และชื่ออยู่บรรทัดเดียวกัน
-        inline_value = match.group(1).strip()
-
-        if is_valid_name(inline_value):
-            return inline_value
-
-        # ลองอ่านข้อความถัดไปไม่เกิน 2 บรรทัด
-        for i in range(index + 1, min(index + 3, len(lines))):
-            candidate = lines[i]["text"].strip()
-
-            if is_valid_name(candidate):
-                return candidate
-
-            # หยุดเมื่อเจอ Keyword ของข้อมูลส่วนอื่น
-            if re.search(
-                r"จาก|ไปยัง|จำนวนเงิน|บันทึกช่วยจำ|"
-                r"ค่าธรรมเนียม|ข้อมูลเพิ่มเติมจากผู้ให้บริการ|"
-                r"(?<![A-Za-z])(?:FROM|TO|AMOUNT|NOTE|MEMO)(?![A-Za-z])",
-                candidate,
-                flags=re.IGNORECASE,
-            ):
+        inline = match.group(1).strip()
+        if is_valid_name(inline) and not _is_other_label(inline):
+            return inline
+        for next_index in range(index + 1, min(index + 3, len(lines))):
+            candidate = str(lines[next_index].get("text") or "").strip()
+            if _is_other_label(candidate):
                 break
-
-        # หากค่าด้านหลังใช้ไม่ได้ ให้ลองอ่านด้านหน้า
-        for i in range(index - 1, max(index - 3, -1), -1):
-            candidate = lines[i]["text"].strip()
-
             if is_valid_name(candidate):
                 return candidate
-
+        # Do not borrow an unrelated name from preceding lines.
         return None
-
     return None
 
-#กรณีไม่มี keyword จะระผู้โอน/ผู้รับจะดูจากลำดับบนลงล่าง
+
 def find_people_by_order(lines):
-    """
-    วิธีสำรองเมื่อไม่มี Keyword ผู้ส่งและผู้รับเลย
-    เลือกข้อความที่ดูเหมือนชื่อจากบนลงล่าง 2 รายการแรก
-    """
-
+    ignored = ["จ่ายบิลสำเร็จ", "โอนเงินสำเร็จ", "เติมเงินสำเร็จ", "ผู้รับเงินสามารถสแกน", "เพื่อตรวจสอบสถานะ", "ข้อมูลเพิ่มเติม", "จำนวนเงิน", "บันทึกช่วยจำ", "ค่าธรรมเนียม"]
     candidates = []
-
-    ignored_phrases = [
-        "จ่ายบิลสำเร็จ",
-        "โอนเงินสำเร็จ",
-        "เติมเงินสำเร็จ",
-        "ผู้รับเงินสามารถสแกน",
-        "เพื่อตรวจสอบสถานะ",
-        "ข้อมูลเพิ่มเติม",
-        "จำนวนเงิน",
-        "บันทึกช่วยจำ",
-        "ค่าธรรมเนียม",
-    ]
-
     for item in lines:
-        text = item["text"].strip()
-
-        if any(
-            phrase.casefold() in text.casefold()
-            for phrase in ignored_phrases
-        ):
+        text = str(item.get("text") or "").strip()
+        should_ignore = False
+        for phrase in ignored:
+            if phrase.casefold() in text.casefold():
+                should_ignore = True
+                break
+        if should_ignore:
             continue
-
-        if is_valid_name(text):
+        if is_valid_name(text) and not _is_other_label(text):
             candidates.append(text)
-
     if len(candidates) >= 2:
         return candidates[0], candidates[1]
-
     return None, None
 
 
 def parse_date(lines):
-    """แปลงวันที่ภาษาไทยเป็น YYYY-MM-DD"""
-
-    months_pattern = "|".join(
-        re.escape(month)
-        for month in sorted(THAI_MONTHS, key=len, reverse=True)
-    )
-
-    date_pattern = re.compile(
-        rf"(\d{{1,2}})\s+"
-        rf"({months_pattern})\s+"
-        rf"(\d{{4}})"
-    )
-
+    months = "|".join(re.escape(m) for m in sorted(THAI_MONTHS, key=len, reverse=True))
+    pattern = re.compile(rf"(\d{{1,2}})\s+({months})\s+(\d{{4}})")
     for item in lines:
-        match = date_pattern.search(item["text"])
-
+        match = pattern.search(str(item.get("text") or ""))
         if not match:
             continue
-
-        day = int(match.group(1))
-        month = THAI_MONTHS[match.group(2)]
-        year = int(match.group(3))
-
+        day, month, year = int(match.group(1)), THAI_MONTHS[match.group(2)], int(match.group(3))
         if year >= 2400:
             year -= 543
-
         try:
-            parsed = datetime(year, month, day)
-            return parsed.strftime("%Y-%m-%d")
+            return datetime(year, month, day).strftime("%Y-%m-%d")
         except ValueError:
             return None
-
     return None
 
 
 def parse_time(lines):
-    """ค้นหาเวลาในรูปแบบ HH:MM"""
-
-    time_pattern = re.compile(
-        r"(?<!\d)([01]?\d|2[0-3]):([0-5]\d)(?!\d)"
-    )
-
+    pattern = re.compile(r"(?<!\d)([01]?\d|2[0-3]):([0-5]\d)(?!\d)")
     for item in lines:
-        match = time_pattern.search(item["text"])
-
+        match = pattern.search(str(item.get("text") or ""))
         if match:
-            hour = int(match.group(1))
-            minute = int(match.group(2))
-
-            return f"{hour:02d}:{minute:02d}"
-
+            return f"{int(match.group(1)):02d}:{int(match.group(2)):02d}"
     return None
 
+
 def parse_amount(lines):
-    """ค้นหาจำนวนเงินโดยใช้ Keyword หลายภาษา"""
-
-    keywords = "|".join(
-        rf"(?<![A-Za-z])(?:{keyword})(?![A-Za-z])"
-        for keyword in AMOUNT_KEYWORDS
-    )
-
-    amount_pattern = re.compile(
-        r"(?<![\d.])(\d[\d,]*)(?:\.(\d{1,2}))?(?!\d)"
-    )
-
-    for i, item in enumerate(lines):
-        text = item["text"].strip()
-
-        match_label = re.search(
-            rf"(?:{keywords})\s*[:：]?\s*(.*)",
-            text,
-            flags=re.IGNORECASE,
-        )
-
+    """Find a labeled positive THB amount; reject ambiguous/invalid values."""
+    label_pattern = _label_pattern(AMOUNT_KEYWORDS)
+    number_pattern = re.compile(r"(?<![\w.,-])(-?\d[\d,]*)(?:\.(\d+))?(?![\w.,])")
+    for index, item in enumerate(lines):
+        text = str(item.get("text") or "").strip()
+        match_label = re.search(rf"(?:{label_pattern})\s*[:：]?\s*(.*)", text, re.IGNORECASE)
         if not match_label:
             continue
-
         candidates = [match_label.group(1).strip()]
-
-        if i + 1 < len(lines):
-            candidates.append(lines[i + 1]["text"].strip())
-
+        if index + 1 < len(lines):
+            next_text = str(lines[index + 1].get("text") or "").strip()
+            if not _is_other_label(next_text):
+                candidates.append(next_text)
         for candidate in candidates:
-            match = amount_pattern.search(candidate)
-
-            if not match:
-                continue
-
-            integer_part = match.group(1).replace(",", "")
-            decimal_part = match.group(2) or "00"
-
-            try:
-                amount = int(integer_part) + int(decimal_part) / 100
-                return f"{amount:.2f}"
-            except ValueError:
-                continue
-
+            # Do not read a partial number from malformed decimal notation.
+            for match in number_pattern.finditer(candidate):
+                integer_part, fraction = match.group(1), match.group(2)
+                if fraction is not None and len(fraction) > 2:
+                    continue
+                digits = integer_part.lstrip("-")
+                if "," in digits and not re.fullmatch(r"\d{1,3}(?:,\d{3})+", digits):
+                    continue
+                value = integer_part.replace(",", "")
+                if fraction is not None:
+                    value += "." + fraction
+                try:
+                    amount = Decimal(value)
+                except InvalidOperation:
+                    continue
+                if amount > 0:
+                    return f"{amount:.2f}"
     return None
 
 
 def find_labeled_value(lines, label_pattern):
-    """หาโน้ตหลัง label ทั้งบรรทัดเดียวกันและบรรทัดถัดไป"""
-
-    for i, item in enumerate(lines):
-        text = item["text"].strip()
-
-        match = re.match(
-            rf"^\s*(?:{label_pattern})\s*[:：]?\s*(.*?)\s*$",
-            text,
-            flags=re.IGNORECASE
-        )
-
+    for index, item in enumerate(lines):
+        text = str(item.get("text") or "").strip()
+        match = re.match(rf"^\s*(?:{label_pattern})\s*[:：]?\s*(.*?)\s*$", text, re.IGNORECASE)
         if not match:
             continue
-
         value = match.group(1).strip()
-
         if value:
             return value if is_thai_text(value) else None
-
-        if i + 1 < len(lines):
-            next_value = lines[i + 1]["text"].strip()
-
-            if (
-                next_value
-                and next_value not in IGNORE_TEXT
-                and is_thai_text(next_value)
-            ):
+        if index + 1 < len(lines):
+            next_value = str(lines[index + 1].get("text") or "").strip()
+            if next_value and next_value not in IGNORE_TEXT and is_thai_text(next_value) and not _is_other_label(next_value):
                 return next_value
-
         return None
-
     return None
 
-def parse_notes(lines):
-    """ค้นหาโน้ต ค่าธรรมเนียม และข้อมูลเพิ่มเติม"""
 
+def parse_notes(lines):
     return {
-        "memo": find_labeled_value(
-            lines,
-            "|".join(MEMO_KEYWORDS),
-        ),
-        "fee": find_labeled_value(
-            lines,
-            "|".join(FEE_KEYWORDS),
-        ),
-        "provider_info": find_labeled_value(
-            lines,
-            "|".join(PROVIDER_INFO_KEYWORDS),
-        ),
+        "memo": find_labeled_value(lines, "|".join(MEMO_KEYWORDS)),
+        "fee": find_labeled_value(lines, "|".join(FEE_KEYWORDS)),
+        "provider_info": find_labeled_value(lines, "|".join(PROVIDER_INFO_KEYWORDS)),
     }
 
 
 def parse_slip(raw_pages):
-    """แปลงผล OCR เป็นข้อมูลสลิป"""
-
     lines = get_ocr_texts(raw_pages)
-
     date = parse_date(lines)
     time = parse_time(lines)
-
     sender = find_person_near_label(lines, SENDER_KEYWORDS)
     receiver = find_person_near_label(lines, RECEIVER_KEYWORDS)
-
     amount = parse_amount(lines)
     note = parse_notes(lines)
-
     needs_review = (
         not date
         or not is_valid_name(sender)
         or not is_valid_name(receiver)
         or amount is None
     )
-
     return {
         "date": date,
         "time": time,
@@ -440,6 +223,6 @@ def parse_slip(raw_pages):
         "receiver": receiver,
         "amount": amount,
         "note": note,
-        "needs_review": needs_review,
+        "needs_review": bool(needs_review),
         "ocr_text": [item["text"] for item in lines],
     }
