@@ -508,7 +508,7 @@ def save_line_debt_payment(
                 payment_status = "partial"
             else:
                 payment_status = "paid"
-                
+
             payment = Payments.objects.create(
                 debt=debt,
                 scheduled_amount=scheduled_amount,
@@ -626,7 +626,11 @@ def build_attach_receipt_flex():
                     },
                     {
                         "type": "text",
-                        "text": "หากต้องการแนบรูป สามารถส่งรูปภาพเข้ามาในแชตได้เลยค่ะ",
+                        "text": (
+                            "หากต้องการแนบรูป กรุณาส่งรูปภาพภายใน 30 นาที "
+                            "นับจากเวลาที่ระบบรับข้อมูลรายการค่ะ\n"
+                            "หากไม่ต้องการแนบรูป สามารถกดตรวจสอบรายการได้เลยค่ะ"
+                        ),
                         "size": "xs",
                         "color": "#8B7A68",
                         "wrap": True
@@ -864,6 +868,13 @@ def build_transaction_preview_flex(data):
         "contents": {
             "type": "bubble",
             "size": "mega",
+            "hero": {
+                "type": "image",
+                "url": "https://i.postimg.cc/fyCv4PPZ/Kanecho-Header.jpg",
+                "size": "full",
+                "aspectRatio": "20:9",
+                "aspectMode": "cover"
+            },
             "body": {
                 "type": "box",
                 "layout": "vertical",
@@ -930,6 +941,19 @@ def build_transaction_preview_flex(data):
                         "style": "secondary",
                         "action": {
                             "type": "postback",
+                            "label": "แก้ไขรายการ",
+                            "data": (
+                                "action=transaction_edit"
+                                f"&token={token}"
+                            ),
+                            "displayText": "แก้ไขรายการ"
+                        }
+                    },
+                    {
+                        "type": "button",
+                        "style": "secondary",
+                        "action": {
+                            "type": "postback",
                             "label": "ยกเลิกรายการ",
                             "data": (
                                 "action=transaction_cancel"
@@ -944,15 +968,10 @@ def build_transaction_preview_flex(data):
     }
 
 def confirm_pending_transaction(line_user_id, user, token):
+    if not token:
+        return "ไม่พบรหัสรายการ กรุณาเริ่มใหม่ค่ะ"
 
-    data = get_pending(line_user_id, user)
-
-    if not data or data.get("token") != token:
-        return "รายการนี้หมดอายุหรือถูกยกเลิกไปแล้วค่ะ"
-
-    completed_key = (
-        f"line_transaction_completed:{line_user_id}:{token}"
-    )
+    completed_key = f"line_transaction_completed:{line_user_id}:{token}"
 
     completed_id = cache.get(completed_key)
 
@@ -964,6 +983,10 @@ def confirm_pending_transaction(line_user_id, user, token):
 
         if item:
             return build_transaction_flex(item)
+
+    data = get_pending(line_user_id, user)
+    if not data or data.get("token") != token:
+        return "รายการนี้หมดอายุหรือถูกยกเลิกไปแล้วค่ะ"
 
     lock_key = (
         f"line_transaction_confirm_lock:{line_user_id}:{token}"
@@ -977,6 +1000,14 @@ def confirm_pending_transaction(line_user_id, user, token):
         return "ระบบกำลังบันทึกรายการนี้อยู่ค่ะ กรุณารอสักครู่"
 
     try:
+        completed_id = cache.get(completed_key)
+        if completed_id:
+            item = Transaction.objects.filter(
+                pk=completed_id,
+                user=user
+            ).first()
+            if item:
+                return build_transaction_flex(item)
 
         data = get_pending(line_user_id, user)
 
@@ -1030,25 +1061,50 @@ def confirm_pending_transaction(line_user_id, user, token):
                 receipt=data.get("receipt_path") or None
             )
 
-        cache.set(
-            completed_key,
-            item.id,
-            timeout=24 * 60 * 60
-        )
 
-        clear_pending(line_user_id)
-        clear_transaction_flow(line_user_id)
+        # Database transaction has committed successfully.
+        # Redis failures must not turn a successful save into an error.
+        try:
+            cache.set(
+                completed_key,
+                item.id,
+                timeout=24 * 60 * 60
+            )
+        except Exception:
+            logger.exception(
+                "Failed to cache completed LINE transaction id=%s",
+                item.id
+            )
 
-        remember_recent_transaction(
-            line_user_id,
-            item
-        )
+        for cleanup_func in (
+            clear_pending,
+            clear_transaction_flow,
+        ):
+            try:
+                cleanup_func(line_user_id)
+            except Exception:
+                logger.exception(
+                    "Failed to clear LINE transaction state id=%s",
+                    item.id
+                )
+
+        try:
+            remember_recent_transaction(line_user_id, item)
+        except Exception:
+            logger.exception(
+                "Failed to remember recent LINE transaction id=%s",
+                item.id
+            )
 
         return build_transaction_flex(item)
 
     finally:
-        cache.delete(lock_key)
-
+        try:
+            cache.delete(lock_key)
+        except Exception:
+            logger.exception(
+                "Failed to release LINE transaction lock"
+            )
 
 def cancel_pending_transaction(line_user_id, user, token):
 
@@ -1079,7 +1135,7 @@ def recent_transaction_key(line_user_id):
 
 
 def remember_recent_transaction(line_user_id, item):
-    # รองรับการส่งข้อความก่อน แล้วแนบรูปตามมาใน 5 นาที
+    # เก็บรหัสรายการล่าสุดไว้ชั่วคราว
     cache.set(recent_transaction_key(line_user_id), item.id, timeout=300)
 
 
@@ -1257,9 +1313,9 @@ def handle_savings_postback(action, params, user, line_user_id):
                 else:
                     clear_savings_state(line_user_id)
                     return "ประเภทการทำรายการไม่ถูกต้องค่ะ"
-                
+
                 saving.save(update_fields=["balance", "updated_at"])
-                
+
                 SavingsTransaction.objects.create(
                     saving=saving,
                     user=user,
@@ -1270,7 +1326,7 @@ def handle_savings_postback(action, params, user, line_user_id):
                     balance_after=saving.balance,
                     note="ทำรายการผ่าน LINE OA",
                 )
-                
+
                 clear_savings_state(line_user_id)
                 return build_savings_success_flex(
                     saving,
@@ -1733,11 +1789,11 @@ def handle_postback(data, line_user_id):
 
     if user is None:
         return "กรุณาเข้าสู่ระบบและเชื่อมบัญชี LINE ก่อนค่ะ"
-    
+
     # สรุปรายการวันนี้
     if action == "summary_today":
         return build_daily_summary_flex(user)
-    
+
     #=====================จดหนี้สิน========================
     if action == "debt_select":
         try:
@@ -1810,6 +1866,30 @@ def handle_postback(data, line_user_id):
 
         return build_transaction_preview_flex(data)
 
+    if action == "transaction_edit":
+
+        token = params.get("token", [""])[0]
+        data = get_pending(line_user_id, user)
+        flow = get_transaction_flow(line_user_id)
+
+        if (
+            not data
+            or data.get("token") != token
+            or not flow
+            or flow.get("step") != "await_confirmation"
+        ):
+            return "รายการนี้หมดอายุหรือดำเนินการไปแล้วค่ะ"
+
+        set_transaction_flow(
+            line_user_id,
+            {"step": "await_note"}
+        )
+
+        return (
+            "กรุณาส่งรายละเอียดรายการที่แก้ไขพร้อมจำนวนเงินค่ะ\n"
+            "เช่น ซื้อกาแฟ 85 บาท กสิกร"
+        )
+
     if action == "transaction_confirm":
 
         token = params.get("token", [""])[0]
@@ -1839,7 +1919,7 @@ def handle_postback(data, line_user_id):
 
     if action.startswith("savings_"):
         return handle_savings_postback(action, params, user, line_user_id)
-    
+
     #=============================================================================
         # ปุ่มอนุมัติรายการชำระหนี้จาก LINE
     if action == "payment_approve":
@@ -1887,7 +1967,7 @@ def handle_postback(data, line_user_id):
         friend_request.save(update_fields=["status"])
 
         return "ปฏิเสธคำขอเป็นเพื่อนเรียบร้อยแล้วค่ะ"
-    
+
     # การ์ดแบบใหม่ไม่มีปุ่มยืนยันหรือยกเลิกแล้ว
     if action in ("confirm", "cancel", "edit"):
         return "ปุ่มนี้หมดอายุแล้วค่ะ กรุณาเริ่มบันทึกรายการใหม่"
@@ -1905,7 +1985,7 @@ def handle_postback(data, line_user_id):
 
     clear_debt_flow(line_user_id)
     clear_savings_state(line_user_id)
-    
+
     previous = get_record_mode(line_user_id)
     if previous and previous != record_type:
 
@@ -1979,7 +2059,7 @@ def handle_text_message(text, line_user_id):
 
     if savings_answer is not None:
         return savings_answer
-    
+
     # ==================== Debt Payment Text ====================
 
     debt_state = get_debt_flow(line_user_id)
@@ -2050,7 +2130,7 @@ def handle_text_message(text, line_user_id):
                 "กรุณาส่งรูปภาพ หรือกดปุ่ม "
                 "'ไม่แนบรูป / บันทึกเลย' จากข้อความก่อนหน้า"
             )
-        
+
     data = get_pending(line_user_id, user)
     flow = get_transaction_flow(line_user_id)
 
@@ -2088,24 +2168,18 @@ def handle_text_message(text, line_user_id):
                 or command
             )
 
-            data["description"] = (
-                result.get("description")
-                or command
+            if result.get("description") is not None:
+                data["description"] = result["description"]
+
+            category = match_category(
+                command,
+                transaction_type,
+                user,
+                rule_category=result.get("category") or "อื่นๆ"
             )
 
-            parsed_category = result.get("category")
-
-            if parsed_category:
-
-                category = match_category(
-                    command,
-                    transaction_type,
-                    user,
-                    rule_category=parsed_category
-                )
-
-                if category:
-                    data["category_id"] = category.pk
+            if category:
+                data["category_id"] = category.pk
 
             if result.get("sub_category"):
                 data["sub_category"] = result["sub_category"]
@@ -2163,9 +2237,10 @@ def handle_text_message(text, line_user_id):
 
         return (
             "ได้รับข้อมูลรายการแล้วค่ะ\n"
-            "หากต้องการแนบรูปหลักฐาน สามารถส่งรูปภาพได้เลยค่ะ\n"
-            "หรือกดปุ่ม 'ไม่แนบรูป / บันทึกเลย' "
-            "จากข้อความก่อนหน้าเพื่อดูรายการก่อนยืนยันค่ะ"
+            "หากต้องการแนบรูปหลักฐาน กรุณาส่งภายใน 30 นาที "
+            "นับจากเวลาที่ระบบรับรายการค่ะ\n"
+            "หรือกดปุ่ม 'ไม่แนบรูป / ตรวจสอบรายการ' "
+            "จากการ์ดก่อนหน้าเพื่อดำเนินการต่อค่ะ"
         )
 
     # ==========================================
@@ -2254,26 +2329,34 @@ def handle_text_message(text, line_user_id):
 # ==================== Image Message / OCR ====================
 
 def attach_receipt_to_pending(data, image_bytes, message_id):
-
+    """Upload a transaction receipt without changing pending data on failure."""
     old_path = data.get("receipt_path")
 
-    path = upload_receipt(
-        image_bytes,
-        f"line_{message_id}.jpg"
-    )
+    try:
+        path = upload_receipt(
+            image_bytes,
+            f"line_{message_id}.jpg"
+        )
+        if not path:
+            raise ValueError("Supabase returned empty receipt path")
+    except Exception as error:
+        logger.exception(
+            "LINE transaction receipt upload failed: %s",
+            error
+        )
+        return False
 
     data["receipt_path"] = path
 
     if old_path and old_path != path:
         try:
             delete_receipt(old_path)
-
         except Exception:
             logger.exception(
                 "Failed to delete previous transaction receipt"
             )
 
-    return data
+    return True
 
 
 def handle_image_message(message_id, line_user_id):
@@ -2412,11 +2495,15 @@ def handle_image_message(message_id, line_user_id):
         and flow.get("step") == "await_image"
     ):
 
-        attach_receipt_to_pending(
+        if not attach_receipt_to_pending(
             data,
             image_bytes,
             message_id
-        )
+        ):
+            return (
+                "อัปโหลดรูปหลักฐานไม่สำเร็จค่ะ "
+                "กรุณาส่งรูปอีกครั้ง ข้อมูลรายการเดิมยังอยู่"
+            )
 
         set_pending(
             line_user_id,
@@ -2440,11 +2527,15 @@ def handle_image_message(message_id, line_user_id):
         and flow.get("step") == "await_note"
     ):
 
-        attach_receipt_to_pending(
+        if not attach_receipt_to_pending(
             data,
             image_bytes,
             message_id
-        )
+        ):
+            return (
+                "อัปโหลดรูปหลักฐานไม่สำเร็จค่ะ "
+                "กรุณาส่งรูปอีกครั้ง ข้อมูลรายการเดิมยังอยู่"
+            )
 
         set_pending(
             line_user_id,
@@ -2463,11 +2554,15 @@ def handle_image_message(message_id, line_user_id):
         and flow.get("step") == "await_confirmation"
     ):
 
-        attach_receipt_to_pending(
+        if not attach_receipt_to_pending(
             data,
             image_bytes,
             message_id
-        )
+        ):
+            return (
+                "อัปโหลดรูปหลักฐานไม่สำเร็จค่ะ "
+                "กรุณาส่งรูปอีกครั้ง ข้อมูลรายการเดิมยังอยู่"
+            )
 
         set_pending(
             line_user_id,
@@ -2505,11 +2600,15 @@ def handle_image_message(message_id, line_user_id):
         "receipt_path": None
     }
 
-    attach_receipt_to_pending(
+    if not attach_receipt_to_pending(
         data,
         image_bytes,
         message_id
-    )
+    ):
+        return (
+            "อัปโหลดรูปหลักฐานไม่สำเร็จค่ะ "
+            "กรุณาส่งรูปอีกครั้ง"
+        )
 
     set_pending(
         line_user_id,
@@ -2600,8 +2699,16 @@ def line_webhook(request):
         # กัน LINE ส่ง Event เดิมซ้ำ (ต้องใช้ cache ที่แชร์กันทุก worker)
         event_id = event.get("webhookEventId") or message.get("id")
         event_key = f"line_event:{event_id}" if event_id else None
-        if event_key and not cache.add(event_key, True, timeout=86400):
-            continue
+        if event_key:
+            try:
+                if not cache.add(event_key, True, timeout=86400):
+                    continue
+            except Exception:
+                logger.exception("LINE event deduplication cache unavailable")
+                return JsonResponse(
+                    {"error": "Webhook temporarily unavailable"},
+                    status=503,
+                )
 
         try:
 
@@ -2634,27 +2741,37 @@ def line_webhook(request):
             else:
                 continue
 
-            reply_to_line(
-                event.get("replyToken"),
-                answer
-            )
 
         except Exception:
+            logger.exception("LINE event processing failed")
             if event_key:
-                cache.delete(event_key)
-            logger.exception(
-                "LINE event processing failed"
+                try:
+                    cache.delete(event_key)
+                except Exception:
+                    logger.exception("LINE event cache cleanup failed")
+            # Return a non-2xx response so LINE can redeliver when enabled.
+            # Previously completed events are skipped using their event IDs.
+            # Do not send an error reply here: it may consume the reply token
+            # before the event is retried.
+            return JsonResponse(
+                {"error": "Webhook event processing failed"},
+                status=503,
             )
 
-            try:
-                reply_to_line(
-                    event.get("replyToken"),
-                    "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้งค่ะ"
-                )
-
-            except Exception:
-                logger.exception(
-                    "LINE error reply failed"
-                )
+        # Event processing has completed. A failed LINE reply must not
+        # release the deduplication key and re-run financial side effects.
+        try:
+            reply_to_line(
+                event.get("replyToken"),
+                answer,
+            )
+        except Exception:
+            logger.exception("LINE reply failed after event processing")
+            # Preserve the processed-event key. Return 503 for the current
+            # webhook contract; redelivery will skip this event.
+            return JsonResponse(
+                {"error": "LINE reply failed after event processing"},
+                status=503,
+            )
 
     return JsonResponse({"status": "ok"})

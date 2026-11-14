@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Brand, UserKeyword
+from .models import Category, Brand
 
 
 @admin.register(Brand)
@@ -21,10 +21,3 @@ class BrandAdmin(admin.ModelAdmin):
             from django.core.exceptions import ValidationError
             raise ValidationError("Brand must reference a global category of the same type")
         super().save_model(request, obj, form, change)
-
-
-@admin.register(UserKeyword)
-class UserKeywordAdmin(admin.ModelAdmin):
-    list_display = ("user", "keyword", "category", "transaction_type")
-    search_fields = ("keyword", "user__email", "category__name")
-    list_filter = ("transaction_type",)

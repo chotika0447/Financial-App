@@ -1,72 +1,88 @@
-"""Resolve category for LINE text without leaking other users' categories."""
-import re
-from categories.models import Brand, Category, UserKeyword
+from categories.models import Brand, Category
 
+
+# ตรวจสอบ Keyword ในข้อความ โดยไม่จับบางส่วนของคำภาษาอังกฤษ
 
 def keyword_in_text(keyword, text):
-    keyword = (keyword or "").strip().casefold()
+    keyword = (keyword or "").strip().lower()
+    text = (text or "").lower()
+
     if not keyword:
         return False
-    escaped = re.escape(keyword)
-    # Avoid matching short Latin brands inside longer Latin words.
-    if keyword[0].isascii() and keyword[0].isalnum():
-        escaped = r"(?<![a-z0-9])" + escaped
-    if keyword[-1].isascii() and keyword[-1].isalnum():
-        escaped += r"(?![a-z0-9])"
-    return re.search(escaped, text.casefold()) is not None
+
+    # ตรวจตำแหน่งที่พบ Keyword ทีละตำแหน่ง
+    for index in range(len(text) - len(keyword) + 1):
+        if text[index:index + len(keyword)] != keyword:
+            continue
+
+        # ถ้า Keyword ขึ้นต้นด้วยตัวอักษรหรือตัวเลข ASCII
+        # ตัวก่อนหน้าต้องไม่ใช่ a-z หรือ 0-9
+        if keyword[0].isascii() and keyword[0].isalnum() and index > 0:
+            before = text[index - 1]
+            if before in "abcdefghijklmnopqrstuvwxyz0123456789":
+                continue
+
+        # ถ้า Keyword ลงท้ายด้วยตัวอักษรหรือตัวเลข ASCII
+        # ตัวถัดไปต้องไม่ใช่ a-z หรือ 0-9
+        end = index + len(keyword)
+        if keyword[-1].isascii() and keyword[-1].isalnum() and end < len(text):
+            after = text[end]
+            if after in "abcdefghijklmnopqrstuvwxyz0123456789":
+                continue
+
+        return True
+
+    return False
 
 
-def accessible_category(name, transaction_type, user):
-    """Prefer user's own exact name; then a global name. Never other users'."""
-    if not name or user is None:
+# ค้นหาหมวดหมู่ส่วนกลางจากชื่อ
+def accessible_category(name, transaction_type, user=None):
+    if not name:
         return None
-    for owner in (user, None):
-        category = Category.objects.filter(
-            user=owner, name__iexact=name.strip(), transaction_type=transaction_type
-        ).first()
-        if category:
-            return category
-    return None
+
+    return Category.objects.filter(
+        name__iexact=name.strip(),
+        transaction_type=transaction_type,
+        user__isnull=True,
+    ).first()
 
 
-def fallback_category(transaction_type, user):
-    # Always prefer shared fallback, not a private 'อื่นๆ' from another user.
-    for name in ("อื่นๆ", "อื่น"):
-        result = accessible_category(name, transaction_type, user)
-        if result:
-            return result
-    return None
+# หมวดหมู่สำรองเมื่อไม่พบหมวดหมู่ที่ตรงกัน
+def fallback_category(transaction_type, user=None):
+    category = accessible_category("อื่นๆ", transaction_type)
+
+    if category is None:
+        category = accessible_category("อื่น", transaction_type)
+
+    return category
 
 
-def match_category(text, transaction_type, user, rule_category="อื่นๆ"):
-    if user is None:
-        return None
-    # 1. Explicitly assigned keywords (never auto-learn raw messages).
-    keywords = UserKeyword.objects.filter(
-        user=user, transaction_type=transaction_type
-    ).select_related("category")
-    for entry in sorted(keywords, key=lambda x: len(x.keyword), reverse=True):
-        if (entry.category.transaction_type == transaction_type
-                and entry.category.user_id in (None, user.pk)
-                and keyword_in_text(entry.keyword, text)):
-            return entry.category
-
-    # 2. User-defined category names (longest first).
-    personal = Category.objects.filter(user=user, transaction_type=transaction_type)
-    for entry in sorted(personal, key=lambda x: len(x.name), reverse=True):
-        if keyword_in_text(entry.name, text):
-            return entry
-
-    # 3. Shared brand DB, not other users' categories.
+# ฟังก์ชันหลักสำหรับจับคู่หมวดหมู่
+def match_category(text, transaction_type, user=None, rule_category="อื่นๆ"):
+    # 1. ค้นหา Keyword จากตาราง Brand
     brands = Brand.objects.filter(
-        transaction_type=transaction_type, category__user__isnull=True,
-        category__transaction_type=transaction_type
+        transaction_type=transaction_type,
+        category__user__isnull=True,
+        category__transaction_type=transaction_type,
     ).select_related("category")
-    for entry in sorted(brands, key=lambda x: len(x.keyword), reverse=True):
-        if keyword_in_text(entry.keyword, text):
-            return entry.category
 
-    # 4. Existing rules, but only if the resulting category is accessible.
-    rule_aliases = {"ชอปปิ้ง": "ช้อปปิ้ง", "การเดินทาง": "ค่าเดินทาง"}
-    candidate = rule_aliases.get(rule_category, rule_category)
-    return accessible_category(candidate, transaction_type, user) or fallback_category(transaction_type, user)
+    # ตรวจ Keyword ที่ยาวกว่าก่อน
+    brands = sorted(brands, key=lambda brand: len(brand.keyword), reverse=True)
+
+    for brand in brands:
+        if keyword_in_text(brand.keyword, text):
+            return brand.category
+
+    # 2. ตรวจสอบหมวดหมู่จาก Parser
+    if rule_category == "ชอปปิ้ง":
+        rule_category = "ช้อปปิ้ง"
+    elif rule_category == "การเดินทาง":
+        rule_category = "ค่าเดินทาง"
+
+    category = accessible_category(rule_category, transaction_type)
+
+    if category is not None:
+        return category
+
+    # 3. ถ้าไม่พบ ให้ใช้หมวดหมู่ อื่นๆ
+    return fallback_category(transaction_type)
