@@ -194,7 +194,7 @@ function Register() {
   // Loading
   if (checkingAccount) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-blue-50 to-purple-50">
+      <div className="min-h-screen flex items-center justify-center bg-purple-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-purple-100 border-t-[#A995D8] rounded-full animate-spin" />
 
@@ -226,7 +226,7 @@ function Register() {
   return (
     <div className="
       relative min-h-screen overflow-hidden
-      bg-gradient-to-br from-pink-50 via-blue-50 to-purple-50
+      bg-purple-50
       px-4 py-10 sm:py-14
     ">
 
@@ -234,7 +234,7 @@ function Register() {
       <div className="
         absolute -top-24 -right-20
         w-72 h-72
-        bg-pink-200/40
+        bg-purple-200/40
         rounded-full blur-3xl
         pointer-events-none
       " />
@@ -242,7 +242,7 @@ function Register() {
       <div className="
         absolute top-1/3 -left-28
         w-80 h-80
-        bg-blue-200/40
+        bg-purple-200/40
         rounded-full blur-3xl
         pointer-events-none
       " />
@@ -291,8 +291,8 @@ function Register() {
               className="
                 w-full py-3.5 px-5
                 rounded-xl
-                bg-[#06C755]
-                hover:bg-[#05B34C]
+                bg-[#A995D8]
+                hover:bg-[#9680C9]
                 text-white font-semibold
                 shadow-sm
                 transition-all duration-200
@@ -390,7 +390,7 @@ function Register() {
                 <div>
                   <label htmlFor="age" className={labelClass}>
                     อายุ (ปี)
-                    <span className="text-pink-400 ml-1">*</span>
+                    <span className="text-purple-400 ml-1">*</span>
                   </label>
 
                   <input
@@ -410,7 +410,7 @@ function Register() {
                 <div>
                   <label htmlFor="occupation" className={labelClass}>
                     กลุ่มอาชีพ
-                    <span className="text-pink-400 ml-1">*</span>
+                    <span className="text-purple-400 ml-1">*</span>
                   </label>
 
                   <select
@@ -461,28 +461,6 @@ function Register() {
                   </select>
                 </div>
 
-                {/* Email */}
-                <div className="sm:col-span-2">
-                  <label htmlFor="email" className={labelClass}>
-                    อีเมล
-                    <span className="
-                      ml-2 text-xs font-normal text-gray-400
-                    ">
-                      *สำหรับรับเอกสารที่ส่งออก (ไม่บังคับ)
-                    </span>
-                  </label>
-
-                  <input
-                    id="email"
-                    type="email"
-                    maxLength="254"
-                    placeholder="example@email.com"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-
                 {/* Monthly Income */}
                 <div className="sm:col-span-2">
                   <label htmlFor="monthly-income" className={labelClass}>
@@ -516,11 +494,8 @@ function Register() {
                 className="
                   w-full mt-8 py-3.5 px-5
                   rounded-xl
-                  bg-gradient-to-r
-                  from-[#E9AFC9]
-                  via-[#C5B5E8]
-                  to-[#A9C8ED]
-                  hover:brightness-105
+                  bg-[#A995D8]
+                  hover:bg-[#9680C9]
                   text-white font-semibold
                   shadow-md shadow-purple-200/50
                   transition-all duration-200
