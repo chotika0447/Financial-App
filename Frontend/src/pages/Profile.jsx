@@ -302,25 +302,6 @@ function Profile() {
           >
 
             <div className="form-group">
-              <label htmlFor="profile-email">
-                อีเมล
-              </label>
-
-              <input
-                id="profile-email"
-                type="email"
-                value={form.email}
-                onChange={event =>
-                  setForm({
-                    ...form,
-                    email: event.target.value,
-                  })
-                }
-              />
-            </div>
-
-
-            <div className="form-group">
               <label htmlFor="profile-age">
                 อายุ (ปี)
               </label>

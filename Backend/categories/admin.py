@@ -2,6 +2,75 @@ from django.contrib import admin
 from .models import Category, Brand
 
 
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "name",
+        "transaction_type",
+        "user",
+    )
+
+    search_fields = ("name",)
+    list_filter = ("transaction_type",)
+
+    # แสดงเฉพาะหมวดหมู่ส่วนกลาง
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(
+            user__isnull=True
+        )
+
+    # หมวดหมู่ที่เพิ่มผ่าน Admin เป็นหมวดหมู่ส่วนกลาง
+    def save_model(self, request, obj, form, change):
+        obj.user = None
+        super().save_model(request, obj, form, change)
+
+    # ไม่ให้แก้ไข user ในหน้า Admin
+    exclude = ("user",)
+
+
+# @admin.register(Brand)
+# class BrandAdmin(admin.ModelAdmin):
+#     list_display = (
+#         "keyword",
+#         "category",
+#         "transaction_type",
+#     )
+
+#     search_fields = (
+#         "keyword",
+#         "category__name",
+#     )
+
+#     list_filter = ("transaction_type",)
+
+#     def get_queryset(self, request):
+#         return super().get_queryset(request).select_related(
+#             "category"
+#         )
+
+#     def formfield_for_foreignkey(self, db_field, request, **kwargs):
+#         if db_field.name == "category":
+#             kwargs["queryset"] = Category.objects.filter(
+#                 user__isnull=True
+#             )
+
+#         return super().formfield_for_foreignkey(
+#             db_field, request, **kwargs
+#         )
+
+#     def save_model(self, request, obj, form, change):
+#         if (
+#             obj.category.user_id is not None
+#             or obj.category.transaction_type != obj.transaction_type
+#         ):
+#             from django.core.exceptions import ValidationError
+#             raise ValidationError(
+#                 "Brand must reference a global category of the same type"
+#             )
+
+#         super().save_model(request, obj, form, change)
+
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
     list_display = ("keyword", "category", "transaction_type")
