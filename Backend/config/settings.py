@@ -149,7 +149,6 @@ INSTALLED_APPS = [
     'debts',
     'friends',
 
-    'notifications',
     'savings',
     'transactions',
     'categories',
