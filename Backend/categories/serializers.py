@@ -8,5 +8,6 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
+            "icon",
             "transaction_type",
         ]

@@ -19,6 +19,7 @@ class Category(models.Model):
         EXPENSE = "expense", "Expense"
 
     name = models.CharField(max_length=100)
+    icon = models.CharField(max_length=60, default="ellipsis", blank=False)
 
     transaction_type = models.CharField(
         max_length=10,
