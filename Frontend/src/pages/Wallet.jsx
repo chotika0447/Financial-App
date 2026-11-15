@@ -480,7 +480,7 @@ function Wallet() {
                     </div>
                 </section>
 
-                <CompletedWallets wallets={completedWallets} />
+                {/* <CompletedWallets wallets={completedWallets} /> */}
 
             </main>
 
