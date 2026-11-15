@@ -240,7 +240,7 @@ def parse_financial_message(text, transaction_type):
         return {"success": False, "message": "พบหลายช่องทาง กรุณาระบุช่องทางเดียว"}
 
     name = remove_ranges(text, amount_ranges)
-    name = name(name, transaction_type, matched_account)
+    name = clean_name(name, transaction_type, matched_account)
     if not name:
         return {"success": False, "message": "กรุณาระบุชื่อรายการด้วย เช่น ชาเขียว 20"}
 
@@ -557,15 +557,16 @@ def parse_financial_message(text, transaction_type):
     )
     # Brand and personal-category matching happen in category_matching.py
     # with the authenticated LINE user. Keep this parser focused on parsing.
-    for name, keywords in mapping.items():
+    for category_name, keywords in mapping.items():
         found_keyword = False
+
         for word in keywords:
             if word in text_lower:
                 found_keyword = True
                 break
 
         if found_keyword:
-            category = name
+            category = category_name
             break
 
     return {
