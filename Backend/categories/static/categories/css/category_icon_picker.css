@@ -1,0 +1,12 @@
+/* Django Admin: visual category icon radio picker */
+#id_icon {display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:10px;max-width:800px;margin:0;padding:0;list-style:none}
+#id_icon > div {margin:0;min-width:0}
+#id_icon label {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:88px;padding:10px;border:1px solid var(--hairline-color,#d1d5db);border-radius:10px;cursor:pointer;text-align:center;box-sizing:border-box;background:var(--body-bg,#fff);color:var(--body-fg,#333)}
+#id_icon label:hover {border-color:var(--link-fg,#417690)}
+#id_icon label:has(input:checked) {outline:2px solid var(--link-fg,#417690);outline-offset:0;background:var(--darkened-bg,#f5f7fa)}
+#id_icon label:has(input:focus-visible) {outline:3px solid #eab308;outline-offset:2px}
+#id_icon input[type=radio] {position:absolute;opacity:0;width:1px;height:1px}
+#id_icon .category-icon-preview {display:inline-flex;width:30px;height:30px}
+#id_icon .category-icon-preview svg {width:100%;height:100%}
+#id_icon .category-icon-label {font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+@media (max-width:600px){#id_icon{grid-template-columns:repeat(2,minmax(0,1fr))}}

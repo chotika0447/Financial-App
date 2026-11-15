@@ -5,7 +5,7 @@ import {
   Coffee, ShoppingBag, CarFront, Heart, BookOpen, Wallet,
   Gift, Sparkles, UtensilsCrossed, BriefcaseBusiness,
   Banknote, TrendingUp, MoreHorizontal, Phone, House,
-  Zap, HandHeart,
+  Zap, HandHeart, PawPrint,
   CalendarDays,
   Image as ImageIcon,
   LoaderCircle,
@@ -56,7 +56,16 @@ const categoryIcons = {
   'งานเสริม': BriefcaseBusiness, 'เงินเดือน': Banknote,
   'โบนัส': Gift, 'รายได้': Wallet, 'ลงทุน': TrendingUp,
 };
-const getCategoryIcon = (name) => categoryIcons[name] || MoreHorizontal;
+const iconRegistry = {
+  'ellipsis': MoreHorizontal, 'utensils-crossed': UtensilsCrossed,
+  'coffee': Coffee, 'shopping-bag': ShoppingBag, 'car-front': CarFront,
+  'heart': Heart, 'book-open': BookOpen, 'wallet': Wallet,
+  'gift': Gift, 'sparkles': Sparkles, 'briefcase-business': BriefcaseBusiness,
+  'banknote': Banknote, 'trending-up': TrendingUp, 'phone': Phone,
+  'house': House, 'zap': Zap, 'hand-heart': HandHeart, 'paw-print': PawPrint,
+};
+const getCategoryIcon = (name, icon) =>
+  (icon && iconRegistry[icon]) || categoryIcons[name] || MoreHorizontal;
 
 function Transactions() {
   const [transactions, setTransactions] = useState([]);
@@ -502,6 +511,9 @@ function Transactions() {
 
 
   const visibleCategories = categories;
+  const categoryIconById = useMemo(() => new Map(
+    listCategories.map((item) => [`${item.transaction_type}:${item.id}`, item.icon])
+  ), [listCategories]);
 
   // OCR reads a receipt but never saves a transaction automatically.
   async function scanReceipt(file) {
@@ -644,6 +656,13 @@ function Transactions() {
       setError(
         'กรุณาระบุจำนวนเงินมากกว่า 0'
       );
+      return;
+    }
+
+    if (!form.category || !categories.some(
+      (category) => String(category.id) === String(form.category)
+    )) {
+      setError('กรุณาเลือกหมวดหมู่ก่อนบันทึกรายการ');
       return;
     }
 
@@ -1102,7 +1121,7 @@ function Transactions() {
                       }
                     >
                       {(() => {
-                        const CategoryIcon = getCategoryIcon(transaction.category_name);
+                        const CategoryIcon = getCategoryIcon(transaction.category_name, categoryIconById.get(`${transaction.transaction_type}:${transaction.category}`));
                         return <CategoryIcon size={22} strokeWidth={1.8} />;
                       })()}
                     </div>
@@ -1384,7 +1403,7 @@ function Transactions() {
                 <label>หมวดหมู่ *</label>
                 <div className="category-choice-list">
                   {visibleCategories.map((category) => {
-                    const CategoryIcon = getCategoryIcon(category.name);
+                    const CategoryIcon = getCategoryIcon(category.name, category.icon);
                     return (
                       <button key={category.id} type="button"
                         aria-pressed={String(form.category) === String(category.id)}
@@ -1396,20 +1415,6 @@ function Transactions() {
                     );
                   })}
                   {categories.length === 0 && <span>ยังไม่มีหมวดหมู่</span>}
-                </div>
-                <label>หมวดหมู่</label>
-                <div className="category-choice-list">
-                  {categories.map((category) => (
-                    <button
-                      key={category.id}
-                      type="button"
-                      className={String(form.category) === String(category.id) ? 'active' : ''}
-                      onClick={() => setForm({ ...form, category: category.id })}
-                    >
-                      {category.name}
-                    </button>
-                  ))}
-                  {categories.length === 0 && <span>ยังไม่มีหมวดหมู่ให้เลือก</span>}
                 </div>
               </div>
 
