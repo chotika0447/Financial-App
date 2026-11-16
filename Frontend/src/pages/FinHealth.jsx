@@ -14,6 +14,9 @@ import {
     X,
     CheckCircle2,
     XCircle,
+    CalendarDays,
+    Save,
+    Info,
 } from 'lucide-react';
 
 import { authenticatedFetch as fetch } from '../utils/auth';
@@ -31,17 +34,38 @@ function isAvailable(value) {
 
 // ใช้สูตรเดียวกับ FinHealthDetail.jsx
 function calculateEirScore(eir) { return scoreEir(eir); }
-
 function calculateSrScore(sr) { return scoreSr(sr); }
-
 function calculateDsrScore(dsr) { return scoreDsr(dsr); }
-
 function calculateOdpScore(odp) { return scoreOdp(odp); }
 
 function averageScores(first, second) {
     if (first == null || second == null) return null;
 
     return Math.round(((first + second) / 2) * 100) / 100;
+}
+
+async function readApiJson(response) {
+    const contentType = response.headers.get('content-type') || '';
+
+    if (!contentType.includes('application/json')) {
+        throw new Error(
+            `ไม่สามารถเชื่อมต่อ API ได้ (HTTP ${response.status}) กรุณาตรวจสอบ Backend URL`
+        );
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        const message = data.detail || data.error || data.start_day;
+
+        throw new Error(
+            typeof message === 'string'
+                ? message
+                : `ดำเนินการไม่สำเร็จ (HTTP ${response.status})`
+        );
+    }
+
+    return data;
 }
 
 function FinHealth() {
@@ -51,30 +75,38 @@ function FinHealth() {
     const [cycleMessage, setCycleMessage] = useState('');
     const [cycleSaving, setCycleSaving] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
-    useEffect(() => {
-        const token = sessionStorage.getItem('accessToken');
-        if (!token) return;
-        fetch('/financial-health/cycle/', { headers: { Authorization: `Bearer ${token}` } })
-            .then(r => { if (!r.ok) throw new Error('โหลดรอบการเงินไม่สำเร็จ'); return r.json(); })
-            .then(data => { setCycle(data); setCycleDay(String(data.start_day)); })
-            .catch(e => setCycleMessage(e.message));
-    }, [refreshKey]);
+
     async function saveCycle() {
         setCycleSaving(true);
         setCycleMessage('');
+
         try {
             const token = sessionStorage.getItem('accessToken');
+
             const response = await fetch('/financial-health/cycle/', {
                 method: 'PATCH',
-                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ start_day: Number(cycleDay) }),
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    start_day: Number(cycleDay),
+                }),
             });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.start_day || result.detail || 'บันทึกไม่สำเร็จ');
-            setCycleMessage(`บันทึกแล้ว รอบใหม่เริ่ม ${result.new_cycle_start}`);
-            setRefreshKey(v => v + 1);
-        } catch (e) { setCycleMessage(String(e.message)); }
-        finally { setCycleSaving(false); }
+
+            const result = await readApiJson(response);
+
+            setCycleMessage(
+                `บันทึกสำเร็จ รอบใหม่เริ่ม ${result.new_cycle_start}`
+            );
+
+            setRefreshKey(value => value + 1);
+
+        } catch (error) {
+            setCycleMessage(error.message);
+        } finally {
+            setCycleSaving(false);
+        }
     }
     // const [showCriteria, setShowCriteria] = useState(false);
 
@@ -82,6 +114,7 @@ function FinHealth() {
     const [saveMetrics, setSaveMetrics] = useState(null);
     const [borrowMetrics, setBorrowMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
+
 
     useEffect(() => {
         const controller = new AbortController();
@@ -102,20 +135,14 @@ function FinHealth() {
                     signal: controller.signal,
                 });
 
-                const data = await response.json();
+                return await readApiJson(response);
 
-                if (!response.ok) {
-                    throw new Error(
-                        data.detail ||
-                        data.error ||
-                        'ไม่สามารถโหลดข้อมูลตัวชี้วัดได้'
-                    );
-                }
-
-                return data;
             } catch (error) {
                 if (error.name !== 'AbortError') {
-                    console.error(`โหลดข้อมูล ${url} ไม่สำเร็จ:`, error);
+                    console.error(
+                        `โหลดข้อมูล ${url} ไม่สำเร็จ:`,
+                        error
+                    );
                 }
                 return null;
             }
@@ -141,6 +168,26 @@ function FinHealth() {
         loadAllMetrics();
 
         return () => controller.abort();
+    }, [refreshKey]);
+
+
+    useEffect(() => {
+        const token = sessionStorage.getItem('accessToken');
+        if (!token) return;
+
+        fetch('/financial-health/cycle/', {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        })
+            .then(readApiJson)
+            .then(data => {
+                setCycle(data);
+                setCycleDay(String(data.start_day));
+            })
+            .catch(error => {
+                setCycleMessage(error.message);
+            });
     }, [refreshKey]);
 
     // Spend: EIR + TRC
@@ -241,22 +288,88 @@ function FinHealth() {
             </header>
 
             <main className="fh-main">
-                <section className="fh-section" style={{ marginBottom: 20 }}>
-                    <div className="fh-section-heading"><h2>รอบการประเมินสุขภาพทางการเงิน</h2></div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
-                        <label htmlFor="cycle-start-day">วันเริ่มรอบการเงิน</label>
-                        <select id="cycle-start-day" value={cycleDay} onChange={e => setCycleDay(e.target.value)}
-                            style={{ padding: '8px 12px', borderRadius: 8 }}>
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                        <button type="button" onClick={saveCycle} disabled={cycleSaving}>
-                            {cycleSaving ? 'กำลังบันทึก...' : 'บันทึกวันเริ่มรอบ'}
-                        </button>
+
+                <section className="fh-section fh-cycle-section">
+                    <div className="fh-cycle-header">
+                        <div className="fh-cycle-icon">
+                            <CalendarDays size={22} />
+                        </div>
+
+                        <div className="fh-cycle-heading">
+                            <h2>รอบการประเมินสุขภาพทางการเงิน</h2>
+                            <p>กำหนดวันที่เริ่มต้นรอบการเงินในแต่ละเดือน</p>
+                        </div>
                     </div>
-                    {cycle && <p>รอบปัจจุบัน: {cycle.period_start} ถึง {cycle.period_end}{cycle.is_transition ? ' (รอบเปลี่ยนผ่าน)' : ''}</p>}
-                    {cycleMessage && <p role="status">{cycleMessage}</p>}
-                    <p>การเปลี่ยนแปลงมีผลหลังรอบปัจจุบันสิ้นสุด</p>
+
+                    <div className="fh-cycle-body">
+                        <label
+                            htmlFor="cycle-start-day"
+                            className="fh-cycle-label"
+                        >
+                            วันเริ่มรอบการเงิน
+                        </label>
+
+                        <div className="fh-cycle-controls">
+                            <select
+                                id="cycle-start-day"
+                                className="fh-cycle-select"
+                                value={cycleDay}
+                                onChange={(e) => setCycleDay(e.target.value)}
+                                disabled={cycleSaving}
+                            >
+                                {Array.from({ length: 31 }, (_, i) => i + 1)
+                                    .map((day) => (
+                                        <option key={day} value={day}>
+                                            วันที่ {day} ของเดือน
+                                        </option>
+                                    ))}
+                            </select>
+
+                            <button
+                                type="button"
+                                className="fh-cycle-save"
+                                onClick={saveCycle}
+                                disabled={cycleSaving}
+                            >
+                                <Save size={17} />
+                                <span>
+                                    {cycleSaving
+                                        ? 'กำลังบันทึก...'
+                                        : 'บันทึกวันเริ่มรอบ'}
+                                </span>
+                            </button>
+                        </div>
+
+                        {cycle && (
+                            <div className="fh-cycle-current">
+                                <CalendarDays size={16} />
+                                <span>
+                                    รอบปัจจุบัน: {cycle.period_start}
+                                    {' ถึง '}
+                                    {cycle.period_end}
+                                    {cycle.is_transition && ' (รอบเปลี่ยนผ่าน)'}
+                                </span>
+                            </div>
+                        )}
+
+                        {cycleMessage && (
+                            <div
+                                className="fh-cycle-message"
+                                role="status"
+                            >
+                                {cycleMessage}
+                            </div>
+                        )}
+
+                        <div className="fh-cycle-note">
+                            <Info size={17} />
+                            <span>
+                                การเปลี่ยนแปลงวันเริ่มรอบจะมีผลหลังรอบปัจจุบันสิ้นสุด
+                            </span>
+                        </div>
+                    </div>
                 </section>
+
                 {/* CURRENT SCORES */}
                 <section className="fh-section">
                     <div className="fh-section-heading">
