@@ -47,21 +47,34 @@ function averageScores(first, second) {
 async function readApiJson(response) {
     const contentType = response.headers.get('content-type') || '';
 
-    if (!contentType.includes('application/json')) {
+    if (!contentType.toLowerCase().includes('application/json')) {
+        const body = await response.text();
+
+        console.error('API returned non-JSON:', {
+            url: response.url,
+            status: response.status,
+            contentType,
+            preview: body.slice(0, 300),
+        });
+
         throw new Error(
-            `ไม่สามารถเชื่อมต่อ API ได้ (HTTP ${response.status}) กรุณาตรวจสอบ Backend URL`
+            `API ${response.url} ส่งข้อมูลไม่ใช่ JSON ` +
+            `(HTTP ${response.status})`
         );
     }
 
     const data = await response.json();
 
     if (!response.ok) {
-        const message = data.detail || data.error || data.start_day;
+        const message =
+            data.detail ??
+            data.error ??
+            `API Error (HTTP ${response.status})`;
 
         throw new Error(
             typeof message === 'string'
                 ? message
-                : `ดำเนินการไม่สำเร็จ (HTTP ${response.status})`
+                : JSON.stringify(message)
         );
     }
 
@@ -69,52 +82,73 @@ async function readApiJson(response) {
 }
 
 function FinHealth() {
+
     const navigate = useNavigate();
     const [cycle, setCycle] = useState(null);
     const [cycleDay, setCycleDay] = useState('1');
     const [cycleMessage, setCycleMessage] = useState('');
     const [cycleSaving, setCycleSaving] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
-
-    async function saveCycle() {
-        setCycleSaving(true);
-        setCycleMessage('');
-
-        try {
-            const token = sessionStorage.getItem('accessToken');
-
-            const response = await fetch('/financial-health/cycle/', {
-                method: 'PATCH',
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    start_day: Number(cycleDay),
-                }),
-            });
-
-            const result = await readApiJson(response);
-
-            setCycleMessage(
-                `บันทึกสำเร็จ รอบใหม่เริ่ม ${result.new_cycle_start}`
-            );
-
-            setRefreshKey(value => value + 1);
-
-        } catch (error) {
-            setCycleMessage(error.message);
-        } finally {
-            setCycleSaving(false);
-        }
-    }
-    // const [showCriteria, setShowCriteria] = useState(false);
-
     const [spendMetrics, setSpendMetrics] = useState(null);
     const [saveMetrics, setSaveMetrics] = useState(null);
     const [borrowMetrics, setBorrowMetrics] = useState(null);
     const [loading, setLoading] = useState(true);
 
+
+    async function saveCycle() {
+        const selectedDay = Number(cycleDay);
+
+        if (!Number.isInteger(selectedDay) ||
+            selectedDay < 1 || selectedDay > 31) {
+            setCycleMessage('กรุณาเลือกวันที่ 1–31');
+            return;
+        }
+
+        const token = sessionStorage.getItem('accessToken');
+
+        if (!token) {
+            setCycleMessage('กรุณาเข้าสู่ระบบใหม่');
+            return;
+        }
+
+        setCycleSaving(true);
+        setCycleMessage('');
+
+        try {
+            const response = await fetch('/financial-health/cycle/', {
+                method: 'PATCH',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                },
+                body: JSON.stringify({
+                    start_day: selectedDay,
+                }),
+            });
+
+            const result = await readApiJson(response);
+
+            setCycle(result);
+            setCycleDay(String(result.start_day ?? selectedDay));
+
+            setCycleMessage(
+                result.new_cycle_start
+                    ? `บันทึกสำเร็จ วันเริ่มรอบใหม่มีผลวันที่ ${result.new_cycle_start}`
+                    : 'บันทึกวันเริ่มรอบการเงินสำเร็จ'
+            );
+
+            setRefreshKey(value => value + 1);
+
+        } catch (error) {
+            console.error('Save financial cycle failed:', error);
+            setCycleMessage(
+                error.message || 'ไม่สามารถบันทึกวันเริ่มรอบการเงินได้'
+            );
+        } finally {
+            setCycleSaving(false);
+        }
+    }
 
     useEffect(() => {
         const controller = new AbortController();
@@ -172,22 +206,44 @@ function FinHealth() {
 
 
     useEffect(() => {
+        const controller = new AbortController();
         const token = sessionStorage.getItem('accessToken');
-        if (!token) return;
 
-        fetch('/financial-health/cycle/', {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        })
-            .then(readApiJson)
-            .then(data => {
+        if (!token) {
+            setCycleMessage('กรุณาเข้าสู่ระบบใหม่');
+            return () => controller.abort();
+        }
+
+        async function loadCycle() {
+            try {
+                const response = await fetch('/financial-health/cycle/', {
+                    method: 'GET',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/json',
+                    },
+                    signal: controller.signal,
+                });
+
+                const data = await readApiJson(response);
+
+                if (controller.signal.aborted) return;
+
                 setCycle(data);
-                setCycleDay(String(data.start_day));
-            })
-            .catch(error => {
+                setCycleDay(String(data.start_day ?? 1));
+                setCycleMessage('');
+
+            } catch (error) {
+                if (error.name === 'AbortError') return;
+
+                console.error('Load financial cycle failed:', error);
                 setCycleMessage(error.message);
-            });
+            }
+        }
+
+        loadCycle();
+
+        return () => controller.abort();
     }, [refreshKey]);
 
     // Spend: EIR + TRC
