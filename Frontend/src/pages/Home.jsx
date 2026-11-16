@@ -7,6 +7,9 @@ import DashboardSummary from '../components/DashboardSummary';
 
 function Home() {
   const [user, setUser] = useState(null);
+  const [news, setNews] = useState([]);
+  const [newsState, setNewsState] = useState('loading');
+  const [activeNews, setActiveNews] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,6 +34,34 @@ function Home() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadNews() {
+      try {
+        const response = await fetch('/news/', { signal: controller.signal });
+        if (!response.ok) throw new Error(`News API HTTP ${response.status}`);
+
+        const payload = await response.json();
+        const items = Array.isArray(payload.news) ? payload.news : [];
+
+        if (!controller.signal.aborted) {
+          setNews(items);
+          setActiveNews(0);
+          setNewsState(items.length ? 'ready' : 'empty');
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.error('News fetch failed:', error);
+          setNewsState('error');
+        }
+      }
+    }
+
+    loadNews();
+    return () => controller.abort();
   }, []);
 
   return (
@@ -136,27 +167,66 @@ function Home() {
         </section>
 
         {/* ================= NEWS ================= */}
-        <section className="news-section">
-
-          <h3>ข่าวสารเกี่ยวกับการเงิน</h3>
-
-          <div className="news-card">
-            <div className="news-image">
-              <div className="news-overlay">
-                FINANCE
-                <span>BUSINESS</span>
-              </div>
+        <section className="news-section home-live-news">
+          <div className="home-news-heading">
+            <div>
+              <h3>ข่าวสารเกี่ยวกับการเงิน</h3>
+              <p className="home-news-note">ข่าวเศรษฐกิจและการเงินจาก Thai PBS</p>
             </div>
           </div>
 
-          <div className="news-dots">
-            <span></span>
-            <span></span>
-            <span className="active"></span>
-            <span></span>
-            <span></span>
-          </div>
-
+          {newsState === 'loading' && <div className="home-news-status" role="status">กำลังโหลดข่าวล่าสุด...</div>}
+          {newsState === 'error' && (
+            <div className="home-news-status" role="status">
+              ไม่สามารถโหลดข่าวได้ในขณะนี้{' '}
+              <a href="https://www.thaipbs.or.th/news" target="_blank" rel="noopener noreferrer">
+                อ่านข่าวที่ Thai PBS ↗
+              </a>
+            </div>
+          )}
+          {newsState === 'empty' && <div className="home-news-status" role="status">ยังไม่พบข่าวการเงินในรายการล่าสุด</div>}
+          {newsState === 'ready' && news[activeNews] && (
+            <>
+              <a className="home-news-feature" href={news[activeNews].canonical} target="_blank" rel="noopener noreferrer">
+                {news[activeNews].mediaUrl ? (
+                  <img
+                    className="home-news-photo"
+                    src={news[activeNews].mediaUrl}
+                    alt=""
+                    loading="lazy"
+                    onError={event => { event.currentTarget.style.display = 'none'; }}
+                  />
+                ) : <div className="home-news-photo home-news-photo-empty">ข่าวเศรษฐกิจ</div>}
+                <div className="home-news-info">
+                  <span className="home-news-publisher">
+                    Thai PBS
+                    {news[activeNews].publishTime
+                      ? ` • ${new Intl.DateTimeFormat('th-TH', { dateStyle: 'medium', timeZone: 'Asia/Bangkok' }).format(new Date(news[activeNews].publishTime))}`
+                      : ''}
+                  </span>
+                  <h4>{news[activeNews].title}</h4>
+                  <span className="home-news-read">อ่านข่าวต้นฉบับ ↗</span>
+                </div>
+              </a>
+              <div className="home-news-controls">
+                <button
+                  type="button"
+                  onClick={() => setActiveNews(index => (index - 1 + news.length) % news.length)}
+                  aria-label="ข่าวก่อนหน้า"
+                >
+                  ‹
+                </button>
+                <span>{activeNews + 1} / {news.length}</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveNews(index => (index + 1) % news.length)}
+                  aria-label="ข่าวถัดไป"
+                >
+                  ›
+                </button>
+              </div>
+            </>
+          )}
         </section>
 
 
@@ -182,18 +252,6 @@ function Home() {
           >
             <DashboardSummary compact/>
           </div>
-
-
-          {/* Financial health */}
-          <button
-            className="financial-health-button"
-            onClick={() => navigate('/financial-health')}
-          >
-            <span>ประเมินสุขภาพการเงินของคุณ</span>
-            <span className="arrow">→</span>
-          </button>
-
-        
 
       </main>
 

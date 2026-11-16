@@ -7,6 +7,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         batch = refresh_news()
         if batch:
-            self.stdout.write(self.style.SUCCESS(f'Published batch #{batch.pk}, 5 stories'))
+            self.stdout.write(self.style.SUCCESS(f'Published batch #{batch}, 5 stories'))
         else:
             self.stdout.write(self.style.WARNING('No replacement published; previous batch preserved'))
