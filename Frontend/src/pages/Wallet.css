@@ -763,8 +763,11 @@
 	}
 }
 //ระยะห่างของกระเป๋าที่สำเร็จแล้ว
-.completed-wallets {
-	display: flex;
-	flex-direction: column;
-	gap : 30px;
+.completed-wallets-list {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	align-items: stretch;
+	gap: 20px;
+	width: 100%;
+	margin: 0 0 28px;
 }
