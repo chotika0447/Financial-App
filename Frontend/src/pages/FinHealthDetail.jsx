@@ -277,7 +277,17 @@ function FinHealthDetail() {
                     }
                 );
 
-                const data = await response.json();
+                const contentType = response.headers.get('content-type') || '';
+                const raw = await response.text();
+                if (!contentType.toLowerCase().includes('application/json')) {
+                    throw new Error(`API ด้านการออมส่งข้อมูลที่ไม่ใช่ JSON (HTTP ${response.status}) กรุณาตรวจสอบเส้นทาง Backend และ Vercel Rewrite`);
+                }
+                let data;
+                try {
+                    data = JSON.parse(raw);
+                } catch {
+                    throw new Error('ข้อมูล JSON จาก API ด้านการออมไม่ถูกต้อง');
+                }
 
                 if (!response.ok) {
                     throw new Error(
@@ -575,373 +585,85 @@ function FinHealthDetail() {
                 )}
 
                 {criterion.id === 'save' && (
-                    <>
-                        {saveLoading ? (
-                            <section className="fhd-card">
-                                <p className="fhd-message">
-                                    กำลังคำนวณข้อมูลสุขภาพการเงิน...
-                                </p>
-                            </section>
-                        ) : saveError ? (
-                            <section className="fhd-card">
-                                <p className="fhd-error" role="alert">
-                                    {saveError}
-                                </p>
-                            </section>
-                        ) : saveMetrics ? (
-                            <>
-                                {/* Save Total Score */}
-                                <section className="fhd-card fhd-score-card">
-                                    <h2>คะแนนเฉลี่ยด้านการออม</h2>
-
-                                    <p>
-                                        คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน SR และ SC
-                                    </p>
-
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">สูตรคำนวณ</span>
-                                        <p>(คะแนน SR + คะแนน SC) ÷ 2</p>
+                    saveLoading ? (
+                        <section className="fhd-card"><p className="fhd-message">กำลังคำนวณข้อมูลด้านการออม...</p></section>
+                    ) : saveError ? (
+                        <section className="fhd-card"><p className="fhd-error" role="alert">{saveError}</p></section>
+                    ) : saveMetrics ? (
+                        (() => {
+                            const m = saveMetrics;
+                            const sr = numeric(m.saving_rate);
+                            const srPoints = numeric(m.sr_score) ?? calculateSrScore(sr);
+                            const sf = numeric(m.sc_recording_frequency);
+                            const sd = numeric(m.sc_recording_distribution);
+                            const scPoints = numeric(m.sc_score) ?? mean(sf, sd);
+                            const total = srPoints !== null && scPoints !== null ? mean(srPoints, scPoints) : null;
+                            const periods = Array.isArray(m.sc_periods) ? m.sc_periods : [];
+                            const daily = Array.isArray(m.sc_daily_records) ? m.sc_daily_records : [];
+                            const from = dateLabel(m.period_start);
+                            const to = dateLabel(m.period_end);
+                            const periodText = from && to ? `${from} – ${to}` : 'ยังไม่ระบุช่วงประเมิน';
+                            const days = numeric(m.sc_recorded_days);
+                            const segments = numeric(m.sc_recorded_periods);
+                            const saving = numeric(m.total_saving);
+                            const advice = srPoints === null ? 'เพิ่มข้อมูลรายได้สุทธิเพื่อให้ระบบคำนวณอัตราการออมได้' : scPoints === null ? 'บันทึกการฝากและถอนเพื่อให้ประเมินความสม่ำเสมอได้' : srPoints <= scPoints ? 'ลองเพิ่มสัดส่วนเงินออมสุทธิเทียบกับรายได้ เพื่อพัฒนาคะแนน SR' : 'กระจายการออมให้ครอบคลุมหลายวันและครบทั้ง 4 ช่วงของรอบการเงิน';
+                            return (
+                                <div className="sp-dashboard save-dashboard">
+                                    <section className="sp-hero">
+                                        <div className="sp-eyebrow"><Wallet size={16} /> ผลประเมินด้านการออม</div>
+                                        <div className="sp-hero-layout">
+                                            <div><div className="sp-hero-score">{number(total)} <span>/ 100</span></div><p>{total === null ? 'ยังประเมินคะแนนรวมไม่ได้ เนื่องจากข้อมูลไม่ครบ' : 'คะแนนเฉลี่ยจากอัตราการออม (SR) และความสม่ำเสมอ (SC)'}</p></div>
+                                            <div className="sp-hero-side"><CalendarDays size={17} /><span>{periodText}</span></div>
+                                        </div>
+                                        <ScoreBar value={total} />
+                                        <div className="sp-score-pills"><span>SR <strong>{number(srPoints)}</strong></span><span>SC <strong>{number(scPoints)}</strong></span></div>
+                                        {m.is_provisional && <p className="save-provisional">คะแนนระหว่างรอบการเงิน อาจเปลี่ยนแปลงเมื่อมีรายการใหม่</p>}
+                                    </section>
+                                    <div className="sp-stat-grid save-stat-grid">
+                                        <div className="sp-stat"><div className="sp-stat-label"><TrendingUp size={17} /> เงินออมสุทธิ</div><strong>{saving === null ? '—' : `฿${money(saving)}`}</strong><small>ยอดฝากหักยอดถอนในรอบประเมิน</small></div>
+                                        <div className="sp-stat"><div className="sp-stat-label"><Wallet size={17} /> รายได้รวม</div><strong>{numeric(m.total_income) === null ? '—' : `฿${money(m.total_income)}`}</strong><small>รายได้ที่ใช้คำนวณอัตราการออม</small></div>
                                     </div>
-
-                                    <div className="fhd-result">
-                                        <div className="fhd-result-card">
-
-                                            {saveTotalScore == null ? (
-                                                <strong className="fhd-no-result">
-                                                    ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
-                                                    เนื่องจากข้อมูลคะแนนไม่ครบถ้วน
-                                                </strong>
-                                            ) : (
-                                                <div className="fhd-result-value">
-                                                    <strong>{formatSpendMoney(saveTotalScore)}</strong>
-                                                    <span>/ 100</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </section>
-
-                                {/* Saving Rate */}
-                                <section className="fhd-card fhd-indicator-card">
-                                    <div className="fhd-indicator-heading">
-                                        <span className="fhd-indicator-number">
-                                            01
-                                        </span>
-
-                                        <div>
-                                            <h2>อัตราการออม</h2>
-                                            <p>Saving Rate (SR)</p>
-                                        </div>
-                                    </div>
-
-                                    <p className="fhd-indicator-description">
-                                        วัดสัดส่วนเงินออมสุทธิเมื่อเทียบกับรายได้สุทธิ
-                                        ในช่วงเวลาที่ใช้ประเมิน
-                                    </p>
-
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">
-                                            สูตรคำนวณ
-                                        </span>
-                                        <p>
-                                            (จำนวนเงินออมสุทธิ ÷ รายได้สุทธิ) × 100
-                                        </p>
-                                    </div>
-
-                                    <div className="fhd-breakdown">
-                                        <div className="fhd-breakdown-row">
-                                            <span>ยอดฝากเงิน</span>
-                                            <strong>
-                                                {formatSpendMoney(saveMetrics.total_deposit)} บาท
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-breakdown-row">
-                                            <span>ยอดถอนเงิน</span>
-                                            <strong>
-                                                {formatSpendMoney(saveMetrics.total_withdraw)} บาท
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-breakdown-row fhd-breakdown-row-total">
-                                            <span>จำนวนเงินออมสุทธิ</span>
-                                            <strong>
-                                                {formatSpendMoney(saveMetrics.total_saving)} บาท
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-breakdown-row">
-                                            <span>รายได้ประจำ</span>
-                                            <strong>
-                                                {formatSpendMoney(saveMetrics.monthly_income)} บาท/เดือน
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-breakdown-row">
-                                            <span>รายได้จากธุรกรรม</span>
-                                            <strong>
-                                                {formatSpendMoney(saveMetrics.transaction_income)} บาท
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-breakdown-row fhd-breakdown-row-total">
-                                            <span>รายได้สุทธิรวม</span>
-                                            <strong>
-                                                {formatSpendMoney(saveMetrics.total_income)} บาท
-                                            </strong>
-                                        </div>
-                                    </div>
-
-                                    <div className="fhd-result">
-                                        {/* Saving Rate */}
-                                        <div className="fhd-result-card">
-                                            <span className="fhd-result-label">
-                                                ผลการคำนวณ SR
-                                            </span>
-
-                                            {saveMetrics.saving_rate == null ? (
-                                                <strong className="fhd-no-result">
-                                                    ยังไม่สามารถคำนวณได้
-                                                    เนื่องจากไม่มีรายได้สุทธิ
-                                                </strong>
-                                            ) : (
-                                                <div className="fhd-result-value">
-                                                    <strong>
-                                                        {formatSpendMoney(saveMetrics.saving_rate)}
-                                                    </strong>
-                                                    <span>%</span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Saving Rate Score */}
-                                        <div className="fhd-result-card">
-                                            <span className="fhd-result-label">
-                                                คะแนน SR
-                                            </span>
-
-                                            {srScore == null ? (
-                                                <strong className="fhd-no-result">
-                                                    ยังไม่มีคะแนน
-                                                </strong>
-                                            ) : (
-                                                <>
-                                                    <div className="fhd-result-value">
-                                                        <strong>{formatSpendMoney(srScore)}</strong>
-                                                        <span>/ 100</span>
-                                                    </div>
-
-                                                    <p className="fhd-message">{srLevel}</p>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                </section>
-
-                                {/* Saving Consistency */}
-                                {/* Saving Consistency */}
-                                <section className="fhd-card fhd-indicator-card">
-                                    <div className="fhd-indicator-heading">
-                                        <span className="fhd-indicator-number">02</span>
-                                        <div>
-                                            <h2>ความสม่ำเสมอในการออม</h2>
-                                            <p>Saving Consistency (SC)</p>
-                                        </div>
-                                    </div>
-
-                                    <p className="fhd-indicator-description">
-                                        ประเมินความสม่ำเสมอในการออมเงินภายในรอบการเงิน
-                                        โดยพิจารณาทั้งจำนวนวันที่มีการออมและการกระจายตัว
-                                        ของวันที่มีการออมตลอดทั้งเดือน
-                                    </p>
-
-                                    {savePeriod && (
-                                        <div className="fhd-period">
-                                            ข้อมูลช่วงเดือน {savePeriod}
-                                        </div>
-                                    )}
-
-                                    {/* SC Score */}
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">
-                                            สูตรคำนวณคะแนน SC
-                                        </span>
-                                        <p>(คะแนน SF + คะแนน SD) ÷ 2</p>
-                                    </div>
-                                    
-                                    <div className="fhd-result">
-                                        <div className="fhd-result-card">
-                                            <span className="fhd-result-label">
-                                                คะแนน SC
-                                            </span>
-
-                                            {scScore == null ? (
-                                                <strong className="fhd-no-result">
-                                                    ยังไม่มีคะแนน
-                                                </strong>
-                                            ) : (
-                                                <div className="fhd-result-value">
-                                                    <strong>{formatSpendMoney(scScore)}</strong>
-                                                    <span>/ 100</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Saving Frequency */}
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">
-                                            1. Saving Frequency (SF)
-                                        </span>
-                                        <p>
-                                            min(100, (จำนวนวันที่มีเงินออมสุทธิเป็นบวก ÷ 4) × 100)
-                                        </p>
-                                    </div>
-
-                                    <div className="fhd-trc-summary">
-                                        <div>
-                                            <span>วันที่มีการออม</span>
-                                            <strong>
-                                                {saveMetrics.sc_recorded_days}
-                                                {' / '}
-                                                {saveMetrics.sc_days_evaluated}
-                                                {' วัน'}
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-trc-percentage">
-                                            <span>ผลการคำนวณ SF</span>
-                                            <strong>
-                                                {formatSpendMoney(scFrequency)}%
-                                            </strong>
-                                        </div>
-                                    </div>
-
-                                    {/* Saving Distribution */}
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">
-                                            2. Saving Distribution (SD)
-                                        </span>
-                                        <p>
-                                            (จำนวนช่วงที่มีการออม ÷ 4) × 100
-                                        </p>
-                                    </div>
-
-                                    <div className="fhd-trc-summary">
-                                        <div>
-                                            <span>ช่วงที่มีการออม</span>
-                                            <strong>
-                                                {saveMetrics.sc_recorded_periods}
-                                                {' / '}
-                                                {saveMetrics.sc_total_periods}
-                                                {' ช่วง'}
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-trc-percentage">
-                                            <span>ผลการคำนวณ SD</span>
-                                            <strong>
-                                                {formatSpendMoney(scDistribution)}%
-                                            </strong>
-                                        </div>
-                                    </div>
-
-                                    {/* รายละเอียด 4 ช่วง: แสดงเมื่อมีข้อมูล */}
-                                    {(saveMetrics.sc_periods || []).length > 0 && (
-                                        <div className="fhd-trc-month-list">
-                                            <h3>รายละเอียดการออมในแต่ละช่วง</h3>
-
-                                            {saveMetrics.sc_periods.map((item) => (
-                                                <div
-                                                    className="fhd-trc-month-item"
-                                                    key={item.period}
-                                                >
-                                                    <div className="fhd-trc-month-name">
-                                                        <strong>ช่วงที่ {item.period}</strong>
-
-                                                        <span>
-                                                            วันที่ {item.start_day} - {item.end_day}
-                                                        </span>
-
-                                                        {item.recorded_days?.length > 0 && (
-                                                            <span>
-                                                                วันที่มีการออม: {item.recorded_days.join(', ')}
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    <span
-                                                        className={`fhd-trc-status ${item.has_records
-                                                                ? 'is-complete'
-                                                                : 'is-incomplete'
-                                                            }`}
-                                                    >
-                                                        {item.has_records ? 'มีการออม' : 'ไม่มีการออม'}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {/* รายละเอียดรายวัน: แสดงเมื่อมีข้อมูล */}
-                                    {(saveMetrics.sc_daily_records || []).length > 0 && (
-                                        <div className="fhd-trc-month-list">
-                                            <h3>รายละเอียดการออมรายวัน</h3>
-
-                                            {saveMetrics.sc_daily_records.map((item) => (
-                                                <div
-                                                    className="fhd-trc-month-item"
-                                                    key={item.date}
-                                                >
-                                                    <div className="fhd-trc-month-name">
-                                                        <strong>วันที่ {item.day}</strong>
-
-                                                        <span>
-                                                            ฝาก {formatSpendMoney(item.deposit)} บาท
-                                                            {' · '}
-                                                            ถอน {formatSpendMoney(item.withdraw)} บาท
-                                                        </span>
-
-                                                        <span>
-                                                            ออมสุทธิ {formatSpendMoney(item.net_saving)} บาท
-                                                        </span>
-                                                    </div>
-
-                                                    <span
-                                                        className={`fhd-trc-status ${Number(item.net_saving) > 0
-                                                                ? 'is-complete'
-                                                                : 'is-incomplete'
-                                                            }`}
-                                                    >
-                                                        {Number(item.net_saving) > 0
-                                                            ? 'มีการออม'
-                                                            : 'ไม่มีการออม'}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {/* <div className="fhd-trc-note">
-                                        <strong>หมายเหตุ</strong>
-                                        <p>
-                                            ระบบนับวันที่มียอดฝากหักยอดถอนสุทธิมากกว่า 0 บาท
-                                            เป็นวันที่มีการออม และแบ่งช่วงการประเมินเป็นวันที่
-                                            1–7, 8–14, 15–21 และวันที่ 22 จนถึงวันสุดท้ายของเดือน
-                                            สำหรับเดือนปัจจุบัน ระบบจะประเมินเฉพาะวันที่ผ่านไปแล้ว
-                                        </p>
-                                    </div> */}
-                                </section>
-
-                            </>
-                        ) : (
-                            <section className="fhd-card">
-                                <p className="fhd-message">
-                                    ยังไม่มีข้อมูลสำหรับคำนวณ
-                                </p>
-                            </section>
-                        )}
-                    </>
+                                    <section className="sp-panel">
+                                        <div className="sp-panel-head"><div><span className="sp-index">01</span><h2>อัตราการออม</h2><p>Saving Rate (SR)</p></div><span className="sp-tag">SR</span></div>
+                                        <div className="sp-metric-line"><div><small>สัดส่วนเงินออมสุทธิ</small><strong>{sr === null ? '—' : `${number(sr)}%`}</strong></div><div className="sp-metric-score"><small>คะแนน SR</small><strong>{number(srPoints)} <span>/ 100</span></strong></div></div>
+                                        <ScoreBar value={srPoints} />
+                                        {sr !== null && <p className="save-level">{getSrLevel(sr)}</p>}
+                                        {sr === null && <p className="sp-muted">ยังไม่สามารถคำนวณได้ เนื่องจากไม่มีข้อมูลรายได้สุทธิที่มากกว่า 0</p>}
+                                        <details className="sp-details"><summary><CircleHelp size={16} /> ดูสูตรและที่มาของยอดเงิน</summary><div className="sp-details-content">
+                                            <p>SR = (เงินออมสุทธิ ÷ รายได้รวม) × 100</p>
+                                            <p>เงินออมสุทธิ = ยอดฝาก − ยอดถอน</p>
+                                            <p>คะแนน SR = จำกัดค่า (SR × 5) ให้อยู่ระหว่าง 0–100</p>
+                                            <div className="sp-detail-row"><span>ยอดฝาก</span><strong>฿{money(m.total_deposit)}</strong></div>
+                                            <div className="sp-detail-row"><span>ยอดถอน</span><strong>฿{money(m.total_withdraw)}</strong></div>
+                                            <div className="sp-detail-row"><span>เงินออมสุทธิ</span><strong>฿{money(m.total_saving)}</strong></div>
+                                            <div className="sp-detail-row"><span>รายได้ประจำ</span><strong>฿{money(m.monthly_income)}</strong></div>
+                                            <div className="sp-detail-row"><span>รายรับจากธุรกรรม</span><strong>฿{money(m.transaction_income)}</strong></div>
+                                            <div className="sp-detail-row"><span>รายได้รวม</span><strong>฿{money(m.total_income)}</strong></div>
+                                        </div></details>
+                                    </section>
+                                    <section className="sp-panel">
+                                        <div className="sp-panel-head"><div><span className="sp-index">02</span><h2>ความสม่ำเสมอในการออม</h2><p>Saving Consistency (SC)</p></div><span className="sp-tag">SC</span></div>
+                                        <div className="sp-trc-top"><div><small>คะแนน SC</small><strong>{number(scPoints)} <span>/ 100</span></strong></div><p>เฉลี่ยจากความถี่ (SF) และการกระจายการออม (SD)</p></div>
+                                        <ScoreBar value={scPoints} />
+                                        <div className="sp-mini-grid"><div><small>SF · ความถี่</small><strong>{number(sf)} <span>/ 100</span></strong><p>{days === null ? 'ไม่มีข้อมูลวันที่ออม' : `ออมสุทธิเป็นบวก ${number(days)} วัน · เป้าหมาย 4 วัน`}</p></div><div><small>SD · การกระจาย</small><strong>{number(sd)} <span>/ 100</span></strong><p>{segments === null ? 'ไม่มีข้อมูลช่วงการออม' : `มีการออม ${number(segments)} จาก 4 ช่วง`}</p></div></div>
+                                        <h3 className="sp-subtitle">การออมใน 4 ช่วงของรอบการเงิน</h3>
+                                        {periods.length ? <div className="sp-period-grid">{periods.map((item, index) => <div className={`sp-period ${item.has_records ? 'is-recorded' : ''}`} key={item.period ?? index}><span>ช่วง {item.period ?? index + 1}</span><strong>{item.has_records ? <><CheckCircle2 size={17} /> มีการออม</> : 'ยังไม่มีการออม'}</strong><small>{item.start_day != null && item.end_day != null ? `วันที่ ${item.start_day}–${item.end_day}` : 'ไม่ระบุช่วงวันที่'}</small></div>)}</div> : <p className="sp-muted">ยังไม่มีรายละเอียดการออมแยกตามช่วงจาก API</p>}
+                                        <details className="sp-details"><summary><CircleHelp size={16} /> ดูสูตรและประวัติการออมรายวัน</summary><div className="sp-details-content">
+                                            <p>SF = min(100, จำนวนวันที่มีเงินออมสุทธิเป็นบวก ÷ 4 × 100)</p>
+                                            <p>SD = จำนวนช่วงที่มีการออม ÷ 4 × 100</p>
+                                            <p>SC = (SF + SD) ÷ 2</p>
+                                            <p>ระบบพิจารณาวันที่ยอดฝากหักยอดถอนมากกว่า 0 และแบ่งรอบการเงินเป็น 4 ช่วง</p>
+                                            {daily.length ? <div className="sp-daily-list">{daily.map((item, index) => <div className="sp-detail-row save-daily-row" key={item.date ?? index}><span>{dateLabel(item.date) ?? `วันที่ ${item.day ?? '—'}`}</span><strong>ฝาก ฿{money(item.deposit)} · ถอน ฿{money(item.withdraw)} · สุทธิ ฿{money(item.net_saving)}</strong></div>)}</div> : <p className="sp-muted">ยังไม่มีรายการออมรายวันในรอบนี้</p>}
+                                        </div></details>
+                                    </section>
+                                    <section className="sp-tip"><strong>แนวทางปรับปรุง</strong><p>{advice}</p></section>
+                                    <p className="sp-footnote">หมายเหตุ: ข้อมูลอ้างอิงรอบการเงินและคะแนนจาก API หากข้อมูลบางตัวไม่พร้อม ระบบจะแสดงเครื่องหมาย — แทนคะแนนศูนย์</p>
+                                </div>
+                            );
+                        })()
+                    ) : (
+                        <section className="fhd-card"><p className="fhd-message">ยังไม่มีข้อมูลสำหรับคำนวณ</p></section>
+                    )
                 )}
 
                 {criterion.id === 'borrow' && (
