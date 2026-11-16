@@ -333,7 +333,7 @@ function Transactions() {
         `${transaction.transaction_type}:${transaction.category}` === filterCategory
       );
       const text = [transaction.name, transaction.description, transaction.category_name,
-        transaction.account, transaction.amount].filter(Boolean).join(' ').toLowerCase();
+      transaction.account, transaction.amount].filter(Boolean).join(' ').toLowerCase();
       return typeMatched && dateMatched && categoryMatched && (!keyword || text.includes(keyword));
     });
   }, [transactions, filterType, filterCategory, periodRange, search]);
@@ -455,22 +455,30 @@ function Transactions() {
   }
 
 
+
   function closeModal() {
     if (saving || ocrLoading) return;
-    if (saving || ocrLoading) return;
 
-    // เตือนเฉพาะเมื่อมีการแก้ไขข้อมูลหรือเลือกรูปใหม่
-    const hasChanges =
-      JSON.stringify(form) !== JSON.stringify(initialFormRef.current) ||
-      receiptFile !== null;
+    const initialForm = initialFormRef.current;
 
-    if (hasChanges) {
-      setShowExitConfirm(true);
+    // ตรวจว่าผู้ใช้เปลี่ยนข้อมูลจากตอนเปิดฟอร์มหรือไม่
+    const hasFormChanges =
+      JSON.stringify(form) !== JSON.stringify(initialForm);
+
+    // ตรวจว่ามีการเพิ่มหรือลบใบเสร็จหรือไม่
+    const hasReceiptChanges =
+      receiptFile !== null || removeReceipt;
+
+    // หากยังไม่ได้กรอกหรือแก้ไขอะไร ให้ปิดทันที
+    if (!hasFormChanges && !hasReceiptChanges) {
+      discardAndClose();
       return;
     }
 
-    discardAndClose();
+    // มีข้อมูลที่ยังไม่ได้บันทึก จึงถามยืนยัน
+    setShowExitConfirm(true);
   }
+
 
   function discardAndClose() {
     setShowExitConfirm(false);
@@ -659,10 +667,18 @@ function Transactions() {
       return;
     }
 
-    if (!form.category || !categories.some(
-      (category) => String(category.id) === String(form.category)
-    )) {
+    if (
+      !form.category ||
+      !categories.some(
+        (category) =>
+          String(category.id) === String(form.category)
+      )
+    ) {
       setError('กรุณาเลือกหมวดหมู่ก่อนบันทึกรายการ');
+      document.getElementById('transaction-category')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
       return;
     }
 
@@ -1401,6 +1417,12 @@ function Transactions() {
               {/* หมวดหมู่ที่กำหนดไว้ในระบบเท่านั้น */}
               <div className="form-group full">
                 <label>หมวดหมู่ *</label>
+                {!form.category && (
+                  <p style={{ color: '#454545', fontSize: '12px', marginBottom: '8px' }}>
+                    กรุณาเลือกหมวดหมู่ก่อนบันทึกรายการ
+                  </p>
+                )}
+
                 <div className="category-choice-list">
                   {visibleCategories.map((category) => {
                     const CategoryIcon = getCategoryIcon(category.name, category.icon);
@@ -1416,7 +1438,7 @@ function Transactions() {
                   })}
                   {categories.length === 0 && <span>ยังไม่มีหมวดหมู่</span>}
                 </div>
-                
+
               </div>
 
               {/* บัญชี */}

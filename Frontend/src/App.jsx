@@ -54,7 +54,14 @@ function EntryRoute() {
     async function routeUser() {
       const queryParams = new URLSearchParams(window.location.search);
       const debtId = queryParams.get('debtId');
-      const returnTo = queryParams.get('returnTo');
+      const liffState = queryParams.get('liff.state');
+      const liffStateUrl = liffState
+        ? new URL(liffState, window.location.origin)
+        : null;
+      const returnTo =
+        queryParams.get('returnTo') ||
+        liffStateUrl?.searchParams.get('returnTo') ||
+        (liffStateUrl?.pathname !== '/' ? liffStateUrl?.pathname : null);
       const transactionId = queryParams.get('transaction');
       const addWallet = queryParams.get('addWallet') === '1';
       const addDebt = queryParams.get('addDebt') === '1';
@@ -90,6 +97,11 @@ function EntryRoute() {
       const redirectUri =
         `${window.location.origin}${window.location.pathname}${window.location.search}`;
 
+      console.info('[ENTRY_ROUTE] Resolved destination', {
+        returnTo,
+        liffStatePath: liffStateUrl?.pathname,
+        destination,
+      });
 
       let accessToken = getAccessToken();
       if (!accessToken && getRefreshToken()) {
