@@ -764,6 +764,7 @@
 }
 //ระยะห่างของกระเป๋าที่สำเร็จแล้ว
 .completed-wallets {
-	display: grid;
+	display: flex;
+	flex-direction: column;
 	row-gap : 30px;
 }
