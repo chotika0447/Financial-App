@@ -1,4 +1,3 @@
-
 {
   "rewrites": [
     {
@@ -152,6 +151,10 @@
     {
       "source": "/financial-health/",
       "destination": "https://financial-app-xgc0.onrender.com/financial-health/"
+    },
+    {
+      "source": "/financial-health/:path*/",
+      "destination": "https://financial-app-xgc0.onrender.com/financial-health/:path*/"
     },
     {
       "source": "/financial-health/:path*",
