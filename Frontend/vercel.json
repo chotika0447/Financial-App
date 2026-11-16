@@ -149,6 +149,10 @@
       "destination": "https://financial-app-xgc0.onrender.com/friends/:path*"
     },
     {
+      "source": "/financial-health",
+      "destination": "/index.html"
+    },
+    {
       "source": "/financial-health/",
       "destination": "https://financial-app-xgc0.onrender.com/financial-health/"
     },
