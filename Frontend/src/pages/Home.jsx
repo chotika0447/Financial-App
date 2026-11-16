@@ -166,7 +166,7 @@ function Home() {
 
         </section>
 
-        {/* ================= NEWS ================= */}
+        {/* ข่าว*/}
         <section className="news-section home-live-news">
           <div className="home-news-heading">
             <div>

@@ -221,7 +221,7 @@ def build_line_debt_list_flex(user):
                     {
                         "type": "button",
                         "style": "primary",
-                        "color": "#6C4BC1",
+                        "color": "#B8D95A",
                         "action": {
                             "type": "postback",
                             "label": "ชำระหนี้รายการนี้",
@@ -292,7 +292,7 @@ def build_debt_attach_image_flex():
                     {
                         "type": "button",
                         "style": "primary",
-                        "color": "#6C4BC1",
+                        "color": "#B8D95A",
                         "action": {
                             "type": "postback",
                             "label": "ไม่แนบรูป / ตรวจสอบรายการ",

@@ -344,6 +344,7 @@ export default function Dashboard() {
                 </p>
             </header>
 
+            <main className="dashboard-main">
             <section className="dashboard-filter">
                 <div className="dashboard-filter-label">
                     <CalendarDays size={20} />
@@ -520,6 +521,7 @@ export default function Dashboard() {
                 </>
             ) : null}
 
+            </main>
             <Navbar />
         </div>
     );

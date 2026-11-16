@@ -575,3 +575,59 @@
         padding: 13px 10px;
     }
 }
+
+/* Dashboard layout refinements */
+.dashboard-page { width: 100%; min-width: 0; overflow-x: clip; background: #f4f8f6; padding: 0 0 110px; }
+.dashboard-header { min-height: 104px; padding: 22px max(20px, calc((100vw - 1120px)/2 + 28px)); margin-bottom: 0; background: linear-gradient(120deg, #21866c, #69b99a); }
+.dashboard-main { width: min(100% - 48px, 1064px); margin: 0 auto; padding: 28px 0 36px; }
+.dashboard-filter { margin-bottom: 28px; padding: 18px 22px; border: 1px solid #e3eee8; box-shadow: 0 4px 20px rgba(28, 87, 65, .035); }
+.dashboard-filter-label { font-weight: 600; font-size: 14px; color: #355c4c; }
+.dashboard-filter input { font-size: 14px; padding: 10px 12px; width: 180px; background: #fff; }
+.dashboard-section { margin-bottom: 30px; }
+.dashboard-section-header { margin-bottom: 16px; }
+.dashboard-section-header h2 { font-size: clamp(17px, 2vw, 20px); color: #264d3e; }
+.dashboard-section-header p { font-size: 13px; }
+.dashboard-count { font-size: 12px; padding: 7px 12px; }
+.dashboard-summary-grid, .dashboard-debt-grid { gap: 18px; margin-bottom: 18px; }
+.dashboard-card, .dashboard-debt-card { padding: 24px; border: 1px solid #e8f1ec; border-radius: 20px; box-shadow: 0 8px 28px rgba(28, 87, 65, .045); }
+.dashboard-card { flex-direction: row; align-items: flex-start; gap: 18px; }
+.dashboard-card-icon { width: 50px; height: 50px; flex: 0 0 50px; }
+.dashboard-card-content { flex: 1; }
+.dashboard-card-title { font-size: 14px; }
+.dashboard-card-value { font-size: clamp(20px, 2.5vw, 28px); }
+.dashboard-card-detail, .dashboard-debt-card small { font-size: 12px; }
+.dashboard-net-card { padding: 24px 28px; gap: 20px; border: 1px solid #d5eadd; border-radius: 20px; }
+.dashboard-net-info strong { font-size: clamp(23px, 3vw, 32px); }
+.dashboard-chart-card { padding: 26px 28px; margin-bottom: 30px; border: 1px solid #e8f1ec; border-radius: 22px; box-shadow: 0 8px 28px rgba(28, 87, 65, .045); }
+.dashboard-chart-inner { height: 300px; }
+.dashboard-saving-card { padding: 26px 28px; border-radius: 22px; box-shadow: 0 8px 28px rgba(28, 87, 65, .045); }
+.dashboard-saving-top strong { font-size: clamp(24px, 3vw, 30px); }
+.dashboard-debt-card strong { font-size: clamp(19px, 2.3vw, 25px); }
+.dashboard-debt-card p { font-size: 14px; }
+.dashboard-loading, .dashboard-error { margin-bottom: 24px; }
+@media (max-width: 700px) {
+  .dashboard-header { min-height: 86px; padding: 18px 20px; gap: 10px; }
+  .dashboard-header-subtitle { font-size: 12px; }
+  .dashboard-main { width: calc(100% - 32px); padding-top: 20px; }
+  .dashboard-filter { padding: 15px 16px; margin-bottom: 24px; }
+  .dashboard-section { margin-bottom: 26px; }
+  .dashboard-summary-grid, .dashboard-debt-grid { gap: 12px; }
+  .dashboard-card { flex-direction: column; gap: 12px; padding: 18px 16px; }
+  .dashboard-card-icon { width: 44px; height: 44px; flex-basis: 44px; }
+  .dashboard-card-value { font-size: clamp(17px, 4vw, 23px); }
+  .dashboard-net-card { padding: 20px; }
+  .dashboard-chart-card, .dashboard-saving-card { padding: 20px 18px; }
+  .dashboard-chart-inner { height: 260px; }
+  .dashboard-debt-card { padding: 18px 16px; }
+}
+@media (max-width: 380px) {
+  .dashboard-page { padding-left: 0; padding-right: 0; }
+  .dashboard-main { width: calc(100% - 28px); }
+  .dashboard-header { padding: 16px 14px; }
+  .dashboard-header-subtitle { display: none; }
+  .dashboard-summary-grid, .dashboard-debt-grid { grid-template-columns: 1fr; }
+  .dashboard-card { flex-direction: row; }
+  .dashboard-filter { flex-direction: column; align-items: stretch; }
+  .dashboard-filter input { width: 100%; }
+  .dashboard-net-card { gap: 12px; }
+}
