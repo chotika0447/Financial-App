@@ -838,3 +838,15 @@
 .save-dashboard .save-daily-row{gap:12px;align-items:flex-start;}
 .save-dashboard .save-daily-row strong{text-align:right;overflow-wrap:anywhere;}
 @media(max-width:640px){.save-dashboard .save-daily-row{flex-direction:column;gap:4px;}.save-dashboard .save-daily-row strong{text-align:left;}}
+/* Borrow dashboard: same visual language as Spend and Save */
+.borrow-dashboard .sp-hero{background:linear-gradient(135deg,#145c4a,#21866c)}
+.borrow-dashboard .sp-hero .sp-score-track{background:rgba(255,255,255,.25)}
+.borrow-dashboard .sp-hero .sp-score-track>div{background:#e3f9ee}
+.borrow-dashboard .borrow-level{font-size:14px;font-weight:600;color:#18754f;margin:12px 0 0}
+.borrow-dashboard .borrow-debt-list{display:grid;gap:10px;margin-top:12px}
+.borrow-dashboard .borrow-debt-item{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px 14px;border:1px solid #e2eee7;border-radius:12px;background:#fff}
+.borrow-dashboard .borrow-debt-item>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.borrow-dashboard .borrow-debt-item strong{font-size:14px;overflow-wrap:anywhere}
+.borrow-dashboard .borrow-debt-item small{font-size:12px;color:#64746e}
+.borrow-dashboard .borrow-debt-item>span{font-weight:700;color:#18754f;white-space:nowrap}
+@media(max-width:480px){.borrow-dashboard .borrow-debt-item{align-items:flex-start;flex-direction:column}.borrow-dashboard .borrow-debt-item>span{white-space:normal}}

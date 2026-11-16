@@ -667,309 +667,76 @@ function FinHealthDetail() {
                 )}
 
                 {criterion.id === 'borrow' && (
-                    <>
-                        {borrowLoading ? (
-                            <section className="fhd-card">
-                                <p className="fhd-message">
-                                    กำลังคำนวณข้อมูลสุขภาพการเงิน...
-                                </p>
-                            </section>
-                        ) : borrowError ? (
-                            <section className="fhd-card">
-                                <p className="fhd-error" role="alert">
-                                    {borrowError}
-                                </p>
-                            </section>
-                        ) : borrowMetrics ? (
-                            <>
-                                {/* Borrow Total Score - moved to the top */}
-                                <section className="fhd-card fhd-score-card">
-                                    <h2>คะแนนเฉลี่ยด้านหนี้สิน</h2>
-                                    <p>
-                                        คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน DSR และ ODP
-                                    </p>
-
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">สูตรคำนวณ</span>
-                                        <p>(คะแนน DSR + คะแนน ODP) ÷ 2</p>
+                    borrowLoading ? (
+                        <section className="fhd-card"><p className="fhd-message">กำลังคำนวณข้อมูลด้านหนี้สิน...</p></section>
+                    ) : borrowError ? (
+                        <section className="fhd-card"><p className="fhd-error" role="alert">{borrowError}</p></section>
+                    ) : borrowMetrics ? (
+                        (() => {
+                            const metrics = borrowMetrics;
+                            const dsr = numeric(metrics.dsr_percentage);
+                            const odp = numeric(metrics.odp_percentage);
+                            const dsrPoints = calculateDsrScore(dsr);
+                            const odpPoints = calculateOdpScore(odp);
+                            const total = mean(dsrPoints, odpPoints);
+                            const debts = Array.isArray(metrics.debt_odp_details) ? metrics.debt_odp_details : [];
+                            const due = numeric(metrics.due_installments);
+                            const onTime = numeric(metrics.on_time_installments);
+                            const monthlyDebt = numeric(metrics.monthly_debt_total);
+                            const income = numeric(metrics.net_monthly_income);
+                            const recommendation = dsrPoints === null ? 'ยังไม่สามารถประเมินภาระหนี้ต่อรายได้ได้ กรุณาตรวจสอบข้อมูลรายได้และยอดผ่อนชำระ'
+                                : odpPoints === null ? 'ยังไม่มีงวดหนี้ที่ถึงกำหนดสำหรับประเมินความตรงเวลา'
+                                : dsrPoints <= odpPoints ? 'พิจารณาลดภาระผ่อนรายเดือนเมื่อเทียบกับรายได้ เพื่อช่วยปรับปรุงคะแนน DSR'
+                                : 'ติดตามวันครบกำหนดและชำระให้ตรงเวลา เพื่อช่วยปรับปรุงคะแนน ODP';
+                            return (
+                                <div className="sp-dashboard borrow-dashboard">
+                                    <section className="sp-hero">
+                                        <div className="sp-eyebrow"><Wallet size={16} /> ผลประเมินด้านหนี้สิน</div>
+                                        <div className="sp-hero-layout">
+                                            <div><div className="sp-hero-score">{number(total)} <span>/ 100</span></div><p>{total === null ? 'ยังคำนวณคะแนนรวมไม่ได้ เนื่องจากข้อมูลตัวชี้วัดไม่ครบ' : 'คะแนนเฉลี่ยจาก DSR และ ODP'}</p></div>
+                                            <div className="sp-hero-side"><CheckCircle2 size={17} /><span>ภาพรวมภาระหนี้และการชำระตรงเวลา</span></div>
+                                        </div>
+                                        <ScoreBar value={total} />
+                                        <div className="sp-score-pills"><span>DSR <strong>{number(dsrPoints)}</strong></span><span>ODP <strong>{number(odpPoints)}</strong></span></div>
+                                    </section>
+                                    <div className="sp-stat-grid">
+                                        <div className="sp-stat"><div className="sp-stat-label"><ReceiptText size={17} /> ยอดผ่อนชำระต่อเดือน</div><strong>฿{money(monthlyDebt)}</strong><small>ภาระหนี้รายเดือนที่ใช้ประเมิน DSR</small></div>
+                                        <div className="sp-stat"><div className="sp-stat-label"><Wallet size={17} /> รายได้สุทธิต่อเดือน</div><strong>฿{money(income)}</strong><small>รายได้ที่ใช้เปรียบเทียบภาระหนี้</small></div>
                                     </div>
-
-                                    <div className="fhd-result">
-                                        <div className="fhd-result-card">
-                                            <span className="fhd-result-label">คะแนน DSR</span>
-                                            {dsrScore == null ? (
-                                                <strong className="fhd-no-result">ยังไม่สามารถคำนวณคะแนน DSR ได้</strong>
-                                            ) : (
-                                                <>
-                                                    <div className="fhd-result-value">
-                                                        <strong>{formatSpendMoney(dsrScore)}</strong>
-                                                        <span>/ 100</span>
-                                                    </div>
-                                                    <p className="fhd-message">{dsrLevel}</p>
-                                                </>
-                                            )}
-                                        </div>
-
-                                        <div className="fhd-result-card">
-                                            <span className="fhd-result-label">คะแนน ODP</span>
-                                            {odpScore == null ? (
-                                                <strong className="fhd-no-result">ยังไม่มีข้อมูลสำหรับคำนวณ</strong>
-                                            ) : (
-                                                <>
-                                                    <div className="fhd-result-value">
-                                                        <strong>{formatSpendMoney(odpScore)}</strong>
-                                                        <span>/ 100</span>
-                                                    </div>
-                                                    <p className="fhd-message">{odpLevel}</p>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="fhd-result">
-                                        <div className="fhd-result-card">
-                                            {borrowTotalScore == null ? (
-                                                <strong className="fhd-no-result">ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้ เนื่องจากข้อมูลคะแนนไม่ครบ</strong>
-                                            ) : (
-                                                <div className="fhd-result-value">
-                                                    <strong>{formatSpendMoney(borrowTotalScore)}</strong>
-                                                    <span>/ 100</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </section>
-                                {/* DSR */}
-                                <section className="fhd-card fhd-indicator-card">
-                                    <div className="fhd-indicator-heading">
-                                        <span className="fhd-indicator-number">01</span>
-                                        <div>
-                                            <h2>อัตราส่วนภาระหนี้ต่อรายได้</h2>
-                                            <p>Debt Service Ratio (DSR)</p>
-                                        </div>
-                                    </div>
-
-                                    <p className="fhd-indicator-description">
-                                        คำนวณจากยอดผ่อนชำระหนี้รายเดือนที่ยังดำเนินการอยู่
-                                        เทียบกับรายได้สุทธิรายเดือน
-                                        โดยไม่รวมหนี้แบบทยอยชำระ
-                                    </p>
-
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">สูตรคำนวณ</span>
-                                        <p>
-                                            (ยอดผ่อนชำระหนี้รายเดือน ÷ รายได้สุทธิ) × 100
-                                        </p>
-                                    </div>
-
-                                    <div className="fhd-breakdown">
-                                        <div className="fhd-breakdown-row">
-                                            <span>ยอดผ่อนชำระหนี้รายเดือน</span>
-                                            <strong>
-                                                {formatSpendMoney(
-                                                    borrowMetrics.monthly_debt_total
-                                                )} บาท
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-breakdown-row">
-                                            <span>เงินเดือน</span>
-                                            <strong>
-                                                {formatSpendMoney(
-                                                    borrowMetrics.monthly_income
-                                                )} บาท
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-breakdown-row">
-                                            <span>รายรับจากธุรกรรม</span>
-                                            <strong>
-                                                {formatSpendMoney(
-                                                    borrowMetrics.transaction_income_total
-                                                )} บาท
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-breakdown-row fhd-breakdown-row-total">
-                                            <span>รายได้สุทธิ</span>
-                                            <strong>
-                                                {formatSpendMoney(
-                                                    borrowMetrics.net_monthly_income
-                                                )} บาท
-                                            </strong>
-                                        </div>
-                                    </div>
-
-                                    <div className="fhd-result">
-                                        <div className="fhd-result-card">
-                                            <span className="fhd-result-label">
-                                                ผลการคำนวณ DSR
-                                            </span>
-
-                                            {borrowMetrics.dsr_percentage == null ? (
-                                                <strong className="fhd-no-result">
-                                                    ยังไม่สามารถคำนวณได้
-                                                    เนื่องจากรายได้สุทธิเป็นศูนย์
-                                                </strong>
-                                            ) : (
-                                                <div className="fhd-result-value">
-                                                    <strong>
-                                                        {formatSpendMoney(
-                                                            borrowMetrics.dsr_percentage
-                                                        )}
-                                                    </strong>
-                                                    <span>%</span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="fhd-result-card">
-                                            <span className="fhd-result-label">
-                                                คะแนน DSR
-                                            </span>
-
-                                            {dsrScore == null ? (
-                                                <strong className="fhd-no-result">
-                                                    ยังไม่สามารถคำนวณคะแนนได้
-                                                </strong>
-                                            ) : (
-                                                <>
-                                                    <div className="fhd-result-value">
-                                                        <strong>{formatSpendMoney(dsrScore)}</strong>
-                                                        <span>/ 100</span>
-                                                    </div>
-                                                    <p className="fhd-message">{dsrLevel}</p>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* <div className="fhd-trc-note">
-                                        <strong>หมายเหตุ</strong>
-                                        <p>
-                                            ระบบนับเฉพาะหนี้ที่ผู้ใช้เป็นลูกหนี้
-                                            และเป็นการผ่อนชำระแบบรายเดือนที่ยังดำเนินการอยู่
-                                            ไม่รวมหนี้แบบทยอยชำระและหนี้ที่ชำระครบแล้ว
-                                        </p>
-                                    </div> */}
-                                </section>
-
-                                {/* ODP */}
-                                <section className="fhd-card fhd-indicator-card">
-                                    <div className="fhd-indicator-heading">
-                                        <span className="fhd-indicator-number">02</span>
-                                        <div>
-                                            <h2>อัตราการชำระหนี้ตรงเวลา</h2>
-                                            <p>On-time Debt Payment (ODP)</p>
-                                        </div>
-                                    </div>
-
-                                    <p className="fhd-indicator-description">
-                                        คำนวณจากจำนวนงวดหนี้รายเดือนที่ชำระครบภายใน
-                                        วันครบกำหนด เทียบกับจำนวนงวดที่ถึงกำหนดทั้งหมด
-                                    </p>
-
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">สูตรคำนวณ</span>
-                                        <p>
-                                            (จำนวนงวดที่ชำระตรงเวลา ÷ จำนวนงวดที่ถึงกำหนด) × 100
-                                        </p>
-                                    </div>
-
-                                    <div className="fhd-breakdown">
-                                        <div className="fhd-breakdown-row">
-                                            <span>งวดที่ชำระตรงเวลา</span>
-                                            <strong>
-                                                {borrowMetrics.on_time_installments} งวด
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-breakdown-row">
-                                            <span>งวดที่ถึงกำหนดทั้งหมด</span>
-                                            <strong>
-                                                {borrowMetrics.due_installments} งวด
-                                            </strong>
-                                        </div>
-                                    </div>
-
-                                    <div className="fhd-result">
-                                        <span>ผลการคำนวณ ODP</span>
-
-                                        {borrowMetrics.odp_percentage == null ? (
-                                            <strong className="fhd-no-result">
-                                                ยังไม่มีงวดหนี้รายเดือนที่ถึงกำหนดชำระ
-                                            </strong>
-                                        ) : (
-                                            <div className="fhd-result-value">
-                                                <strong>
-                                                    {formatSpendMoney(
-                                                        borrowMetrics.odp_percentage
-                                                    )}
-                                                </strong>
-                                                <span>%</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="fhd-result">
-                                        <div className="fhd-result-card">
-                                            <span className="fhd-result-label">คะแนน ODP</span>
-                                            {odpScore == null ? (
-                                                <strong className="fhd-no-result">ยังไม่มีคะแนน</strong>
-                                            ) : (
-                                                <>
-                                                    <div className="fhd-result-value">
-                                                        <strong>{formatSpendMoney(odpScore)}</strong>
-                                                        <span>/ 100</span>
-                                                    </div>
-                                                    <p className="fhd-message">{odpLevel}</p>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="fhd-trc-month-list">
-                                        <h3>รายละเอียด ODP แยกตามรายการหนี้</h3>
-                                        {(borrowMetrics.debt_odp_details || []).length > 0 ? (
-                                            borrowMetrics.debt_odp_details.map((debt) => (
-                                                <div className="fhd-trc-month-item" key={debt.debt_id}>
-                                                    <div className="fhd-trc-month-name">
-                                                        <strong>{debt.debt_name}</strong>
-                                                        <span>ชำระตรงเวลา {debt.on_time_installments} / {debt.due_installments} งวด</span>
-                                                    </div>
-                                                    <span className={`fhd-trc-status ${Number(debt.odp_percentage) >= 80 ? 'is-complete' : 'is-incomplete'}`}>
-                                                        {debt.odp_percentage == null ? 'ไม่มีงวดที่ถึงกำหนด' : `${formatSpendMoney(debt.odp_percentage)}%`}
-                                                    </span>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="fhd-message">ยังไม่มีหนี้รายเดือนที่มีงวดถึงกำหนดชำระ</p>
-                                        )}
-                                    </div>
-
-                                    {/* <div className="fhd-trc-note">
-                                        <strong>หมายเหตุ</strong>
-                                        <p>
-                                            หนี้ที่ผูกบัญชีเพื่อนจะนับเฉพาะรายการที่ได้รับ
-                                            การอนุมัติแล้ว ส่วนหนี้ที่ไม่ได้ผูกบัญชีเพื่อน
-                                            จะพิจารณาจากยอดชำระและวันที่ชำระจริง
-                                            โดยไม่จำเป็นต้องมีสถานะอนุมัติ และรวมการชำระบางส่วน
-                                            ภายในงวดเดียวกัน คะแนน ODP รวมคำนวณแบบถ่วงน้ำหนัก
-                                            จากจำนวนงวดของหนี้ทุกก้อน โดยใช้ payment_date ปัจจุบัน
-                                            คำนวณตารางย้อนหลังตั้งแต่วันที่สร้างหนี้
-                                        </p>
-                                    </div> */}
-                                </section>
-
-                            </>
-                        ) : (
-                            <section className="fhd-card">
-                                <p className="fhd-message">
-                                    ยังไม่มีข้อมูลสำหรับคำนวณ
-                                </p>
-                            </section>
-                        )}
-                    </>
+                                    <section className="sp-panel">
+                                        <div className="sp-panel-head"><div><span className="sp-index">01</span><h2>ภาระหนี้ต่อรายได้</h2><p>Debt Service Ratio (DSR)</p></div><span className="sp-tag">DSR</span></div>
+                                        <div className="sp-metric-line"><div><small>อัตราส่วนภาระหนี้</small><strong>{dsr === null ? '—' : `${number(dsr)}%`}</strong></div><div className="sp-metric-score"><small>คะแนน DSR</small><strong>{number(dsrPoints)} <span>/ 100</span></strong></div></div>
+                                        <ScoreBar value={dsrPoints} />
+                                        {dsr !== null && <p className="borrow-level">{getDsrLevel(dsr)}</p>}
+                                        {dsr === null && <p className="sp-muted">ยังไม่มีข้อมูลเพียงพอสำหรับคำนวณ DSR</p>}
+                                        <details className="sp-details"><summary><CircleHelp size={16} /> ดูสูตรและที่มาของข้อมูล</summary><div className="sp-details-content">
+                                            <p>DSR = (ยอดผ่อนชำระหนี้รายเดือน ÷ รายได้สุทธิต่อเดือน) × 100</p>
+                                            <p>คะแนน DSR คำนวณตามช่วงอัตราส่วนภาระหนี้ที่กำหนดไว้ในเกณฑ์ประเมิน</p>
+                                            <div className="sp-detail-row"><span>ยอดผ่อนชำระต่อเดือน</span><strong>฿{money(monthlyDebt)}</strong></div>
+                                            <div className="sp-detail-row"><span>รายได้ประจำ</span><strong>฿{money(metrics.monthly_income)}</strong></div>
+                                            <div className="sp-detail-row"><span>รายรับจากธุรกรรม</span><strong>฿{money(metrics.transaction_income_total)}</strong></div>
+                                            <div className="sp-detail-row"><span>รายได้สุทธิ</span><strong>฿{money(income)}</strong></div>
+                                        </div></details>
+                                    </section>
+                                    <section className="sp-panel">
+                                        <div className="sp-panel-head"><div><span className="sp-index">02</span><h2>การชำระหนี้ตรงเวลา</h2><p>On-time Debt Payment (ODP)</p></div><span className="sp-tag">ODP</span></div>
+                                        <div className="sp-metric-line"><div><small>อัตราการชำระตรงเวลา</small><strong>{odp === null ? '—' : `${number(odp)}%`}</strong></div><div className="sp-metric-score"><small>คะแนน ODP</small><strong>{number(odpPoints)} <span>/ 100</span></strong></div></div>
+                                        <ScoreBar value={odpPoints} />
+                                        {odp !== null && <p className="borrow-level">{getOdpLevel(odp)}</p>}
+                                        <div className="sp-mini-grid"><div><small>ชำระตรงเวลา</small><strong>{number(onTime)} <span>งวด</span></strong><p>จำนวนงวดที่ชำระครบภายในกำหนด</p></div><div><small>ถึงกำหนดทั้งหมด</small><strong>{number(due)} <span>งวด</span></strong><p>จำนวนงวดที่นำมาประเมิน</p></div></div>
+                                        {odp === null && <p className="sp-muted">ยังไม่มีงวดหนี้รายเดือนที่ถึงกำหนดชำระ</p>}
+                                        <details className="sp-details"><summary><CircleHelp size={16} /> ดูสูตรและรายละเอียดแยกตามหนี้</summary><div className="sp-details-content">
+                                            <p>ODP = (จำนวนงวดที่ชำระตรงเวลา ÷ จำนวนงวดที่ถึงกำหนด) × 100</p>
+                                            {debts.length ? <div className="borrow-debt-list">{debts.map((debt, index) => <div className="borrow-debt-item" key={debt.debt_id ?? index}><div><strong>{debt.debt_name || `รายการหนี้ ${index + 1}`}</strong><small>ตรงเวลา {number(debt.on_time_installments)} / {number(debt.due_installments)} งวด</small></div><span>{numeric(debt.odp_percentage) === null ? 'ยังไม่มีข้อมูล' : `${number(debt.odp_percentage)}%`}</span></div>)}</div> : <p className="sp-muted">ยังไม่มีรายละเอียดหนี้ที่ถึงกำหนดชำระ</p>}
+                                        </div></details>
+                                    </section>
+                                    <section className="sp-tip"><strong>แนวทางปรับปรุง</strong><p>{recommendation}</p></section>
+                                </div>
+                            );
+                        })()
+                    ) : (
+                        <section className="fhd-card"><p className="fhd-message">ยังไม่มีข้อมูลสำหรับคำนวณ</p></section>
+                    )
                 )}
 
                 {criterion.id !== 'spend' && (
