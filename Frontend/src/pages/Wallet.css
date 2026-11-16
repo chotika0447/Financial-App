@@ -762,8 +762,8 @@
 		font-size: 13px;
 	}
 }
-
+//ระยะห่างของกระเป๋าที่สำเร็จแล้ว
 .completed-wallets {
 	display: grid;
-	row-gap : 20px;
+	row-gap : 30px;
 }
