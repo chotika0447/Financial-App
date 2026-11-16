@@ -53,6 +53,7 @@ def push_friend_request(receiver, sender, friend_request):
                     "body": {
                         "type": "box",
                         "layout": "vertical",
+                        "backgroundColor": "#FFF9EE",
                         "alignItems": "center",
                         "spacing": "md",
                         "paddingAll": "20px",
@@ -62,7 +63,7 @@ def push_friend_request(receiver, sender, friend_request):
                                 "text": "คำขอเป็นเพื่อน",
                                 "weight": "bold",
                                 "size": "lg",
-                                "color": "#30294A",
+                                "color": "#805035",
                                 "align": "center",
                                 "wrap": True,
                             },
@@ -79,7 +80,7 @@ def push_friend_request(receiver, sender, friend_request):
                                 "text": str(sender.username)[:100],
                                 "weight": "bold",
                                 "size": "md",
-                                "color": "#30294A",
+                                "color": "#805035",
                                 "align": "center",
                                 "wrap": True,
                             },
@@ -87,7 +88,7 @@ def push_friend_request(receiver, sender, friend_request):
                                 "type": "text",
                                 "text": "ต้องการเพิ่มคุณเป็นเพื่อน",
                                 "size": "sm",
-                                "color": "#777286",
+                                "color": "#8B7A68",
                                 "align": "center",
                                 "wrap": True,
                             },
@@ -100,7 +101,7 @@ def push_friend_request(receiver, sender, friend_request):
                                     {
                                         "type": "button",
                                         "style": "primary",
-                                        "color": "#22A447",
+                                        "color": "#B8D95A",
                                         "height": "md",
                                         "flex": 1,
                                         "action": {
@@ -118,7 +119,7 @@ def push_friend_request(receiver, sender, friend_request):
                                     {
                                         "type": "button",
                                         "style": "secondary",
-                                        "color": "#E8E8E8",
+                                        "color": "#E8DCC8",
                                         "height": "md",
                                         "flex": 1,
                                         "action": {
@@ -238,19 +239,19 @@ def push_new_debt_notification(debt, target_debt=None):
             "text": notification_text,
             "weight": "bold",
             "size": "lg",
-            "color": "#30294A",
+            "color": "#805035",
             "wrap": True,
         },
         {
             "type": "separator",
             "margin": "md",
-            "color": "#E8E5F0",
+            "color": "#E8DCC8",
         },
         {
             "type": "text",
             "text": f"รายการ: {detail_debt.name}"[:500],
             "size": "md",
-            "color": "#30294A",
+            "color": "#805035",
             "wrap": True,
             "margin": "md",
         },
@@ -258,7 +259,7 @@ def push_new_debt_notification(debt, target_debt=None):
             "type": "text",
             "text": f"ประเภท: {debt_type_text}",
             "size": "sm",
-            "color": "#777286",
+            "color": "#8B7A68",
             "wrap": True,
             "margin": "sm",
         },
@@ -267,7 +268,7 @@ def push_new_debt_notification(debt, target_debt=None):
             "text": f"จำนวนเงิน: {detail_debt.total_amount:,.2f} บาท",
             "size": "md",
             "weight": "bold",
-            "color": "#6C4BC1",
+            "color": "#805035",
             "wrap": True,
             "margin": "md",
         },
@@ -275,7 +276,7 @@ def push_new_debt_notification(debt, target_debt=None):
             "type": "text",
             "text": f"วันครบกำหนด: {due_date_text}",
             "size": "sm",
-            "color": "#777286",
+            "color": "#8B7A68",
             "wrap": True,
             "margin": "sm",
         },
@@ -286,7 +287,7 @@ def push_new_debt_notification(debt, target_debt=None):
             "type": "text",
             "text": f"หมายเหตุ: {note_text}"[:1000],
             "size": "sm",
-            "color": "#777286",
+            "color": "#8B7A68",
             "wrap": True,
             "margin": "md",
         })
@@ -318,6 +319,7 @@ def push_new_debt_notification(debt, target_debt=None):
                     "body": {
                         "type": "box",
                         "layout": "vertical",
+                        "backgroundColor": "#FFF9EE",
                         "spacing": "md",
                         "paddingAll": "20px",
                         "contents": contents,
@@ -378,6 +380,15 @@ def push_debt_payment_reminder(debt, due_date, pay_url):
         print("ส่งแจ้งเตือนไม่ได้: ไม่พบ FRONTEND_URL")
         return False
 
+    access_token = getattr(
+        settings,
+        "LINE_BOT_CHANNEL_ACCESS_TOKEN",
+        None,
+    )
+    if not access_token:
+        print("ส่งแจ้งเตือนไม่ได้: ไม่พบ LINE_BOT_CHANNEL_ACCESS_TOKEN")
+        return False
+
     query = urlencode({"debtId": debt.id})
     pay_url = f"{frontend_url}/debts/?{query}"
 
@@ -398,19 +409,19 @@ def push_debt_payment_reminder(debt, due_date, pay_url):
             "text": "แจ้งเตือนชำระหนี้",
             "weight": "bold",
             "size": "xl",
-            "color": "#30294A",
+            "color": "#805035",
             "wrap": True,
         },
         {
             "type": "separator",
             "margin": "md",
-            "color": "#E8E5F0",
+            "color": "#E8DCC8",
         },
         {
             "type": "text",
             "text": f"รายการ: {debt.name}"[:500],
             "size": "md",
-            "color": "#30294A",
+            "color": "#805035",
             "wrap": True,
             "margin": "md",
         },
@@ -419,7 +430,7 @@ def push_debt_payment_reminder(debt, due_date, pay_url):
             "text": amount_text,
             "size": "md",
             "weight": "bold",
-            "color": "#6C4BC1",
+            "color": "#805035",
             "wrap": True,
             "margin": "md",
         },
@@ -427,14 +438,14 @@ def push_debt_payment_reminder(debt, due_date, pay_url):
             "type": "text",
             "text": f"วันครบกำหนด: {due_date_text}",
             "size": "sm",
-            "color": "#777286",
+            "color": "#8B7A68",
             "wrap": True,
             "margin": "sm",
         },
         {
             "type": "button",
             "style": "primary",
-            "color": "#6C4BC1",
+            "color": "#B8D95A",
             "height": "md",
             "margin": "xl",
             "action": {
@@ -460,6 +471,7 @@ def push_debt_payment_reminder(debt, due_date, pay_url):
                     "body": {
                         "type": "box",
                         "layout": "vertical",
+                        "backgroundColor": "#FFF9EE",
                         "spacing": "md",
                         "paddingAll": "20px",
                         "contents": contents,
@@ -471,9 +483,7 @@ def push_debt_payment_reminder(debt, due_date, pay_url):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": (
-            f"Bearer {settings.LINE_BOT_CHANNEL_ACCESS_TOKEN}"
-        ),
+        "Authorization": f"Bearer {access_token}",
     }
 
     try:
@@ -524,13 +534,13 @@ def _push_debt_flex(
             "text": title[:500],
             "weight": "bold",
             "size": "lg",
-            "color": "#30294A",
+            "color": "#805035",
             "wrap": True,
         },
         {
             "type": "separator",
             "margin": "md",
-            "color": "#E8E5F0",
+            "color": "#E8DCC8",
         },
     ]
 
@@ -539,7 +549,7 @@ def _push_debt_flex(
             "type": "text",
             "text": str(detail)[:1000],
             "size": "md",
-            "color": "#30294A",
+            "color": "#805035",
             "wrap": True,
             "margin": "md",
         })
@@ -552,7 +562,7 @@ def _push_debt_flex(
             buttons.append({
                 "type": "button",
                 "style": button.get("style", "primary"),
-                "color": button.get("color", "#6C4BC1"),
+                "color": "#B8D95A" if button.get("style", "primary") == "primary" else button.get("color", "#E8DCC8"),
                 "height": "md",
                 "flex": 1,
                 "action": button["action"],
@@ -571,7 +581,7 @@ def _push_debt_flex(
         contents.append({
             "type": "button",
             "style": "primary",
-            "color": "#6C4BC1",
+            "color": "#B8D95A",
             "height": "md",
             "margin": "xl",
             "action": {
@@ -587,6 +597,7 @@ def _push_debt_flex(
         "body": {
             "type": "box",
             "layout": "vertical",
+                        "backgroundColor": "#FFF9EE",
             "spacing": "md",
             "paddingAll": "20px",
             "contents": contents,
@@ -719,7 +730,7 @@ def push_payment_submitted_notification(payment):
         button_actions=[
             {
                 "style": "primary",
-                "color": "#22A447",
+                "color": "#B8D95A",
                 "action": {
                     "type": "postback",
                     "label": "อนุมัติ",
@@ -732,7 +743,7 @@ def push_payment_submitted_notification(payment):
             },
             {
                 "style": "secondary",
-                "color": "#E8E5F0",
+                "color": "#E8DCC8",
                 "action": {
                     "type": "uri",
                     "label": "ตรวจสอบ",

@@ -1,11 +1,16 @@
 from contextlib import nullcontext
-from datetime import date
+from datetime import date, time
+from io import StringIO
 from unittest.mock import MagicMock, patch
 
-from django.test import SimpleTestCase
+from django.core.management.base import CommandError
+from django.test import SimpleTestCase, override_settings
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from .management.commands.send_due_debt_reminders import is_reminder_date
+from .management.commands.send_due_debt_reminders import (
+    Command,
+    is_reminder_date,
+)
 from .models import Debts
 from .views import DebtListCreateView
 
@@ -38,6 +43,61 @@ class ScheduledDebtReminderDateTests(SimpleTestCase):
         self.assertFalse(
             is_reminder_date(debt, due_date, date(2027, 1, 1))
         )
+
+    @override_settings(
+        LINE_BOT_CHANNEL_ACCESS_TOKEN="test-token",
+        FRONTEND_URL="https://example.test",
+    )
+    @patch(
+        "debts.management.commands.send_due_debt_reminders."
+        "push_debt_payment_reminder",
+        return_value=True,
+    )
+    @patch(
+        "debts.management.commands.send_due_debt_reminders.Debts.objects.filter"
+    )
+    def test_test_option_sends_immediately_without_creating_reminder_log(
+        self,
+        filter_debts,
+        send_reminder,
+    ):
+        debt = MagicMock(
+            pk=12,
+            type="borrowed",
+            status="ongoing",
+            remaining_amount=100,
+            payment_type="flexible",
+            due_date=date(2026, 12, 31),
+            reminder_time=time(23, 59),
+        )
+        debt.user.line_uid = "line-user"
+        debts = MagicMock()
+        debts.filter.return_value = debts
+        debts.first.return_value = debt
+        filter_debts.return_value.select_related.return_value = debts
+
+        command = Command(stdout=StringIO(), stderr=StringIO())
+        command.handle(test_debt_id=debt.pk)
+
+        send_reminder.assert_called_once_with(debt, debt.due_date, None)
+        self.assertIn("Test reminder sent", command.stdout.getvalue())
+
+    @patch(
+        "debts.management.commands.send_due_debt_reminders.Debts.objects.filter"
+    )
+    def test_test_option_rejects_debts_that_are_not_eligible(
+        self,
+        filter_debts,
+    ):
+        debts = MagicMock()
+        debts.filter.return_value = debts
+        debts.first.return_value = None
+        filter_debts.return_value.select_related.return_value = debts
+
+        command = Command(stdout=StringIO(), stderr=StringIO())
+
+        with self.assertRaisesMessage(CommandError, "not eligible"):
+            command.handle(test_debt_id=12)
 
 
 class LinkedDebtCreationTests(SimpleTestCase):
