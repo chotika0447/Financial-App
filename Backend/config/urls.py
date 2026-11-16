@@ -16,4 +16,5 @@ urlpatterns = [
     path("categories/", include("categories.urls")),
     path('news/', include('news.urls')),
     path('dashboard/', include('dashboard.urls')),
+    path("financial-health/", include("finhealth.urls")),
 ]

@@ -88,3 +88,50 @@ class PersonalProfile(models.Model):
 
     def __str__(self):
         return f"Profile of {self.user}"
+
+
+class LoginHistory(models.Model):
+
+    class LoginStatus(models.TextChoices):
+        SUCCESS = "success", "Success"
+        FAILED = "failed", "Failed"
+
+    history_id = models.BigAutoField(
+        primary_key=True
+    )
+
+    uid = models.ForeignKey(
+        "users.User",
+        on_delete=models.CASCADE,
+        db_column="uid",
+        related_name="login_histories",
+        null=True,
+        blank=True
+    )
+
+    login_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    status = models.CharField(
+        max_length=10,
+        choices=LoginStatus.choices
+    )
+
+    failure_reason = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True
+    )
+
+    logout_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        db_table = "login_history"
+        ordering = ["-login_at"]
+
+    def __str__(self):
+        return f"{self.history_id} - {self.uid_id} - {self.status}"

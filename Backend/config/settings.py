@@ -148,6 +148,7 @@ INSTALLED_APPS = [
     'line_bot',
     'debts',
     'friends',
+    'finhealth',
 
     'savings',
     'transactions',

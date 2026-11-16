@@ -8,17 +8,25 @@ from django.conf import settings
 from django.db import transaction
 import requests
 
-from .models import User, PersonalProfile
+from .models import User, PersonalProfile, LoginHistory
 from .serializers import LineTokenRefreshSerializer, PersonalProfileSerializer
 
+from django.utils import timezone
+from rest_framework_simplejwt.exceptions import TokenError
 
-def create_line_tokens(user):
+
+def create_line_tokens(user, login_history=None):
     refresh = RefreshToken.for_user(user)
-    refresh['account_type'] = 'line'
+    refresh["account_type"] = "line"
+
+    if login_history is not None:
+        refresh["login_history_id"] = login_history.history_id
+
     return {
-        'access': str(refresh.access_token),
-        'refresh': str(refresh),
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
     }
+
 
 
 class LineTokenRefreshView(TokenRefreshView):
@@ -105,33 +113,90 @@ class LineRegisterView(APIView):
 
         with transaction.atomic():
             user = User.objects.create(
-                username=(claims.get('name') or 'LINE User')[:50],
+                username=(claims.get("name") or "LINE User")[:50],
                 line_uid=line_uid,
             )
+
             profile_serializer.save(
                 user=user,
-                profile_img=claims.get('picture'),
+                profile_img=claims.get("picture"),
             )
+
             tokens = create_line_tokens(user)
 
+            # บันทึกประวัติการเข้าสู่ระบบครั้งแรก
+            LoginHistory.objects.create(
+                uid=user,
+                status=LoginHistory.LoginStatus.SUCCESS,
+            )
+
         return Response(tokens, status=status.HTTP_201_CREATED)
+
 
 
 class LineLoginView(APIView):
 
     def post(self, request):
-        claims, error_response = verify_line_id_token(request.data.get('id_token'))
+        claims, error_response = verify_line_id_token(
+            request.data.get("id_token")
+        )
+
+        # กรณีตรวจสอบ LINE ID Token ไม่สำเร็จ
         if error_response:
+            # บันทึกเฉพาะกรณี token ไม่ถูกต้องหรือหมดอายุ
+            if error_response.status_code == 401:
+                LoginHistory.objects.create(
+                    uid=None,
+                    status=LoginHistory.LoginStatus.FAILED,
+                    failure_reason="LINE ID Token invalid or expired"
+                )
+
             return error_response
 
-        user = User.objects.filter(line_uid=claims['sub']).first()
+        # ค้นหาผู้ใช้จาก LINE UID
+        user = User.objects.filter(
+            line_uid=claims["sub"]
+        ).first()
+
+        # กรณีไม่พบผู้ใช้ในระบบ
         if user is None:
+            LoginHistory.objects.create(
+                uid=None,
+                status=LoginHistory.LoginStatus.FAILED,
+                failure_reason="LINE account is not registered"
+            )
+
             return Response(
-                {'error': 'LINE account is not registered'},
+                {"error": "LINE account is not registered"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        return Response(create_line_tokens(user))
+        # ตรวจสอบสถานะบัญชี
+        if not user.is_active:
+            LoginHistory.objects.create(
+                uid=user,
+                status=LoginHistory.LoginStatus.FAILED,
+                failure_reason="User account is inactive"
+            )
+
+            return Response(
+                {"error": "User account is inactive"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # สร้าง JWT Token
+        login_history = LoginHistory.objects.create(
+            uid=user,
+            status=LoginHistory.LoginStatus.SUCCESS
+        )
+
+        tokens = create_line_tokens(
+            user,
+            login_history=login_history
+        )
+
+        return Response(tokens, status=status.HTTP_200_OK)
+
 
 class MeView(APIView):
     #API นี้อนุญาตเฉพาะ User ที่ผ่าน Authentication แล้ว
@@ -224,3 +289,37 @@ class UserSearchView(APIView):
             'username': friend.username,
             'profile_img': profile.profile_img if profile else None,
         })
+
+
+class LineLogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        history_id = request.auth.get("login_history_id")
+
+        if not history_id:
+            return Response(
+                {"error": "Login session not found"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        history = LoginHistory.objects.filter(
+            history_id=history_id,
+            uid=request.user,
+            status=LoginHistory.LoginStatus.SUCCESS,
+            logout_at__isnull=True
+        ).first()
+
+        if history is None:
+            return Response(
+                {"error": "Login history not found or already logged out"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        history.logout_at = timezone.now()
+        history.save(update_fields=["logout_at"])
+
+        return Response(
+            {"message": "Logout recorded successfully"},
+            status=status.HTTP_200_OK
+        )

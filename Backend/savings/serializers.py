@@ -39,8 +39,12 @@ class SavingsSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("วันที่เป้าหมายต้องไม่เป็นวันในอดีต")
         return value
 
-
 class SavingsTransactionSerializer(serializers.ModelSerializer):
+    transaction_type_display = serializers.CharField(
+        source="get_transaction_type_display",
+        read_only=True
+    )
+
     class Meta:
         model = SavingsTransaction
         fields = [
@@ -48,6 +52,7 @@ class SavingsTransactionSerializer(serializers.ModelSerializer):
             "saving",
             "saving_name",
             "transaction_type",
+            "transaction_type_display",
             "amount",
             "transaction_date",
             "balance_after",

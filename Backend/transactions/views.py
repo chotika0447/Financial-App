@@ -291,206 +291,73 @@ class ReceiptOCRView(APIView):
 
 
 class FinHealthSpendView(APIView):
-
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-
+        from finhealth.scoring import (
+            get_period, segments, income_for_period, percent, score_eir, mean, score, rounded
+        )
+        from django.utils import timezone
+        from datetime import datetime, time, timedelta
+        start, end, is_transition = get_period(request.user)
         today = timezone.localdate()
-
-        current_month_transactions = Transaction.objects.filter(
-            user=request.user,
-            transaction_date__year=today.year,
-            transaction_date__month=today.month
+        evaluation_end = min(end, today)
+        expense_total = (Transaction.objects.filter(
+            user=request.user, transaction_type="expense",
+            transaction_date__gte=start, transaction_date__lte=evaluation_end
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0"))
+        salary, transaction_income, total_income = income_for_period(
+            request.user, start, evaluation_end
         )
+        eir = percent(expense_total, total_income)
+        eir_score = score_eir(eir)
 
-        expense_total = (
-            current_month_transactions
-            .filter(transaction_type="expense")
-            .aggregate(total=Sum("amount"))["total"]
-            or Decimal("0.00")
-        )
-
-        transaction_income_total = (
-            current_month_transactions
-            .filter(transaction_type="income")
-            .aggregate(total=Sum("amount"))["total"]
-            or Decimal("0.00")
-        )
-
-        profile = PersonalProfile.objects.filter(
-            user=request.user
-        ).first()
-
-        monthly_income = (
-            profile.salary
-            if profile
-            else Decimal("0.00")
-        )
-
-        net_monthly_income = (
-            monthly_income + transaction_income_total
-        )
-
-        # EIR: Expense-to-Income Ratio
-        if net_monthly_income > 0:
-
-            expense_ratio = expense_total / net_monthly_income * 100
-            expense_ratio = round(expense_ratio, 2)
-
-        else:
-            expense_ratio = None
-
-        # TRC: Transaction Recording Consistency
-        # ประเมินข้อมูลของ 1 เดือน
-
-        days_in_month = monthrange(
-            today.year,
-            today.month
-        )[1]
-
-        # จำนวนวันที่ใช้ประเมิน
-        # เดือนปัจจุบันประเมินถึงวันนี้เท่านั้น
-        days_evaluated = today.day
-
-        # ดึงรายการรายรับและรายจ่ายของเดือนปัจจุบัน
-        trc_transactions = Transaction.objects.filter(
-            user=request.user,
-            transaction_date__year=today.year,
-            transaction_date__month=today.month,
-            transaction_date__lte=today
-        ).values(
-            "transaction_date",
-            "transaction_type"
-        )
-
-        # เก็บจำนวนรายการแยกตามวันที่
-        daily_records = {}
-
-        for item in trc_transactions:
-
-            recorded_date = item["transaction_date"]
-            day = recorded_date.day
-
-            if day not in daily_records:
-                daily_records[day] = {
-                    "date": recorded_date.isoformat(),
-                    "day": day,
-                    "income_count": 0,
-                    "expense_count": 0,
-                }
-
-            if item["transaction_type"] == "income":
-                daily_records[day]["income_count"] += 1
-
-            elif item["transaction_type"] == "expense":
-                daily_records[day]["expense_count"] += 1
-
-        # เรียงข้อมูลวันที่จากน้อยไปมาก
-        daily_records_list = sorted(
-            daily_records.values(),
-            key=lambda item: item["day"]
-        )
-
-        # 1. Recording Frequency (RF)
-        # จำนวนวันที่มีการบันทึก / จำนวนวันที่ใช้ประเมิน x 100
-
-        recorded_days = len(daily_records)
-
-        recording_frequency = Decimal(recorded_days) / Decimal(days_evaluated) * 100
-        recording_frequency = round(recording_frequency, 2)
-
-        # 2. Recording Distribution (RD)
-        # แบ่งเดือนออกเป็น 4 ช่วง
-
-        period_definitions = [
-            {
-                "period": 1,
-                "start_day": 1,
-                "end_day": 7,
-            },
-            {
-                "period": 2,
-                "start_day": 8,
-                "end_day": 14,
-            },
-            {
-                "period": 3,
-                "start_day": 15,
-                "end_day": 21,
-            },
-            {
-                "period": 4,
-                "start_day": 22,
-                "end_day": days_in_month,
-            },
-        ]
-
-        trc_periods = []
-        recorded_periods = 0
-
-        for period in period_definitions:
-
-            start_day = period["start_day"]
-            end_day = min(
-                period["end_day"],
-                days_evaluated
-            )
-
-            # ตรวจสอบว่าช่วงนี้มีวันที่บันทึกหรือไม่
-            period_recorded_days = [
-                item["day"]
-                for item in daily_records_list
-                if start_day <= item["day"] <= end_day
-            ] if start_day <= days_evaluated else []
-
-            has_records = len(period_recorded_days) > 0
-
-            if has_records:
-                recorded_periods += 1
-
-            trc_periods.append({
-                "period": period["period"],
-                "start_day": start_day,
-                "end_day": period["end_day"],
-                "recorded_days": period_recorded_days,
-                "has_records": has_records,
+        # TRC is based on recording timestamps, not transaction_date.
+        start_dt = timezone.make_aware(datetime.combine(start, time.min))
+        end_dt = timezone.make_aware(datetime.combine(evaluation_end + timedelta(days=1), time.min))
+        entries = Transaction.objects.filter(
+            user=request.user, created_at__gte=start_dt, created_at__lt=end_dt
+        ).values("created_at", "transaction_type")
+        daily = {}
+        for entry in entries:
+            recorded_date = timezone.localtime(entry["created_at"]).date()
+            item = daily.setdefault(recorded_date, {
+                "date": recorded_date.isoformat(), "day": (recorded_date-start).days+1,
+                "income_count": 0, "expense_count": 0
             })
-
-        recording_distribution = Decimal(recorded_periods) / 4 * 100
-        recording_distribution = round(recording_distribution, 2)
-
-        # 3. TRC Score
-        # (RF + RD) / 2
-
-        trc_score = (
-            recording_frequency + recording_distribution
-        ) / Decimal("2")
-
-        trc_score = round(trc_score, 2)
-
+            item[f'{entry["transaction_type"]}_count'] += 1
+        recorded_days = len(daily)
+        periods = []
+        recorded_periods = 0
+        for number, period_start, period_end in segments(start, end):
+            recorded = sorted(
+                (d for d in daily if period_start <= d <= min(period_end, evaluation_end))
+            )
+            if recorded: recorded_periods += 1
+            periods.append({
+                "period": number, "start_day": (period_start-start).days+1,
+                "end_day": (period_end-start).days+1,
+                "start_date": period_start.isoformat(), "end_date": period_end.isoformat(),
+                "recorded_days": [(d-start).days+1 for d in recorded],
+                "has_records": bool(recorded)
+            })
+        rf = score(Decimal(recorded_days)*100/8)
+        rd = rounded(Decimal(recorded_periods)*100/4)
+        trc = mean(rf,rd)
         return Response({
-            # EIR
-            "year": today.year,
-            "month": today.month,
-            "expense_total": expense_total,
-            "transaction_income_total": transaction_income_total,
-            "monthly_income": monthly_income,
-            "net_monthly_income": net_monthly_income,
-            "expense_ratio": expense_ratio,
-
-            # TRC
-            "trc_days_evaluated": days_evaluated,
-            "trc_days_in_month": days_in_month,
-            "trc_recorded_days": recorded_days,
-            "trc_recording_frequency": recording_frequency,
-
-            "trc_recorded_periods": recorded_periods,
-            "trc_total_periods": 4,
-            "trc_recording_distribution": recording_distribution,
-
-            "trc_score": trc_score,
-
-            "trc_daily_records": daily_records_list,
-            "trc_periods": trc_periods,
+            "year": start.year, "month": start.month,
+            "period_start": start, "period_end": end,
+            "evaluation_end": evaluation_end, "is_transition": is_transition,
+            "is_provisional": today < end,
+            "expense_total": expense_total, "transaction_income_total": transaction_income,
+            "monthly_income": salary, "net_monthly_income": total_income,
+            "expense_ratio": eir, "eir_score": eir_score,
+            "trc_days_evaluated": (evaluation_end-start).days+1,
+            "trc_days_in_month": (end-start).days+1,
+            "trc_recorded_days": recorded_days, "trc_recording_frequency": rf,
+            "trc_recorded_periods": recorded_periods, "trc_total_periods": 4,
+            "trc_recording_distribution": rd, "trc_score": trc,
+            "spend_score": mean(eir_score,trc),
+            "trc_daily_records": sorted(daily.values(),key=lambda x:x["day"]),
+            "trc_periods": periods
         })

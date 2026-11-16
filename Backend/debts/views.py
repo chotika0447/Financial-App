@@ -1312,251 +1312,94 @@ class FinHealthBorrowView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        from finhealth.scoring import (
+            get_period, income_for_period, percent, score_dsr, mean
+        )
+        from datetime import timedelta
+        from django.utils import timezone
+        user = request.user
         today = timezone.localdate()
+        start, end, is_transition = get_period(user)
+        cutoff = min(today,end)
+        # Average income across up to three completed stored periods.
+        from finhealth.models import FinancialPeriod
+        completed = list(FinancialPeriod.objects.filter(
+            user=user, end_date__lt=today, end_date__lte=end
+        ).order_by("-end_date")[:3])
+        incomes = [income_for_period(user,p.start_date,p.end_date)[2] for p in completed]
+        avg_income = sum(incomes, Decimal("0")) / len(incomes) if incomes else None
+        if avg_income is not None and avg_income <= 0:
+            avg_income = None
 
-        # ==========================================
-        # 1. คำนวณรายได้สุทธิรายเดือน
-        # ใช้หลักเดียวกับ FinancialHealthSpendView
-        # ==========================================
-
-        current_month_transactions = Transaction.objects.filter(
-            user=request.user,
-            transaction_date__year=today.year,
-            transaction_date__month=today.month,
-        )
-
-        transaction_income_total = (
-            current_month_transactions
-            .filter(transaction_type="income")
-            .aggregate(total=Sum("amount"))["total"]
-            or Decimal("0.00")
-        )
-
-        profile = PersonalProfile.objects.filter(
-            user=request.user
-        ).first()
-
-        monthly_income = (
-            profile.salary
-            if profile
-            else Decimal("0.00")
-        )
-
-        net_monthly_income = (
-            monthly_income + transaction_income_total
-        )
-
-        # ==========================================
-        # 2. DSR
-        # คำนวณเฉพาะหนี้ยืมแบบรายเดือนที่ยังดำเนินการอยู่
-        # ==========================================
-
-        monthly_ongoing_debts = Debts.objects.filter(
-            user=request.user,
-            type="borrowed",
-            payment_type="monthly",
-            status="ongoing",
-        )
-
-        monthly_debt_total = (
-            monthly_ongoing_debts
-            .aggregate(total=Sum("payment_amount"))["total"]
-            or Decimal("0.00")
-        )
-
-        if net_monthly_income > 0:
-            dsr_percentage = (
-                monthly_debt_total
-                / net_monthly_income
-                * Decimal("100")
-            ).quantize(
-                Decimal("0.01"),
-                rounding=ROUND_HALF_UP,
-            )
-        else:
-            dsr_percentage = None
-
-        # ==========================================
-        # 3. ODP
-        # คำนวณเฉพาะหนี้ยืมแบบรายเดือน โดยสร้างงวดตั้งแต่วันที่สร้างหนี้
-        # ใช้ payment_date ปัจจุบันคำนวณย้อนหลังตามที่กำหนด
-        # ==========================================
-
-        monthly_debts = Debts.objects.filter(
-            user=request.user,
-            type="borrowed",
-            payment_type="monthly",
-        ).order_by("created_at", "id")
-
-        due_installments = 0
-        on_time_installments = 0
-        debt_odp_details = []
-
-        for debt in monthly_debts:
-            if not debt.payment_amount or not debt.payment_date:
+        debts = Debts.objects.filter(user=user, type="borrowed").order_by("created_at","id")
+        due_count = 0
+        on_time_count = 0
+        due_total = Decimal("0")
+        details = []
+        for debt in debts:
+            created = timezone.localtime(debt.created_at).date() if debt.created_at else today
+            if debt.payment_type == "monthly":
+                if not debt.payment_date or not debt.payment_amount: continue
+                due = get_monthly_due_date(created.year,created.month,debt.payment_date)
+                if due < created:
+                    due = get_next_monthly_due_date(due,debt.payment_date)
+                increment = lambda d: get_next_monthly_due_date(d,debt.payment_date)
+            elif debt.payment_type == "flexible":
+                if not debt.due_date: continue
+                due = debt.due_date
+                increment = lambda d: cutoff + timedelta(days=1)
+            else:
                 continue
-
-            # ใช้วันที่สร้างหนี้เป็นจุดเริ่มต้นของตารางผ่อน
-            # หากวันที่ชำระของเดือนที่สร้างหนี้ผ่านไปแล้ว ให้นับงวดแรกเดือนถัดไป
-            created_date = (
-                timezone.localtime(debt.created_at).date()
-                if debt.created_at
-                else today
-            )
-
-            first_due_date = get_monthly_due_date(
-                created_date.year,
-                created_date.month,
-                debt.payment_date,
-            )
-
-            if first_due_date < created_date:
-                if created_date.month == 12:
-                    first_year = created_date.year + 1
-                    first_month = 1
-                else:
-                    first_year = created_date.year
-                    first_month = created_date.month + 1
-
-                first_due_date = get_monthly_due_date(
-                    first_year,
-                    first_month,
-                    debt.payment_date,
-                )
-
-            # จัดกลุ่มประวัติการชำระตามเดือนของ due_date
-            # เพื่อให้รายการเก่ายังถูกนำมาจับคู่กับงวดของเดือนนั้น
-            payments_by_month = {}
-            debt_payments = Payments.objects.filter(
-                debt=debt,
-            ).order_by("due_date", "paid_date", "id")
-
-            for payment in debt_payments:
-                if not payment.due_date:
-                    continue
-
-                month_key = (payment.due_date.year, payment.due_date.month)
-                payments_by_month.setdefault(month_key, []).append(payment)
-
-            debt_due_installments = 0
-            debt_on_time_installments = 0
-            accepted_paid_before = Decimal("0.00")
-            installment_due_date = first_due_date
-            total_amount = Decimal(debt.total_amount)
-            payment_amount = Decimal(debt.payment_amount)
-
-            while installment_due_date <= today:
-                # หยุดนับเมื่อยอดชำระที่ยอมรับแล้วครบยอดหนี้
-                remaining_before_installment = max(
-                    Decimal("0.00"),
-                    total_amount - accepted_paid_before,
-                )
-
-                if remaining_before_installment <= 0:
-                    break
-
-                installment_target = min(
-                    payment_amount,
-                    remaining_before_installment,
-                )
-
-                month_key = (
-                    installment_due_date.year,
-                    installment_due_date.month,
-                )
-                installment_payments = payments_by_month.get(month_key, [])
-
-                # หนี้ที่ผูกบัญชีเพื่อนนับเฉพาะรายการที่อนุมัติแล้ว
-                if debt.paired_debt_id:
-                    accepted_payments = [
-                        payment for payment in installment_payments
-                        if payment.approvement_status == "approved"
-                    ]
-                else:
-                    accepted_payments = installment_payments
-
-                accepted_paid_this_installment = sum(
-                    (Decimal(payment.paid_amount or 0) for payment in accepted_payments),
-                    Decimal("0.00"),
-                )
-
-                paid_on_time = sum(
-                    (
-                        Decimal(payment.paid_amount or 0)
-                        for payment in accepted_payments
-                        if payment.paid_date
-                        and payment.paid_date <= installment_due_date
-                    ),
-                    Decimal("0.00"),
-                )
-
-                debt_due_installments += 1
-                due_installments += 1
-
-                if paid_on_time >= installment_target:
-                    debt_on_time_installments += 1
-                    on_time_installments += 1
-
-                accepted_paid_before += accepted_paid_this_installment
-
-                # เลื่อนไปงวดของเดือนถัดไป
-                if installment_due_date.month == 12:
-                    next_year = installment_due_date.year + 1
-                    next_month = 1
-                else:
-                    next_year = installment_due_date.year
-                    next_month = installment_due_date.month + 1
-
-                installment_due_date = get_monthly_due_date(
-                    next_year,
-                    next_month,
-                    debt.payment_date,
-                )
-
-            debt_odp_percentage = (
-                (
-                    Decimal(debt_on_time_installments)
-                    / Decimal(debt_due_installments)
-                    * Decimal("100")
-                ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-                if debt_due_installments > 0
-                else None
-            )
-
-            debt_odp_details.append({
-                "debt_id": debt.id,
-                "debt_name": debt.name,
-                "due_installments": debt_due_installments,
-                "on_time_installments": debt_on_time_installments,
-                "odp_percentage": debt_odp_percentage,
+            payment_ids = [debt.pk]
+            if debt.paired_debt_id: payment_ids.append(debt.paired_debt_id)
+            payments = list(Payments.objects.filter(
+                debt_id__in=payment_ids, due_date__isnull=False
+            ).order_by("paid_date","id"))
+            # De-duplicate mirrored payment records by primary key; the same
+            # payment is normally stored once on one side of the paired debt.
+            accepted = [p for p in payments if p.approvement_status == "approved"
+                        or (not debt.paired_debt_id and p.approvement_status != "pending")]
+            previous_paid = Decimal("0")
+            debt_due = debt_on_time = 0
+            while due <= cutoff:
+                matching = [p for p in accepted if p.due_date == due]
+                target = (min(Decimal(debt.payment_amount),
+                              max(Decimal("0"),Decimal(debt.total_amount)-previous_paid))
+                          if debt.payment_type == "monthly"
+                          else max(Decimal("0"),Decimal(debt.total_amount)-previous_paid))
+                if target <= 0: break
+                if due >= start:
+                    debt_due += 1
+                    due_count += 1
+                    due_total += target
+                    paid_by_due = sum((Decimal(p.paid_amount or 0) for p in matching
+                                      if p.paid_date and p.paid_date <= due),Decimal("0"))
+                    if paid_by_due >= target:
+                        debt_on_time += 1
+                        on_time_count += 1
+                previous_paid += sum((Decimal(p.paid_amount or 0) for p in matching),Decimal("0"))
+                due = increment(due)
+            details.append({
+                "debt_id": debt.pk, "debt_name": debt.name,
+                "due_installments": debt_due, "on_time_installments": debt_on_time,
+                "odp_percentage": percent(debt_on_time,debt_due)
             })
-
-        if due_installments > 0:
-            odp_percentage = (
-                Decimal(on_time_installments)
-                / Decimal(due_installments)
-                * Decimal("100")
-            ).quantize(
-                Decimal("0.01"),
-                rounding=ROUND_HALF_UP,
-            )
-        else:
-            odp_percentage = None
-
+        dsr = percent(due_total,avg_income) if avg_income is not None else None
+        odp = percent(on_time_count,due_count)
+        dsr_score = score_dsr(dsr)
         return Response({
-            "year": today.year,
-            "month": today.month,
-
-            "monthly_income": monthly_income,
-            "transaction_income_total": transaction_income_total,
-            "net_monthly_income": net_monthly_income,
-
-            "monthly_debt_total": monthly_debt_total,
-            "dsr_percentage": dsr_percentage,
-            "monthly_debt_count": monthly_ongoing_debts.count(),
-
-            "on_time_installments": on_time_installments,
-            "due_installments": due_installments,
-            "odp_percentage": odp_percentage,
-            "debt_odp_details": debt_odp_details,
+            "year": start.year, "month": start.month,
+            "period_start": start, "period_end": end, "evaluation_end": cutoff,
+            "is_transition": is_transition, "is_provisional": today < end,
+            "monthly_income": None, "transaction_income_total": None,
+            "net_monthly_income": avg_income, "average_income": avg_income,
+            "income_period_count": len(incomes),
+            "income_is_provisional": len(incomes) in (1,2),
+            "monthly_debt_total": due_total, "dsr_percentage": dsr,
+            "dsr_score": dsr_score,
+            "monthly_debt_count": debts.filter(payment_type="monthly").count(),
+            "on_time_installments": on_time_count, "due_installments": due_count,
+            "odp_percentage": odp, "odp_score": odp,
+            "debt_score": mean(dsr_score,odp),
+            "debt_odp_details": details,
         })

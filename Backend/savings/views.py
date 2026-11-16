@@ -231,85 +231,29 @@ class FinHealthWalletView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        from finhealth.scoring import (
+            get_period, segments, income_for_period, percent, score_sr, score, rounded, mean
+        )
+        from django.db.models import Sum
+        from datetime import timedelta
+        from collections import defaultdict
         user = request.user
+        start, end, is_transition = get_period(user)
         today = timezone.localdate()
-
-        # =====================================
-        # 1. กำหนดช่วงเวลาประเมิน 3 เดือน
-        # รวมเดือนปัจจุบัน
-        # =====================================
-
-        current_month_index = today.year * 12 + today.month - 1
-        start_month_index = current_month_index - 2
-
-        start_year, start_month_index_remainder = divmod(
-            start_month_index, 12
-        )
-
-        period_start = date(
-            start_year,
-            start_month_index_remainder + 1,
-            1
-        )
-
-        period_end = today
-
-        # เตรียมข้อมูลรายเดือน
-        monthly_data = {}
-
-        for offset in range(3):
-            month_index = start_month_index + offset
-            year, month_remainder = divmod(month_index, 12)
-
-            month_key = (year, month_remainder + 1)
-
-            monthly_data[month_key] = {
-                "year": year,
-                "month": month_remainder + 1,
-                "deposit": Decimal("0.00"),
-                "withdraw": Decimal("0.00"),
-                "net_saving": Decimal("0.00"),
-            }
-
-        # =====================================
-        # 2. ดึงประวัติฝากถอนเงินในช่วงประเมิน
-        # =====================================
-
-        saving_transactions = (
-            SavingsTransaction.objects
-            .filter(
-                user=user,
-                transaction_date__gte=period_start,
-                transaction_date__lte=period_end
-            )
-            .values(
-                "transaction_date__year",
-                "transaction_date__month",
-                "transaction_type"
-            )
-            .annotate(total=Sum("amount"))
-        )
-
-        total_deposit = Decimal("0.00")
-        total_withdraw = Decimal("0.00")
-
-        for item in saving_transactions:
-            month_key = (
-                item["transaction_date__year"],
-                item["transaction_date__month"]
-            )
-
-            amount = item["total"] or Decimal("0.00")
-
-            if month_key not in monthly_data:
-                continue
-
-            if item["transaction_type"] == SavingsTransaction.TransactionType.DEPOSIT:
-                monthly_data[month_key]["deposit"] += amount
+        evaluation_end = min(today, end)
+        records = SavingsTransaction.objects.filter(
+            user=user, transaction_date__gte=start, transaction_date__lte=evaluation_end
+        ).values("transaction_date", "transaction_type", "amount")
+        daily = defaultdict(lambda: {"deposit": Decimal("0"), "withdraw": Decimal("0")})
+        total_deposit = Decimal("0")
+        total_withdraw = Decimal("0")
+        for record in records:
+            amount = Decimal(record["amount"])
+            if record["transaction_type"] == SavingsTransaction.TransactionType.DEPOSIT:
+                daily[record["transaction_date"]]["deposit"] += amount
                 total_deposit += amount
-
-            elif item["transaction_type"] == SavingsTransaction.TransactionType.WITHDRAW:
-                monthly_data[month_key]["withdraw"] += amount
+            elif record["transaction_type"] == SavingsTransaction.TransactionType.WITHDRAW:
+                daily[record["transaction_date"]]["withdraw"] += amount
                 total_withdraw += amount
 
         # =====================================
@@ -399,37 +343,34 @@ class FinHealthWalletView(APIView):
                 "withdraw": float(data["withdraw"]),
                 "net_saving": float(data["net_saving"]),
             })
-
-        # =====================================
-        # 8. ส่งผลลัพธ์กลับไปยัง Frontend
-        # =====================================
-
+        sf = score(Decimal(len(positive_days))*100/4)
+        sd = rounded(Decimal(positive_periods)*100/4)
+        sc = mean(sf,sd)
+        salary, transaction_income, total_income = income_for_period(user,start,evaluation_end)
+        net_saving = total_deposit-total_withdraw
+        saving_rate = percent(net_saving,total_income)
+        sr_score = score_sr(saving_rate)
         return Response({
-            "period_start": period_start,
-            "period_end": period_end,
-
-            # Saving Rate
-            "total_deposit": float(total_deposit),
-            "total_withdraw": float(total_withdraw),
-            "total_saving": float(total_saving),
-
-            "monthly_income": float(monthly_income),
-            "transaction_income": float(transaction_income),
-            "total_income": float(total_income),
-
-            "saving_rate": (
-                round(float(saving_rate), 2)
-                if saving_rate is not None
-                else None
-            ),
-
-            # Saving Consistency
-            "sc_months": sc_months,
-            "sc_period_months": sc_period_months,
-            "saving_consistency": round(
-                float(saving_consistency), 2
-            ),
-
-            # รายละเอียดรายเดือน
-            "monthly_breakdown": monthly_breakdown,
+            "period_start": start, "period_end": end,
+            "evaluation_end": evaluation_end, "is_transition": is_transition,
+            "is_provisional": today < end,
+            "total_deposit": total_deposit, "total_withdraw": total_withdraw,
+            "total_saving": net_saving,
+            "monthly_income": salary, "transaction_income": transaction_income,
+            "total_income": total_income, "saving_rate": saving_rate,
+            "sr_score": sr_score,
+            "sc_recorded_days": len(positive_days),
+            "sc_days_evaluated": (evaluation_end-start).days+1,
+            "sc_recording_frequency": sf,
+            "sc_recorded_periods": positive_periods, "sc_total_periods": 4,
+            "sc_recording_distribution": sd,
+            "saving_consistency": sc, "sc_score": sc,
+            "save_score": mean(sr_score,sc),
+            "sc_daily_records": [
+                {"date": d.isoformat(), "day": (d-start).days+1,
+                 "deposit": amounts["deposit"], "withdraw": amounts["withdraw"],
+                 "net_saving": amounts["deposit"]-amounts["withdraw"]}
+                for d,amounts in sorted(daily.items())
+            ],
+            "sc_periods": periods
         })
