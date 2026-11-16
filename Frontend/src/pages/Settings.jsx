@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Settings.css';
-import { clearTokens } from '../utils/auth';
+import { clearTokens, getAccessToken } from '../utils/auth';
 import { liff } from '../lineAuth';
 
 function Settings() {
 
     const navigate = useNavigate();
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const [notification, setNotification] = useState(
         localStorage.getItem('notification') === 'true'
@@ -36,15 +37,48 @@ function Settings() {
         );
     };
 
-    const handleLogout = () => {
-        clearTokens();
+    
+    const handleLogout = async () => {
+        if (isLoggingOut) return;
 
-        if (liff.isLoggedIn()) {
-            liff.logout();
+        setIsLoggingOut(true);
+
+        try {
+            const accessToken = getAccessToken();
+
+            if (accessToken) {
+                const response = await fetch('/users/line-logout/', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(
+                        `Logout failed: HTTP ${response.status}`
+                    );
+                }
+            }
+
+            // ล้าง JWT Token หลัง Backend บันทึก Logout สำเร็จ
+            clearTokens();
+
+            // ออกจากระบบ LINE LIFF
+            if (liff.isLoggedIn()) {
+                liff.logout();
+            }
+
+            navigate('/logged-out', { replace: true });
+
+        } catch (error) {
+            console.error('Logout error:', error);
+            alert('ไม่สามารถออกจากระบบได้ กรุณาลองอีกครั้ง');
+        } finally {
+            setIsLoggingOut(false);
         }
-
-        navigate('/logged-out', { replace: true });
     };
+
 
     return (
         <div className="settings-page">
@@ -96,8 +130,9 @@ function Settings() {
                 <button
                     className="logout-button"
                     onClick={handleLogout}
+                    disabled={isLoggingOut}
                 >
-                    ออกจากระบบ
+                    {isLoggingOut ? 'กำลังออกจากระบบ...' : 'ออกจากระบบ'}
                 </button>
 
 

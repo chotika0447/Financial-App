@@ -121,25 +121,8 @@ function getDsrLevel(dsr) {
 
 // Calculate ODP Score
 function calculateOdpScore(odp) {
-    if (odp == null || !Number.isFinite(Number(odp))) {
-        return null;
-    }
-
-    const value = Number(odp);
-    let score;
-
-    if (value >= 100) score = 100;
-    else if (value >= 95) score = 90;
-    else if (value >= 90) score = 80;
-    else if (value >= 85) score = 70;
-    else if (value >= 80) score = 60;
-    else if (value >= 70) score = 50;
-    else if (value >= 60) score = 40;
-    else if (value >= 50) score = 30;
-    else if (value > 0) score = 15;
-    else score = 0;
-
-    return score;
+    if (odp == null || !Number.isFinite(Number(odp))) return null;
+    return Math.max(0, Math.min(100, Number(odp)));
 }
 
 function getOdpLevel(odp) {
@@ -1039,7 +1022,7 @@ function FinHealthDetail() {
                                     </div>
 
                                     <p className="fhd-indicator-description">
-                                        ประเมินความสม่ำเสมอในการออมเงินภายใน 1 เดือน
+                                        ประเมินความสม่ำเสมอในการออมเงินภายในรอบการเงิน
                                         โดยพิจารณาทั้งจำนวนวันที่มีการออมและการกระจายตัว
                                         ของวันที่มีการออมตลอดทั้งเดือน
                                     </p>
@@ -1083,7 +1066,7 @@ function FinHealthDetail() {
                                             1. Saving Frequency (SF)
                                         </span>
                                         <p>
-                                            (จำนวนวันที่มีการออม ÷ จำนวนวันที่ใช้ประเมิน) × 100
+                                            min(100, (จำนวนวันที่มีเงินออมสุทธิเป็นบวก ÷ 4) × 100)
                                         </p>
                                     </div>
 

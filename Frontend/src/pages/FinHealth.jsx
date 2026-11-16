@@ -1,3 +1,12 @@
+import {
+    eirScore as scoreEir,
+    srScore as scoreSr,
+    dsrScore as scoreDsr,
+    odpScore as scoreOdp,
+    odpLevel as scoreOdpLevel,
+    average as scoreAverage,
+    valid as scoreValid
+} from "../data/finHealthScores";
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -21,56 +30,13 @@ function isAvailable(value) {
 }
 
 // ใช้สูตรเดียวกับ FinHealthDetail.jsx
-function calculateEirScore(eir) {
-    if (!isAvailable(eir)) return null;
+function calculateEirScore(eir) { return scoreEir(eir); }
 
-    const score = 100 - (1.25 * (Number(eir) - 60));
+function calculateSrScore(sr) { return scoreSr(sr); }
 
-    return Math.round(
-        Math.max(0, Math.min(100, score)) * 100
-    ) / 100;
-}
+function calculateDsrScore(dsr) { return scoreDsr(dsr); }
 
-function calculateSrScore(sr) {
-    if (!isAvailable(sr)) return null;
-
-    return Math.round(
-        Math.max(0, Math.min(100, Number(sr) * 5)) * 100
-    ) / 100;
-}
-
-function calculateDsrScore(dsr) {
-    if (!isAvailable(dsr)) return null;
-
-    const value = Number(dsr);
-    let score;
-
-    if (value <= 15) score = 100;
-    else if (value <= 30) score = 100 - 2 * (value - 15);
-    else if (value <= 35) score = 70 - 2 * (value - 30);
-    else if (value <= 40) score = 60 - 4 * (value - 35);
-    else if (value <= 45) score = 40 - 4 * (value - 40);
-    else score = 0;
-
-    return Math.round(Math.max(0, Math.min(100, score)) * 100) / 100;
-}
-
-function calculateOdpScore(odp) {
-    if (!isAvailable(odp)) return null;
-
-    const value = Number(odp);
-
-    if (value >= 100) return 100;
-    if (value >= 95) return 90;
-    if (value >= 90) return 80;
-    if (value >= 85) return 70;
-    if (value >= 80) return 60;
-    if (value >= 70) return 50;
-    if (value >= 60) return 40;
-    if (value >= 50) return 30;
-    if (value > 0) return 15;
-    return 0;
-}
+function calculateOdpScore(odp) { return scoreOdp(odp); }
 
 function averageScores(first, second) {
     if (first == null || second == null) return null;
@@ -80,6 +46,36 @@ function averageScores(first, second) {
 
 function FinHealth() {
     const navigate = useNavigate();
+    const [cycle, setCycle] = useState(null);
+    const [cycleDay, setCycleDay] = useState('1');
+    const [cycleMessage, setCycleMessage] = useState('');
+    const [cycleSaving, setCycleSaving] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
+    useEffect(() => {
+        const token = sessionStorage.getItem('accessToken');
+        if (!token) return;
+        fetch('/financial-health/cycle/', { headers: { Authorization: `Bearer ${token}` } })
+            .then(r => { if (!r.ok) throw new Error('โหลดรอบการเงินไม่สำเร็จ'); return r.json(); })
+            .then(data => { setCycle(data); setCycleDay(String(data.start_day)); })
+            .catch(e => setCycleMessage(e.message));
+    }, [refreshKey]);
+    async function saveCycle() {
+        setCycleSaving(true);
+        setCycleMessage('');
+        try {
+            const token = sessionStorage.getItem('accessToken');
+            const response = await fetch('/financial-health/cycle/', {
+                method: 'PATCH',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ start_day: Number(cycleDay) }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.start_day || result.detail || 'บันทึกไม่สำเร็จ');
+            setCycleMessage(`บันทึกแล้ว รอบใหม่เริ่ม ${result.new_cycle_start}`);
+            setRefreshKey(v => v + 1);
+        } catch (e) { setCycleMessage(String(e.message)); }
+        finally { setCycleSaving(false); }
+    }
     // const [showCriteria, setShowCriteria] = useState(false);
 
     const [spendMetrics, setSpendMetrics] = useState(null);
@@ -145,7 +141,7 @@ function FinHealth() {
         loadAllMetrics();
 
         return () => controller.abort();
-    }, []);
+    }, [refreshKey]);
 
     // Spend: EIR + TRC
     const eirScore = calculateEirScore(spendMetrics?.expense_ratio);
@@ -245,6 +241,22 @@ function FinHealth() {
             </header>
 
             <main className="fh-main">
+                <section className="fh-section" style={{ marginBottom: 20 }}>
+                    <div className="fh-section-heading"><h2>รอบการประเมินสุขภาพทางการเงิน</h2></div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+                        <label htmlFor="cycle-start-day">วันเริ่มรอบการเงิน</label>
+                        <select id="cycle-start-day" value={cycleDay} onChange={e => setCycleDay(e.target.value)}
+                            style={{ padding: '8px 12px', borderRadius: 8 }}>
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <button type="button" onClick={saveCycle} disabled={cycleSaving}>
+                            {cycleSaving ? 'กำลังบันทึก...' : 'บันทึกวันเริ่มรอบ'}
+                        </button>
+                    </div>
+                    {cycle && <p>รอบปัจจุบัน: {cycle.period_start} ถึง {cycle.period_end}{cycle.is_transition ? ' (รอบเปลี่ยนผ่าน)' : ''}</p>}
+                    {cycleMessage && <p role="status">{cycleMessage}</p>}
+                    <p>การเปลี่ยนแปลงมีผลหลังรอบปัจจุบันสิ้นสุด</p>
+                </section>
                 {/* CURRENT SCORES */}
                 <section className="fh-section">
                     <div className="fh-section-heading">
