@@ -762,8 +762,8 @@
 		font-size: 13px;
 	}
 }
-//ระยะห่างของกระเป๋าที่สำเร็จแล้ว
-.wallet-page .completed-wallets .completed-wallets-list {
+/* ระยะห่างของกระเป๋าที่สำเร็จแล้ว */
+.completed-wallets-list {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	align-items: stretch;
