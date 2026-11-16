@@ -766,5 +766,5 @@
 .completed-wallets {
 	display: flex;
 	flex-direction: column;
-	row-gap : 30px;
+	gap : 30px;
 }
