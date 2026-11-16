@@ -447,7 +447,6 @@ export default function Dashboard() {
                     <section className="dashboard-section">
                         <div className="dashboard-section-header">
                             <h2>สรุปยอดเงินออม</h2>
-                            <PiggyBank size={22} />
                         </div>
 
                         <div className="dashboard-saving-card">
