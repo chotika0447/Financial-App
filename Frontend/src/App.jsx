@@ -79,7 +79,12 @@ function EntryRoute() {
           ? '/saving/?addWallet=1'
           : '/saving/';
       }
-      if (returnTo === '/financial-health') {
+      
+      // เปิดหน้าสุขภาพการเงินจาก LINE Rich Menu
+      if (
+        returnTo === '/financial-health' ||
+        returnTo === '/financial-health/'
+      ) {
         destination = '/financial-health';
       }
 

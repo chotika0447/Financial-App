@@ -1,0 +1,28 @@
+services:
+  - type: cron
+    name: financial-app-debt-reminders
+    runtime: python
+    plan: starter
+    rootDir: Backend
+    schedule: "* * * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python manage.py send_due_debt_reminders
+    envVars:
+      - key: SECRET_KEY
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: FRONTEND_URL
+        value: https://financial-app-delta-taupe.vercel.app
+      - key: PYTHONUNBUFFERED
+        value: "1"

@@ -20,8 +20,8 @@ ZERO = Decimal('0.00')
 def is_reminder_date(debt, due_date, today):
     start = due_date - timedelta(days=debt.reminder_days_before)
     if debt.reminder_repeat:
-        return start <= today < due_date
-    return today == start and today < due_date
+        return start <= today <= due_date
+    return today == start
 
 
 def installment_is_paid(debt, due_date):

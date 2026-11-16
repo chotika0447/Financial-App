@@ -22,6 +22,12 @@ class ScheduledDebtReminderDateTests(SimpleTestCase):
             is_reminder_date(debt, due_date, date(2026, 12, 29))
         )
 
+    def test_zero_days_before_schedules_one_time_reminder_on_due_date(self):
+        debt = MagicMock(reminder_days_before=0, reminder_repeat=False)
+        due_date = date(2026, 12, 31)
+
+        self.assertTrue(is_reminder_date(debt, due_date, due_date))
+
     def test_repeated_reminder_is_scheduled_each_day_until_due_date(self):
         debt = MagicMock(reminder_days_before=2, reminder_repeat=True)
         due_date = date(2026, 12, 31)
