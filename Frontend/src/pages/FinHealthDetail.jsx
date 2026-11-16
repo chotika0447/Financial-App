@@ -574,8 +574,6 @@ function FinHealthDetail() {
                                       </div></details>
                                     </section>
                                 
-                                    <section className="sp-tip"><strong>แนวทางปรับปรุง</strong><p>{recommendation}</p></section>
-                                    <p className="sp-footnote">หมายเหตุ: คะแนนและช่วงวันที่อ้างอิงข้อมูลจาก API ปัจจุบัน การคำนวณตามรอบการเงินที่กำหนดเองต้องให้ Backend ส่งข้อมูลในช่วงเดียวกันก่อน</p>
                                   </div>
                             );
                         })()
@@ -656,8 +654,7 @@ function FinHealthDetail() {
                                             {daily.length ? <div className="sp-daily-list">{daily.map((item, index) => <div className="sp-detail-row save-daily-row" key={item.date ?? index}><span>{dateLabel(item.date) ?? `วันที่ ${item.day ?? '—'}`}</span><strong>ฝาก ฿{money(item.deposit)} · ถอน ฿{money(item.withdraw)} · สุทธิ ฿{money(item.net_saving)}</strong></div>)}</div> : <p className="sp-muted">ยังไม่มีรายการออมรายวันในรอบนี้</p>}
                                         </div></details>
                                     </section>
-                                    <section className="sp-tip"><strong>แนวทางปรับปรุง</strong><p>{advice}</p></section>
-                                    <p className="sp-footnote">หมายเหตุ: ข้อมูลอ้างอิงรอบการเงินและคะแนนจาก API หากข้อมูลบางตัวไม่พร้อม ระบบจะแสดงเครื่องหมาย — แทนคะแนนศูนย์</p>
+                                    
                                 </div>
                             );
                         })()
@@ -730,7 +727,7 @@ function FinHealthDetail() {
                                             {debts.length ? <div className="borrow-debt-list">{debts.map((debt, index) => <div className="borrow-debt-item" key={debt.debt_id ?? index}><div><strong>{debt.debt_name || `รายการหนี้ ${index + 1}`}</strong><small>ตรงเวลา {number(debt.on_time_installments)} / {number(debt.due_installments)} งวด</small></div><span>{numeric(debt.odp_percentage) === null ? 'ยังไม่มีข้อมูล' : `${number(debt.odp_percentage)}%`}</span></div>)}</div> : <p className="sp-muted">ยังไม่มีรายละเอียดหนี้ที่ถึงกำหนดชำระ</p>}
                                         </div></details>
                                     </section>
-                                    <section className="sp-tip"><strong>แนวทางปรับปรุง</strong><p>{recommendation}</p></section>
+                                    
                                 </div>
                             );
                         })()

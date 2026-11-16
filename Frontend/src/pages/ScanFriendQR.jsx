@@ -37,9 +37,66 @@ function ScanFriendQR() {
   const [loading, setLoading] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState('');
+  const [cameraDiagnostics, setCameraDiagnostics] = useState('');
   const [scannerMode, setScannerMode] = useState('browser');
   const [scannerInitialized, setScannerInitialized] = useState(false);
   const [scanActive, setScanActive] = useState(false);
+
+  const logScannerDiagnostic = useCallback(async (event, extra = {}) => {
+    let cameraPermission = 'unsupported';
+    try {
+      if (navigator.permissions?.query) {
+        const permission = await navigator.permissions.query({ name: 'camera' });
+        cameraPermission = permission.state;
+      }
+    } catch (err) {
+      cameraPermission = `${err?.name || 'Error'}: ${err?.message || String(err)}`;
+    }
+
+    let videoInputCount = 'unavailable';
+    try {
+      if (navigator.mediaDevices?.enumerateDevices) {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        videoInputCount = devices.filter((device) => device.kind === 'videoinput').length;
+      }
+    } catch (err) {
+      videoInputCount = `${err?.name || 'Error'}: ${err?.message || String(err)}`;
+    }
+
+    let liffInClient = null;
+    let liffScanCodeAvailable = null;
+    let liffCheckError = null;
+    if (liffInitializedRef.current) {
+      try {
+        liffInClient = liff.isInClient();
+        liffScanCodeAvailable = liffInClient && liff.isApiAvailable('scanCodeV2');
+      } catch (err) {
+        liffCheckError = `${err?.name || 'Error'}: ${err?.message || String(err)}`;
+      }
+    }
+
+    const diagnostics = {
+      event,
+      timestamp: new Date().toISOString(),
+      page: `${window.location.origin}${window.location.pathname}`,
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      isLineBrowser: /Line\//i.test(navigator.userAgent),
+      isSecureContext: window.isSecureContext,
+      mediaDevicesAvailable: Boolean(navigator.mediaDevices),
+      getUserMediaAvailable: Boolean(navigator.mediaDevices?.getUserMedia),
+      cameraPermission,
+      videoInputCount,
+      liffInitialized: liffInitializedRef.current,
+      liffInClient,
+      liffScanCodeAvailable,
+      liffCheckError,
+      ...extra,
+    };
+
+    console.info('[QR_SCAN_DIAGNOSTIC]', diagnostics);
+    return diagnostics;
+  }, []);
 
   const stopBrowserScanner = useCallback(async () => {
     const scanner = scannerRef.current;
@@ -84,6 +141,7 @@ function ScanFriendQR() {
   const handleDecoded = useCallback(async (text, generation) => {
     if (!mountedRef.current || generation !== generationRef.current || processingRef.current) return;
     processingRef.current = true;
+    void logScannerDiagnostic('qr-decoded');
     setCameraReady(false);
     setScanActive(false);
     await stopBrowserScanner();
@@ -94,7 +152,7 @@ function ScanFriendQR() {
       return;
     }
     await findFriend(uid);
-  }, [findFriend, stopBrowserScanner]);
+  }, [findFriend, logScannerDiagnostic, stopBrowserScanner]);
 
   const startScan = useCallback(async () => {
     const generation = ++generationRef.current;
@@ -102,6 +160,7 @@ function ScanFriendQR() {
     setFriend(null);
     setError('');
     setCameraError('');
+    setCameraDiagnostics('');
     setCameraReady(false);
     setScanActive(true);
 
@@ -109,6 +168,7 @@ function ScanFriendQR() {
 
     const inLiff = liffInitializedRef.current && Boolean(liff.isInClient());
     const canUseLiffScan = inLiff && Boolean(liff.isApiAvailable('scanCodeV2'));
+    void logScannerDiagnostic(canUseLiffScan ? 'using-liff-scanner' : 'using-browser-camera');
     if (canUseLiffScan) {
       setScannerMode('liff');
       try {
@@ -122,6 +182,13 @@ function ScanFriendQR() {
       } catch (err) {
         if (!mountedRef.current || generation !== generationRef.current) return;
         setScanActive(false);
+        const diagnostics = await logScannerDiagnostic('liff-scan-failed', {
+          errorName: err?.name || 'Error',
+          errorMessage: err?.message || String(err),
+        });
+        if (mountedRef.current && generation === generationRef.current) {
+          setCameraDiagnostics(JSON.stringify(diagnostics, null, 2));
+        }
         // A native scanner failure should not automatically start another
         // camera session in the same WebView.
         setCameraError(`ไม่สามารถสแกนผ่าน LINE ได้: ${err?.message || 'กรุณาลองอีกครั้งหรือเปิดผ่านเบราว์เซอร์ภายนอก'}`);
@@ -147,26 +214,40 @@ function ScanFriendQR() {
         await stopBrowserScanner();
         return;
       }
+      void logScannerDiagnostic('browser-camera-started');
       setScanActive(false);
       setCameraReady(true);
     } catch (err) {
-      console.error('เปิดกล้องไม่สำเร็จ:', err);
       await stopBrowserScanner();
       if (mountedRef.current && generation === generationRef.current) {
+        const diagnostics = await logScannerDiagnostic('browser-camera-start-failed', {
+          errorName: err?.name || 'Error',
+          errorMessage: err?.message || String(err),
+        });
+        console.error('[QR_SCAN_DIAGNOSTIC] Browser camera failed', err, diagnostics);
+        if (mountedRef.current && generation === generationRef.current) {
+          setCameraDiagnostics(JSON.stringify(diagnostics, null, 2));
+        }
         setScanActive(false);
         setCameraError('ไม่สามารถเปิดกล้องได้ในเบราว์เซอร์นี้ กรุณาตรวจสอบสิทธิ์กล้อง หรือเปิดหน้าเว็บผ่าน Chrome/Safari');
       }
     }
-  }, [handleDecoded, stopBrowserScanner]);
+  }, [handleDecoded, logScannerDiagnostic, stopBrowserScanner]);
 
   useEffect(() => {
     mountedRef.current = true;
+    void logScannerDiagnostic('scanner-page-ready');
     initializeLineLiff()
       .then(() => {
         liffInitializedRef.current = true;
+        void logScannerDiagnostic('liff-initialized');
       })
       .catch((err) => {
         console.warn('เริ่มต้น LIFF ไม่สำเร็จ ใช้กล้องของเบราว์เซอร์แทน:', err);
+        void logScannerDiagnostic('liff-initialization-failed', {
+          errorName: err?.name || 'Error',
+          errorMessage: err?.message || String(err),
+        });
       })
       .finally(() => {
         if (mountedRef.current) setScannerInitialized(true);
@@ -176,7 +257,7 @@ function ScanFriendQR() {
       generationRef.current += 1;
       void stopBrowserScanner();
     };
-  }, [stopBrowserScanner]);
+  }, [logScannerDiagnostic, stopBrowserScanner]);
 
   const restartScanner = () => { void startScan(); };
 
@@ -252,6 +333,12 @@ function ScanFriendQR() {
                 <p>{cameraError}</p>
                 <button type="button" onClick={restartScanner}><RotateCcw size={16} />ลองเปิดกล้องอีกครั้ง</button>
                 <p>หากเปิดจาก Rich Menu แล้วกล้องไม่ทำงาน ให้เปิดแอปผ่าน LIFF URL หรือเปิดใน Chrome/Safari</p>
+                {cameraDiagnostics && (
+                  <details className="scan-friend-diagnostics">
+                    <summary>รายละเอียดสำหรับตรวจสอบ</summary>
+                    <pre>{cameraDiagnostics}</pre>
+                  </details>
+                )}
               </div>
             )}
             {loading && <p className="scan-friend-status">กำลังค้นหาข้อมูลโปรไฟล์...</p>}

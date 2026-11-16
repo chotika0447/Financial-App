@@ -125,7 +125,7 @@
       },
       "action": {
         "type": "uri",
-        "uri": "https://financial-app-delta-taupe.vercel.app/financial-health",
+        "uri": "https://financial-app-delta-taupe.vercel.app/?returnTo=%2Ffinancial-health",
         "label": "เมนู 9"
       }
     }

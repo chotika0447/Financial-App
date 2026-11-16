@@ -160,6 +160,30 @@
   margin: 0 0 12px;
 }
 
+.scan-friend-diagnostics {
+  margin-top: 12px;
+  text-align: left;
+}
+
+.scan-friend-diagnostics summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.scan-friend-diagnostics pre {
+  max-height: 240px;
+  margin: 10px 0 0;
+  padding: 10px;
+  overflow: auto;
+  border-radius: 8px;
+  background: #fff;
+  color: #51466f;
+  font-size: 11px;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .scan-friend-error button {
   display: inline-flex;
   align-items: center;
