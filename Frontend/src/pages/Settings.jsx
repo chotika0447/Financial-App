@@ -71,19 +71,6 @@ function Settings() {
       </header>
       <main className="settings-content">
         <section className="settings-section">
-          <h3>การแจ้งเตือน</h3>
-          <div className="settings-card">
-            <div className="settings-row">
-              <span>การอนุญาตแจ้งเตือน</span>
-              <button type="button" role="switch" aria-checked={notification} aria-label="การอนุญาตแจ้งเตือน" className={`switch ${notification ? 'active' : ''}`} onClick={() => handleNotification(!notification)}><span /></button>
-            </div>
-            <div className="settings-row">
-              <span>การแจ้งเตือนชำระหนี้</span>
-              <button type="button" role="switch" aria-checked={paymentNotification} aria-label="การแจ้งเตือนชำระหนี้" className={`switch ${paymentNotification ? 'active' : ''}`} onClick={() => handlePaymentNotification(!paymentNotification)}><span /></button>
-            </div>
-          </div>
-        </section>
-        <section className="settings-section">
           <h3>จัดการบัญชีผู้ใช้</h3>
           <div className="settings-card">
             <button type="button" className="settings-row settings-link" onClick={() => { setDeleteError(''); setShowDeleteModal(true); }}>

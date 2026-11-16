@@ -240,6 +240,12 @@ class MeView(APIView):
             'profile_img': profile.profile_img,
             **serializer.data,
         })
+    
+    def delete(self, request):
+        with transaction.atomic():
+            request.user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 # API ค้นหาผู้ใช้ด้วย UID
 class UserSearchView(APIView):

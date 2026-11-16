@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 import liff from '@line/liff';
 import { ArrowLeft, ScanLine, Camera, RotateCcw } from 'lucide-react';
+import { initializeLineLiff } from '../lineAuth';
 import { authenticatedFetch as fetch } from '../utils/auth';
 import './ScanFriendQR.css';
 
@@ -30,12 +31,15 @@ function ScanFriendQR() {
   const processingRef = useRef(false);
   const mountedRef = useRef(false);
   const generationRef = useRef(0);
+  const liffInitializedRef = useRef(false);
   const [friend, setFriend] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const [scannerMode, setScannerMode] = useState('browser');
+  const [scannerInitialized, setScannerInitialized] = useState(false);
+  const [scanActive, setScanActive] = useState(false);
 
   const stopBrowserScanner = useCallback(async () => {
     const scanner = scannerRef.current;
@@ -81,6 +85,7 @@ function ScanFriendQR() {
     if (!mountedRef.current || generation !== generationRef.current || processingRef.current) return;
     processingRef.current = true;
     setCameraReady(false);
+    setScanActive(false);
     await stopBrowserScanner();
     if (!mountedRef.current || generation !== generationRef.current) return;
     const uid = extractUID(text);
@@ -98,22 +103,25 @@ function ScanFriendQR() {
     setError('');
     setCameraError('');
     setCameraReady(false);
-    await stopBrowserScanner();
+    setScanActive(true);
+
     if (!mountedRef.current || generation !== generationRef.current) return;
 
-    // LIFF must be initialized by the app's entry flow. Use its native scanner
-    // only inside a LIFF client where scanCodeV2 is available.
-    const inLiff = Boolean(liff?.isInClient?.());
-    const canUseLiffScan = inLiff && Boolean(liff?.isApiAvailable?.('scanCodeV2'));
+    const inLiff = liffInitializedRef.current && Boolean(liff.isInClient());
+    const canUseLiffScan = inLiff && Boolean(liff.isApiAvailable('scanCodeV2'));
     if (canUseLiffScan) {
       setScannerMode('liff');
       try {
         const result = await liff.scanCodeV2();
         if (!mountedRef.current || generation !== generationRef.current) return;
         if (result?.value) await handleDecoded(result.value, generation);
-        else setError('ยังไม่ได้สแกน QR Code กรุณาลองอีกครั้ง');
+        else {
+          setScanActive(false);
+          setError('ยังไม่ได้สแกน QR Code กรุณาลองอีกครั้ง');
+        }
       } catch (err) {
         if (!mountedRef.current || generation !== generationRef.current) return;
+        setScanActive(false);
         // A native scanner failure should not automatically start another
         // camera session in the same WebView.
         setCameraError(`ไม่สามารถสแกนผ่าน LINE ได้: ${err?.message || 'กรุณาลองอีกครั้งหรือเปิดผ่านเบราว์เซอร์ภายนอก'}`);
@@ -125,6 +133,8 @@ function ScanFriendQR() {
     // LINE's ordinary in-app browser may block camera access even on HTTPS.
     // Still try the browser camera, but show a helpful fallback on failure.
     try {
+      if (scannerRef.current) await stopBrowserScanner();
+      if (!mountedRef.current || generation !== generationRef.current) return;
       const scanner = new Html5Qrcode(READER_ID);
       scannerRef.current = scanner;
       await scanner.start(
@@ -137,11 +147,13 @@ function ScanFriendQR() {
         await stopBrowserScanner();
         return;
       }
+      setScanActive(false);
       setCameraReady(true);
     } catch (err) {
       console.error('เปิดกล้องไม่สำเร็จ:', err);
       await stopBrowserScanner();
       if (mountedRef.current && generation === generationRef.current) {
+        setScanActive(false);
         setCameraError('ไม่สามารถเปิดกล้องได้ในเบราว์เซอร์นี้ กรุณาตรวจสอบสิทธิ์กล้อง หรือเปิดหน้าเว็บผ่าน Chrome/Safari');
       }
     }
@@ -149,13 +161,22 @@ function ScanFriendQR() {
 
   useEffect(() => {
     mountedRef.current = true;
-    void startScan();
+    initializeLineLiff()
+      .then(() => {
+        liffInitializedRef.current = true;
+      })
+      .catch((err) => {
+        console.warn('เริ่มต้น LIFF ไม่สำเร็จ ใช้กล้องของเบราว์เซอร์แทน:', err);
+      })
+      .finally(() => {
+        if (mountedRef.current) setScannerInitialized(true);
+      });
     return () => {
       mountedRef.current = false;
       generationRef.current += 1;
       void stopBrowserScanner();
     };
-  }, [startScan, stopBrowserScanner]);
+  }, [stopBrowserScanner]);
 
   const restartScanner = () => { void startScan(); };
 
@@ -209,8 +230,22 @@ function ScanFriendQR() {
             {cameraReady && (
               <p className="scan-friend-hint"><Camera size={16} />กำลังเปิดกล้องเพื่อค้นหา QR Code</p>
             )}
-            {scannerMode === 'liff' && !cameraError && !error && !loading && (
+            {scanActive && scannerMode === 'liff' && (
               <p className="scan-friend-hint">ใช้เครื่องสแกน QR ของ LINE</p>
+            )}
+            {scanActive && scannerMode === 'browser' && (
+              <p className="scan-friend-hint">กำลังขอสิทธิ์และเปิดกล้อง...</p>
+            )}
+            {!cameraReady && !scanActive && !cameraError && !error && !loading && (
+              <button
+                type="button"
+                className="scan-friend-start-button"
+                onClick={restartScanner}
+                disabled={!scannerInitialized}
+              >
+                <ScanLine size={18} />
+                {scannerInitialized ? 'เริ่มสแกน QR' : 'กำลังเตรียมเครื่องสแกน...'}
+              </button>
             )}
             {cameraError && (
               <div className="scan-friend-error">

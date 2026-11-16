@@ -418,13 +418,6 @@ function Profile() {
                 </strong>
               </div>
 
-              <div className="info-row">
-                <span>อีเมล :</span>
-                <strong>
-                  {user.email || '-'}
-                </strong>
-              </div>
-
             </div>
 
 

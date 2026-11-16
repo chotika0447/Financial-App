@@ -113,6 +113,32 @@
   font-size: 13px;
 }
 
+.scan-friend-start-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 18px;
+  border: none;
+  border-radius: 12px;
+  background: #8b7ec8;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.scan-friend-start-button:hover:not(:disabled) {
+  background: #7869ba;
+}
+
+.scan-friend-start-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .scan-friend-status {
   margin: 20px 0 0;
   color: #7866b5;
