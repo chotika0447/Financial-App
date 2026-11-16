@@ -302,7 +302,8 @@ export default function Dashboard() {
                 },
                 ticks: {
                     autoSkip: true,
-                    maxTicksLimit: 10,
+                    maxRotation: 0,
+                    minRotation: 0,
                 },
                 border: {
                     display: false,
