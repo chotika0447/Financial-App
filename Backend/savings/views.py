@@ -1,15 +1,20 @@
-from decimal import Decimal, InvalidOperation
-
 from django.db import transaction
-from django.utils import timezone
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
 from .models import Savings, SavingsTransaction
-from .serializers import SavingsSerializer
+from .serializers import SavingsSerializer, SavingsTransactionSerializer
+
+from decimal import Decimal, InvalidOperation
+
+from django.db.models import Sum
+from django.utils import timezone
+from datetime import date
+
+from users.models import PersonalProfile
+from transactions.models import Transaction
 
 class SavingsListCreateView(APIView):
     #แสดงรายการการออมทั้งหมด
@@ -340,8 +345,8 @@ class FinHealthWalletView(APIView):
         try:
             profile = PersonalProfile.objects.filter(user=user).first()
             monthly_income = (
-                profile.salary
-                if profile
+                profile.monthly_income 
+                if profile 
                 else Decimal("0.00")
             )
         except PersonalProfile.DoesNotExist:
