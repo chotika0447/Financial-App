@@ -380,15 +380,6 @@ def push_debt_payment_reminder(debt, due_date, pay_url):
         print("ส่งแจ้งเตือนไม่ได้: ไม่พบ FRONTEND_URL")
         return False
 
-    access_token = getattr(
-        settings,
-        "LINE_BOT_CHANNEL_ACCESS_TOKEN",
-        None,
-    )
-    if not access_token:
-        print("ส่งแจ้งเตือนไม่ได้: ไม่พบ LINE_BOT_CHANNEL_ACCESS_TOKEN")
-        return False
-
     query = urlencode({"debtId": debt.id})
     pay_url = f"{frontend_url}/debts/?{query}"
 
@@ -483,7 +474,9 @@ def push_debt_payment_reminder(debt, due_date, pay_url):
 
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {access_token}",
+        "Authorization": (
+            f"Bearer {settings.LINE_BOT_CHANNEL_ACCESS_TOKEN}"
+        ),
     }
 
     try:

@@ -1,7 +1,6 @@
 import logging
 from datetime import timedelta
 
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
@@ -28,16 +27,6 @@ def is_reminder_date(debt, due_date, today):
 class Command(BaseCommand):
     help = "Send scheduled LINE reminders for debts due soon."
 
-    def add_arguments(self, parser):
-        parser.add_argument(
-            "--test-debt-id",
-            type=int,
-            help=(
-                "Send one real reminder immediately for this eligible debt, "
-                "without waiting for its configured date or time."
-            ),
-        )
-
     def handle(self, *args, **options):
         now = timezone.localtime()
         today = now.date()
@@ -54,58 +43,23 @@ class Command(BaseCommand):
                 type="borrowed",
             )
             .select_related("user")
+            .iterator()
         )
 
-        test_debt_id = options.get("test_debt_id")
-        if test_debt_id is not None:
-            debt = debts.filter(pk=test_debt_id).first()
-            if debt is None:
-                raise CommandError(
-                    "Debt not found or not eligible for reminders "
-                    "(it must be enabled, ongoing, unpaid, and borrowed)."
-                )
-
-            if not debt.user.line_uid:
-                raise CommandError(
-                    f"Debt {debt.pk}: the receiving account has no LINE User ID."
-                )
-            if not settings.LINE_BOT_CHANNEL_ACCESS_TOKEN:
-                raise CommandError(
-                    "LINE_BOT_CHANNEL_ACCESS_TOKEN is not configured."
-                )
-
-            try:
-                due_date = get_debt_due_date(debt, today)
-                sent = push_debt_payment_reminder(debt, due_date, None)
-            except Exception as error:
-                logger.exception(
-                    "Error sending test reminder for debt %s",
-                    debt.pk,
-                )
-                raise CommandError(
-                    f"Test reminder for debt {debt.pk} failed: {error}"
-                ) from error
-
-            if not sent:
-                raise CommandError(
-                    f"LINE did not confirm the test reminder for debt {debt.pk}; "
-                    "check the backend logs and LINE OA configuration."
-                )
-
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"Test reminder sent for debt {debt.pk}. "
-                    "This test was not added to the reminder log."
-                )
-            )
-            return
-
-        for debt in debts.iterator():
+        for debt in debts:
             if current_time < debt.reminder_time:
                 continue
 
             try:
-                due_date = get_debt_due_date(debt, today)
+                if debt.payment_type == "monthly":
+                    due_date = debt.current_due_date
+                    if due_date is None:
+                        due_date = get_initial_monthly_due_date(
+                            debt,
+                            today=today,
+                        )
+                else:
+                    due_date = debt.due_date
             except (TypeError, ValueError) as error:
                 logger.exception(
                     "Could not determine due date for debt %s",
@@ -195,12 +149,3 @@ class Command(BaseCommand):
             raise CommandError(
                 f"{failed_count} debt reminder(s) failed; see logs above."
             )
-
-
-def get_debt_due_date(debt, today):
-    if debt.payment_type == "monthly":
-        if debt.current_due_date is not None:
-            return debt.current_due_date
-        return get_initial_monthly_due_date(debt, today=today)
-
-    return debt.due_date

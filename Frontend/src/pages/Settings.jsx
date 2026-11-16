@@ -1,145 +1,113 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Settings.css';
-import { clearTokens, getAccessToken } from '../utils/auth';
-import { liff } from '../lineAuth';
+import { clearTokens } from '../utils/auth';
 
 function Settings() {
+  const navigate = useNavigate();
+  const [notification, setNotification] = useState(localStorage.getItem('notification') === 'true');
+  const [paymentNotification, setPaymentNotification] = useState(localStorage.getItem('paymentNotification') === 'true');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
-    const navigate = useNavigate();
-    const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-    const [notification, setNotification] = useState(
-        localStorage.getItem('notification') === 'true'
-    );
-
-    const [paymentNotification, setPaymentNotification] = useState(
-        localStorage.getItem('paymentNotification') === 'true'
-    );
-
-
-    const handleNotification = (value) => {
-        setNotification(value);
-
-        localStorage.setItem(
-            'notification',
-            value
-        );
+  const handleNotification = (value) => {
+    setNotification(value);
+    localStorage.setItem('notification', String(value));
+  };
+  const handlePaymentNotification = (value) => {
+    setPaymentNotification(value);
+    localStorage.setItem('paymentNotification', String(value));
+  };
+  const handleLogout = () => {
+    clearTokens();
+    navigate('/login', { replace: true });
+  };
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setShowDeleteModal(false);
+    setDeleteError('');
+  };
+  useEffect(() => {
+    if (!showDeleteModal) return;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape' && !deleting) closeDeleteModal();
     };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showDeleteModal, deleting]);
 
+  const handleDeleteAccount = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const token = sessionStorage.getItem('accessToken');
+      if (!token) throw new Error('ไม่พบข้อมูลเข้าสู่ระบบ กรุณาเข้าสู่ระบบใหม่');
+      const response = await fetch('/users/me/', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || data.error || `ไม่สามารถลบบัญชีได้ (HTTP ${response.status})`);
+      }
+      clearTokens();
+      localStorage.removeItem('notification');
+      localStorage.removeItem('paymentNotification');
+      navigate('/login', { replace: true });
+    } catch (error) {
+      setDeleteError(error.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
-    const handlePaymentNotification = (value) => {
-        setPaymentNotification(value);
-
-        localStorage.setItem(
-            'paymentNotification',
-            value
-        );
-    };
-
-    
-    const handleLogout = async () => {
-        if (isLoggingOut) return;
-
-        setIsLoggingOut(true);
-
-        try {
-            const accessToken = getAccessToken();
-
-            if (accessToken) {
-                const response = await fetch('/users/line-logout/', {
-                    method: 'POST',
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                    },
-                });
-
-                if (!response.ok) {
-                    throw new Error(
-                        `Logout failed: HTTP ${response.status}`
-                    );
-                }
-            }
-
-            // ล้าง JWT Token หลัง Backend บันทึก Logout สำเร็จ
-            clearTokens();
-
-            // ออกจากระบบ LINE LIFF
-            if (liff.isLoggedIn()) {
-                liff.logout();
-            }
-
-            navigate('/logged-out', { replace: true });
-
-        } catch (error) {
-            console.error('Logout error:', error);
-            alert('ไม่สามารถออกจากระบบได้ กรุณาลองอีกครั้ง');
-        } finally {
-            setIsLoggingOut(false);
-        }
-    };
-
-
-    return (
-        <div className="settings-page">
-
-            {/* ================= HEADER ================= */}
-
-            <header className="settings-header">
-
-                <button
-                    className="settings-back"
-                    onClick={() => navigate(-1)}
-                >
-                    ‹
-                </button>
-
-                <h1>การตั้งค่า</h1>
-
-            </header>
-
-
-            <main className="settings-content">
-                {/* ================= ACCOUNT ================= */}
-
-                <section className="settings-section">
-
-                    <h3>จัดการบัญชีผู้ใช้</h3>
-
-                    <div className="settings-card">
-
-                        <button className="settings-row settings-link "
-                            onClick={() => {
-                                alert('ฟังก์ชันลบบัญชีจะเพิ่มภายหลัง');
-                            }}
-                        >
-                            <span>
-                                ลบบัญชี
-                            </span>
-                            <span className="settings-arrow">
-                                ›
-                            </span>
-                        </button>
-                    </div>
-
-                </section>
-
-
-                {/* ================= LOGOUT ================= */}
-
-                <button
-                    className="logout-button"
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                >
-                    {isLoggingOut ? 'กำลังออกจากระบบ...' : 'ออกจากระบบ'}
-                </button>
-
-
-            </main>
-
+  return (
+    <div className="settings-page">
+      <header className="settings-header">
+        <button type="button" className="settings-back" onClick={() => navigate(-1)} aria-label="ย้อนกลับ">‹</button>
+        <h1>การตั้งค่า</h1>
+      </header>
+      <main className="settings-content">
+        <section className="settings-section">
+          <h3>การแจ้งเตือน</h3>
+          <div className="settings-card">
+            <div className="settings-row">
+              <span>การอนุญาตแจ้งเตือน</span>
+              <button type="button" role="switch" aria-checked={notification} aria-label="การอนุญาตแจ้งเตือน" className={`switch ${notification ? 'active' : ''}`} onClick={() => handleNotification(!notification)}><span /></button>
+            </div>
+            <div className="settings-row">
+              <span>การแจ้งเตือนชำระหนี้</span>
+              <button type="button" role="switch" aria-checked={paymentNotification} aria-label="การแจ้งเตือนชำระหนี้" className={`switch ${paymentNotification ? 'active' : ''}`} onClick={() => handlePaymentNotification(!paymentNotification)}><span /></button>
+            </div>
+          </div>
+        </section>
+        <section className="settings-section">
+          <h3>จัดการบัญชีผู้ใช้</h3>
+          <div className="settings-card">
+            <button type="button" className="settings-row settings-link" onClick={() => { setDeleteError(''); setShowDeleteModal(true); }}>
+              <span>ลบบัญชี</span><span className="settings-arrow">›</span>
+            </button>
+          </div>
+        </section>
+        <button type="button" className="logout-button" onClick={handleLogout}>ออกจากระบบ</button>
+      </main>
+      {showDeleteModal && (
+        <div className="settings-modal-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDeleteModal(); }}>
+          <div className="settings-delete-dialog" role="alertdialog" aria-modal="true" aria-labelledby="settings-delete-title" aria-describedby="settings-delete-description">
+            <button type="button" className="settings-modal-close" onClick={closeDeleteModal} disabled={deleting} aria-label="ปิดหน้าต่าง">×</button>
+            <h2 id="settings-delete-title">ยืนยันการลบบัญชี?</h2>
+            <p id="settings-delete-description">หากลบบัญชี ข้อมูลทั้งหมดที่เกี่ยวข้องกับบัญชีของคุณจะถูกลบอย่างถาวร และไม่สามารถกู้คืนได้</p>
+            {deleteError && <p className="settings-delete-error" role="alert">{deleteError}</p>}
+            <div className="settings-modal-actions">
+              <button type="button" className="settings-cancel-button" onClick={closeDeleteModal} disabled={deleting}>ยกเลิก</button>
+              <button type="button" className="settings-confirm-delete" onClick={handleDeleteAccount} disabled={deleting}>{deleting ? 'กำลังลบ...' : 'ลบบัญชี'}</button>
+            </div>
+          </div>
         </div>
-    );
+      )}
+    </div>
+  );
 }
-
 export default Settings;
