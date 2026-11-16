@@ -1,6 +1,17 @@
 import { useState } from 'react'
 
-function WalletCard({ name, target, date, balance, onDeposit, onWithdraw, onDelete, onEdit }) {
+function WalletCard({
+    name,
+    target,
+    date,
+    balance,
+    onDeposit,
+    onWithdraw,
+    onDelete,
+    onEdit,
+    isCompleted = false,
+    endDate,
+}) {
     
     let progress = 0
 
@@ -14,16 +25,20 @@ function WalletCard({ name, target, date, balance, onDeposit, onWithdraw, onDele
     }
 
     const today = new Date()
-    const targetDay = new Date(date)
-    const timeDiff = targetDay.getTime() - today.getTime()
-    const daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24))
+    today.setHours(0, 0, 0, 0)
+    const targetDay = date ? new Date(`${date}T00:00:00`) : null
+    const daysRemaining =
+        targetDay && !Number.isNaN(targetDay.getTime())
+            ? Math.ceil((targetDay.getTime() - today.getTime()) / 86400000)
+            : null
     const [amount, setAmount] = useState('')
     const [withdrawAmount, setWithdrawAmount] = useState('')
 
   return (
         <div className="wallet-card">
         <h2 className="wallet-name">{name}</h2>
-        <div className ="wallet-action">
+        {!isCompleted && (
+        <div className="wallet-action">
             <button
             className="edit-button"
             onClick={onEdit}
@@ -38,6 +53,7 @@ function WalletCard({ name, target, date, balance, onDeposit, onWithdraw, onDele
                 ลบ
             </button>
         </div>
+        )}
         
         <p className="wallet-balance">
             {balance.toLocaleString()} บาท
@@ -48,8 +64,14 @@ function WalletCard({ name, target, date, balance, onDeposit, onWithdraw, onDele
         </p>
 
         <p className="wallet-info">
-            วันที่เป้าหมาย: {date}
+            วันที่เป้าหมาย: {date || '-'}
         </p>
+
+        {isCompleted && (
+            <p className="wallet-info">
+                วันที่สำเร็จ: {endDate || '-'}
+            </p>
+        )}
 
         <p className="wallet-progress-text">
             ความคืบหน้า: {progress.toFixed(2)}%
@@ -60,11 +82,11 @@ function WalletCard({ name, target, date, balance, onDeposit, onWithdraw, onDele
         </p>
 
         <p className="wallet-info">
-            วันที่เหลือ: {daysRemaining} วัน
+            วันที่เหลือ: {isCompleted || daysRemaining === null ? '-' : `${daysRemaining} วัน`}
         </p>
 
         <p className="wallet-status">
-            สถานะ: {status}
+            สถานะ: {isCompleted ? 'ถึงเป้าหมายแล้ว' : status}
         </p>
 
         <div className="progress-bar">
@@ -76,6 +98,8 @@ function WalletCard({ name, target, date, balance, onDeposit, onWithdraw, onDele
         />
         </div>
 
+        {!isCompleted && (
+            <>
         <input
             className="money-input"
             type="number"
@@ -121,7 +145,8 @@ function WalletCard({ name, target, date, balance, onDeposit, onWithdraw, onDele
         }}>
             ถอนเงิน
         </button>
-
+            </>
+        )}
 
     </div>
   )

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import WalletCard from '../components/WalletCard'
+import CompletedWallets from '../components/CompletedWallets'
 import './Wallet.css'
 import Navbar from '../components/Navbar'
 import CustomHeader from '../components/CustomHeader';
@@ -9,6 +10,8 @@ import {Calculator,Plus}from "lucide-react";
 function Wallet() {
     const navigate = useNavigate()
     const [wallets, setWallets] = useState([])
+    const activeWallets = wallets.filter((wallet) => wallet.status === 'active')
+    const completedWallets = wallets.filter((wallet) => wallet.status === 'completed')
     const [showForm, setShowForm] = useState(false)
     const [name, setName] = useState('')
     const [target, setTarget] = useState('')
@@ -446,10 +449,10 @@ function Wallet() {
             <div className="wallet-list">
                 {loading ? (
                 <p>กำลังโหลดกระเป๋าเงิน...</p>
-                ) : wallets.length === 0 ? (
-                <p>ยังไม่มีกระเป๋าเงินออม</p>
+                ) : activeWallets.length === 0 ? (
+                <p>ไม่มีกระเป๋าเงินที่กำลังออม</p>
                 ) : (
-                wallets.map((wallet) => (
+                activeWallets.map((wallet) => (
                     <WalletCard
                     key={wallet.id}
                     name={wallet.name}
@@ -465,6 +468,8 @@ function Wallet() {
                 )}
             </div>
             </section>
+
+            {!loading && <CompletedWallets wallets={completedWallets} />}
         </main>
 
         <Navbar />

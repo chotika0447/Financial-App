@@ -64,6 +64,20 @@
   position: relative;
 }
 
+.completed-wallets {
+  margin: 32px 16px;
+}
+
+.completed-wallets-title {
+  max-width: 500px;
+  margin: 0 auto;
+  font-size: 20px;
+}
+
+.completed-wallets-list {
+  margin-top: 8px;
+}
+
 .wallet-action {
   position: absolute;
   top: 20px;
