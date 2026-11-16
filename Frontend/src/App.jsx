@@ -72,6 +72,9 @@ function EntryRoute() {
           ? '/saving/?addWallet=1'
           : '/saving/';
       }
+      if (returnTo === '/financial-health') {
+        destination = '/financial-health';
+      }
 
       if (returnTo === '/edit-transaction/' && transactionId) {
         destination = `/edit-transaction/?transaction=${encodeURIComponent(transactionId)}`;
