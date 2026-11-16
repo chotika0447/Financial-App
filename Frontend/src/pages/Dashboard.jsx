@@ -339,9 +339,7 @@ export default function Dashboard() {
                 <h1 className="dashboard-header-title">
                     Dashboard
                 </h1>
-                <p className="dashboard-header-subtitle">
-                    สรุปภาพรวมการเงินของคุณ
-                </p>
+
             </header>
 
             <main className="dashboard-main">

@@ -631,3 +631,20 @@
   .dashboard-filter input { width: 100%; }
   .dashboard-net-card { gap: 12px; }
 }
+
+
+/* Header เต็มความกว้างหน้าจอ ส่วนเนื้อหายังคงจัดกลาง */
+.dashboard-page > .dashboard-header {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    padding-left: clamp(16px, 4vw, 40px);
+    padding-right: clamp(16px, 4vw, 40px);
+}
+@media (max-width: 700px) {
+    .dashboard-page > .dashboard-header { padding-left: 20px; padding-right: 20px; }
+}
+@media (max-width: 380px) {
+    .dashboard-page > .dashboard-header { padding-left: 14px; padding-right: 14px; }
+}

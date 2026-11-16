@@ -294,7 +294,7 @@ def push_new_debt_notification(debt, target_debt=None):
     contents.append({
         "type": "button",
         "style": "primary",
-        "color": "#6C4BC1",
+        "color": "#B8D95A",
         "height": "md",
         "margin": "xl",
         "action": {
