@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, CalendarDays, CheckCircle2, CircleHelp, Wallet, ReceiptText, TrendingUp } from 'lucide-react';
 import { authenticatedFetch as fetch } from '../utils/auth';
 
 import Navbar from '../components/Navbar';
@@ -157,6 +157,24 @@ function getSrLevel(sr) {
 
     return 'มีการออมเงินในระดับดีมาก';
 }
+const numeric = value => value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) ? null : Number(value);
+const money = value => numeric(value) === null ? '—' : numeric(value).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const number = value => numeric(value) === null ? '—' : numeric(value).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+const scoreEir = value => numeric(value) === null ? null : Math.round(Math.max(0, Math.min(100, 100 - 1.25 * (numeric(value) - 60))) * 100) / 100;
+const mean = (a, b) => a === null || b === null ? null : Math.round((a + b) * 50) / 100;
+const dateLabel = value => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+  const [y, m, d] = value.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d
+    ? date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
+};
+
+function ScoreBar({ value }) {
+  return <div className="sp-score-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={value ?? undefined} aria-label="คะแนนจาก 100"><div style={{ width: `${Math.max(0, Math.min(100, value ?? 0))}%` }} /></div>;
+}
+
+
 function FinHealthDetail() {
     const navigate = useNavigate();
     const { id } = useParams();
@@ -467,383 +485,93 @@ function FinHealthDetail() {
                 </section> */}
 
                 {criterion.id === 'spend' && (
-                    <>
-                        {spendLoading ? (
-                            <section className="fhd-card">
-                                <p className="fhd-message">
-                                    กำลังคำนวณข้อมูลสุขภาพการเงิน...
-                                </p>
-                            </section>
-                        ) : spendError ? (
-                            <section className="fhd-card">
-                                <p className="fhd-error" role="alert">
-                                    {spendError}
-                                </p>
-                            </section>
-                        ) : spendMetrics ? (
-                            <>
-                                {/* Spend Total Score */}
-                                <section className="fhd-card fhd-score-card">
-                                    <h2>คะแนนเฉลี่ยด้านรายรับ–รายจ่าย</h2>
-
-                                    <p>
-                                        คะแนนด้านนี้คำนวณจากค่าเฉลี่ยของคะแนน EIR และ TRC
-                                    </p>
-
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">
-                                            สูตรคำนวณ
-                                        </span>
-                                        <p>
-                                            (คะแนน EIR + คะแนน TRC) ÷ 2
-                                        </p>
+                    spendLoading ? (
+                        <section className="fhd-card"><p className="fhd-message">กำลังคำนวณข้อมูลสุขภาพการเงิน...</p></section>
+                    ) : spendError ? (
+                        <section className="fhd-card"><p className="fhd-error" role="alert">{spendError}</p></section>
+                    ) : spendMetrics ? (
+                        (() => {
+                            const metrics = spendMetrics;
+                            const income = numeric(metrics.net_monthly_income);
+                            const expense = numeric(metrics.expense_total);
+                            const eir = income !== null && income > 0 ? numeric(metrics.expense_ratio) : null;
+                            const eirScore = scoreEir(eir);
+                            const rf = numeric(metrics.trc_recording_frequency);
+                            const rd = numeric(metrics.trc_recording_distribution);
+                            const trc = rf !== null && rd !== null ? mean(rf, rd) : null;
+                            const total = mean(eirScore, trc);
+                            const periods = Array.isArray(metrics.trc_periods) ? metrics.trc_periods : [];
+                            const daily = Array.isArray(metrics.trc_daily_records) ? metrics.trc_daily_records : [];
+                            const start = dateLabel(metrics.period_start);
+                            const end = dateLabel(metrics.period_end);
+                            const periodLabel = start && end ? `${start} – ${end}` : 'ช่วงประเมินตามข้อมูลที่ Backend ส่งมา';
+                            const recordedDays = numeric(metrics.trc_recorded_days);
+                            const recordedPeriods = numeric(metrics.trc_recorded_periods);
+                            const recommendation = eirScore === null ? 'ยังคำนวณ EIR ไม่ได้ เพราะไม่มีข้อมูลรายได้สุทธิที่มากกว่า 0'
+                            : trc === null ? 'ยังไม่มีข้อมูล RF หรือ RD ครบสำหรับคำนวณความสม่ำเสมอ'
+                            : eirScore <= trc ? 'ลองทบทวนค่าใช้จ่ายเทียบกับรายได้สุทธิ เพื่อปรับปรุงคะแนน EIR' : 'เพิ่มความสม่ำเสมอในการบันทึกรายการให้ครอบคลุมหลายวันและทุกช่วงของรอบ';
+                            
+                            return (
+                                <div className="sp-dashboard">
+                                    <section className="sp-hero">
+                                      <div className="sp-eyebrow"><TrendingUp size={16}/> ผลประเมินด้านรายรับ–รายจ่าย</div>
+                                      <div className="sp-hero-layout">
+                                        <div><div className="sp-hero-score">{total === null ? '—' : number(total)} <span>/ 100</span></div>
+                                          <p>{total === null ? 'ยังประเมินคะแนนรวมไม่ได้ เนื่องจากตัวชี้วัดไม่ครบ' : 'คะแนนเฉลี่ยจาก EIR และ TRC'}</p></div>
+                                        <div className="sp-hero-side"><CalendarDays size={17}/><span>{periodLabel}</span></div>
+                                      </div>
+                                      <ScoreBar value={total}/>
+                                      <div className="sp-score-pills"><span>EIR <strong>{number(eirScore)}</strong></span><span>TRC <strong>{number(trc)}</strong></span></div>
+                                    </section>
+                                
+                                    <div className="sp-stat-grid">
+                                      <div className="sp-stat"><div className="sp-stat-label"><Wallet size={17}/> รายได้สุทธิ</div><strong>฿{money(income)}</strong><small>รายได้ที่ใช้คำนวณ EIR</small></div>
+                                      <div className="sp-stat"><div className="sp-stat-label"><ReceiptText size={17}/> ค่าใช้จ่ายทั้งหมด</div><strong>฿{money(expense)}</strong><small>รายจ่ายในช่วงประเมิน</small></div>
                                     </div>
-
-                                    <div className="fhd-result">
-                                        <div className="fhd-result-card">
-                                            {spendTotalScore == null ? (
-                                                <strong className="fhd-no-result">
-                                                    ยังไม่สามารถคำนวณคะแนนเฉลี่ยได้
-                                                    เนื่องจากข้อมูลคะแนนไม่ครบถ้วน
-                                                </strong>
-                                            ) : (
-                                                <div className="fhd-result-value">
-                                                    <strong>
-                                                        {formatSpendMoney(spendTotalScore)}
-                                                    </strong>
-                                                    <span>/ 100</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </section>
-
-                                {/* EIR */}
-                                <section className="fhd-card fhd-indicator-card">
-                                    <div className="fhd-indicator-heading">
-                                        <span className="fhd-indicator-number">
-                                            01
-                                        </span>
-                                        <div>
-                                            <h2>
-                                                อัตราส่วนค่าใช้จ่ายต่อรายได้
-                                            </h2>
-                                            <p>
-                                                Expense-to-Income Ratio (EIR)
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <p className="fhd-indicator-description">
-                                        ใช้ประเมินว่าภาระค่าใช้จ่ายของเรามีมากน้อยเพียงใดเมื่อเทียบกับรายได้ที่ได้รับใน 1 เดือน
-                                    </p>
-
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">
-                                            สูตรคำนวณ
-                                        </span>
-                                        <p>
-                                            (ค่าใช้จ่ายทั้งหมด ÷ รายได้สุทธิ) × 100
-                                        </p>
-                                    </div>
-
-                                    {/* {spendPeriod && (
-                                        <div className="fhd-period">
-                                            ข้อมูลเดือน {spendPeriod}
-                                        </div>
-                                    )} */}
-
-                                    <div className="fhd-breakdown">
-                                        <div className="fhd-breakdown-row">
-                                            <span>ค่าใช้จ่ายทั้งหมด</span>
-                                            <strong>
-                                                {formatSpendMoney(
-                                                    spendMetrics.expense_total
-                                                )} บาท
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-breakdown-row">
-                                            <span>เงินเดือน</span>
-                                            <strong>
-                                                {formatSpendMoney(
-                                                    spendMetrics.monthly_income
-                                                )} บาท
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-breakdown-row">
-                                            <span>รายรับจากธุรกรรม</span>
-                                            <strong>
-                                                {formatSpendMoney(
-                                                    spendMetrics.transaction_income_total
-                                                )} บาท
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-breakdown-row fhd-breakdown-row-total">
-                                            <span>รายได้สุทธิ</span>
-                                            <strong>
-                                                {formatSpendMoney(
-                                                    spendMetrics.net_monthly_income
-                                                )} บาท
-                                            </strong>
-                                        </div>
-                                    </div>
-
-                                    <div className="fhd-result">
-                                        {/* ช่องที่ 1: EIR */}
-                                        <div className="fhd-result-card">
-                                            <span className="fhd-result-label">
-                                                ผลการคำนวณ EIR
-                                            </span>
-
-                                            {spendMetrics.expense_ratio == null ? (
-                                                <strong className="fhd-no-result">
-                                                    ไม่สามารถคำนวณได้
-                                                </strong>
-                                            ) : (
-                                                <div className="fhd-result-value">
-                                                    <strong>
-                                                        {formatSpendMoney(spendMetrics.expense_ratio)}
-                                                    </strong>
-                                                    <span>%</span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* ช่องที่ 2: EIR Score */}
-                                        <div className="fhd-result-card">
-                                            <span className="fhd-result-label">
-                                                คะแนน EIR
-                                            </span>
-
-                                            {eirScore == null ? (
-                                                <strong className="fhd-no-result">
-                                                    ยังไม่มีคะแนน
-                                                </strong>
-                                            ) : (
-                                                <div className="fhd-result-value">
-                                                    <strong>{eirScore}</strong>
-                                                    <span>/ 100</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </section>
-
-                                {/* TRC */}
-                                <section className="fhd-card fhd-trc-card">
-                                    <div className="fhd-indicator-heading">
-                                        <span className="fhd-indicator-number">
-                                            02
-                                        </span>
-                                        <div>
-                                            <h2>
-                                                ความสม่ำเสมอในการบันทึก
-                                                รายรับ–รายจ่าย
-                                            </h2>
-                                            <p>
-                                                Transaction Recording Consistency (TRC)
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <p className="fhd-indicator-description">
-                                        ประเมินความสม่ำเสมอในการบันทึกรายรับหรือรายจ่าย
-                                        ภายใน 1 เดือน โดยพิจารณาทั้งจำนวนวันที่มีการบันทึก
-                                        และการกระจายตัวของวันที่บันทึกตลอดทั้งเดือน
-                                    </p>
-
-                                    {spendPeriod && (
-                                        <div className="fhd-period">
-                                            ข้อมูลเดือน {spendPeriod}
-                                        </div>
-                                    )}
-
-                                    {/* Recording Frequency */}
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">
-                                            1. Recording Frequency (RF)
-                                        </span>
-                                        <p>
-                                            (จำนวนวันที่มีการบันทึก ÷ จำนวนวันที่ใช้ประเมิน) × 100
-                                        </p>
-                                    </div>
-
-                                    <div className="fhd-trc-summary">
-                                        <div>
-                                            <span>วันที่มีการบันทึก</span>
-                                            <strong>
-                                                {spendMetrics.trc_recorded_days}
-                                                {' / '}
-                                                {spendMetrics.trc_days_evaluated}
-                                                {' วัน'}
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-trc-percentage">
-                                            <span>คะแนน Recording Frequency</span>
-                                            <strong>
-                                                {formatSpendMoney(
-                                                    spendMetrics.trc_recording_frequency
-                                                )}%
-                                            </strong>
-                                        </div>
-                                    </div>
-
-                                    {/* Recording Distribution */}
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">
-                                            2. Recording Distribution (RD)
-                                        </span>
-                                        <p>
-                                            (จำนวนช่วงที่มีการบันทึก ÷ 4) × 100
-                                        </p>
-                                    </div>
-
-                                    <div className="fhd-trc-summary">
-                                        <div>
-                                            <span>ช่วงที่มีการบันทึก</span>
-                                            <strong>
-                                                {spendMetrics.trc_recorded_periods}
-                                                {' / '}
-                                                {spendMetrics.trc_total_periods}
-                                                {' ช่วง'}
-                                            </strong>
-                                        </div>
-
-                                        <div className="fhd-trc-percentage">
-                                            <span>คะแนน Recording Distribution</span>
-                                            <strong>
-                                                {formatSpendMoney(
-                                                    spendMetrics.trc_recording_distribution
-                                                )}%
-                                            </strong>
-                                        </div>
-                                    </div>
-
-                                    {/* TRC Score */}
-                                    <div className="fhd-formula">
-                                        <span className="fhd-formula-label">
-                                            สูตรคำนวณคะแนน TRC
-                                        </span>
-                                        <p>
-                                            (คะแนน RF + คะแนน RD) ÷ 2
-                                        </p>
-                                    </div>
-
-                                    <div className="fhd-result">
-                                        <div className="fhd-result-card">
-                                            <span className="fhd-result-label">
-                                                คะแนน TRC
-                                            </span>
-
-                                            <div className="fhd-result-value">
-                                                <strong>
-                                                    {formatSpendMoney(spendMetrics.trc_score)}
-                                                </strong>
-                                                <span>/ 100</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    
-
-                                    {/* รายละเอียด 4 ช่วงของเดือน */}
-                                    <div className="fhd-trc-month-list">
-                                        <h3>รายละเอียดการบันทึกในแต่ละช่วง</h3>
-
-                                        {(spendMetrics.trc_periods || []).map((item) => (
-                                            <div
-                                                className="fhd-trc-month-item"
-                                                key={item.period}
-                                            >
-                                                <div className="fhd-trc-month-name">
-                                                    <strong>
-                                                        ช่วงที่ {item.period}
-                                                    </strong>
-
-                                                    <span>
-                                                        วันที่ {item.start_day} - {item.end_day}
-                                                    </span>
-
-                                                    {item.recorded_days?.length > 0 && (
-                                                        <span>
-                                                            วันที่บันทึก: {item.recorded_days.join(', ')}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                <span
-                                                    className={`fhd-trc-status ${item.has_records
-                                                        ? 'is-complete'
-                                                        : 'is-incomplete'
-                                                        }`}
-                                                >
-                                                    {item.has_records
-                                                        ? 'มีการบันทึก'
-                                                        : 'ไม่มีการบันทึก'}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* รายละเอียดรายวัน */}
-                                    <div className="fhd-trc-month-list">
-                                        <h3>รายละเอียดรายการบันทึกรายวัน</h3>
-
-                                        {(spendMetrics.trc_daily_records || []).length > 0 ? (
-                                            spendMetrics.trc_daily_records.map((item) => (
-                                                <div
-                                                    className="fhd-trc-month-item"
-                                                    key={item.date}
-                                                >
-                                                    <div className="fhd-trc-month-name">
-                                                        <strong>
-                                                            วันที่ {item.day}
-                                                        </strong>
-
-                                                        <span>
-                                                            รายรับ {item.income_count} รายการ
-                                                            {' · '}
-                                                            รายจ่าย {item.expense_count} รายการ
-                                                        </span>
-                                                    </div>
-
-                                                    <span className="fhd-trc-status is-complete">
-                                                        บันทึกแล้ว
-                                                    </span>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="fhd-message">
-                                                ยังไม่มีรายการบันทึกในเดือนนี้
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {/* <div className="fhd-trc-note">
-                                        <strong>หมายเหตุ</strong>
-                                        <p>
-                                            ระบบนับวันที่มีรายการรายรับหรือรายจ่ายอย่างน้อย 1 รายการ
-                                            โดยไม่จำเป็นต้องมีทั้งรายรับและรายจ่ายในวันเดียวกัน
-                                            และแบ่งช่วงการประเมินเป็นวันที่ 1–7, 8–14,
-                                            15–21 และวันที่ 22 จนถึงวันสุดท้ายของเดือน
-                                            สำหรับเดือนปัจจุบัน ระบบจะประเมินเฉพาะวันที่ผ่านไปแล้ว
-                                        </p>
-                                    </div> */}
-                                </section>
-
-                            </>
-                        ) : (
-                            <section className="fhd-card">
-                                <p className="fhd-message">
-                                    ยังไม่มีข้อมูลสำหรับคำนวณ
-                                </p>
-                            </section>
-                        )}
-                    </>
+                                
+                                    <section className="sp-panel">
+                                      <div className="sp-panel-head"><div><span className="sp-index">01</span><h2>อัตราส่วนค่าใช้จ่ายต่อรายได้</h2><p>Expense-to-Income Ratio (EIR)</p></div><span className="sp-tag">EIR</span></div>
+                                      <div className="sp-metric-line"><div><small>สัดส่วนค่าใช้จ่าย</small><strong>{eir === null ? '—' : `${number(eir)}%`}</strong></div><div className="sp-metric-score"><small>คะแนน EIR</small><strong>{number(eirScore)} <span>/ 100</span></strong></div></div>
+                                      <ScoreBar value={eirScore}/>
+                                      {eir === null && <p className="sp-muted">ข้อมูลรายได้สุทธิไม่เพียงพอ จึงไม่สามารถคำนวณ EIR ได้</p>}
+                                      <details className="sp-details"><summary><CircleHelp size={16}/> ดูสูตรและที่มาของข้อมูล</summary><div className="sp-details-content">
+                                        <p>EIR = (ค่าใช้จ่ายทั้งหมด ÷ รายได้สุทธิ) × 100</p>
+                                        <p>คะแนน EIR = จำกัดค่า 100 − 1.25 × (EIR − 60) ให้อยู่ระหว่าง 0–100</p>
+                                        <div className="sp-detail-row"><span>รายได้ประจำ</span><strong>฿{money(metrics.monthly_income)}</strong></div>
+                                        <div className="sp-detail-row"><span>รายรับจากธุรกรรม</span><strong>฿{money(metrics.transaction_income_total)}</strong></div>
+                                        <div className="sp-detail-row"><span>รายได้สุทธิ</span><strong>฿{money(income)}</strong></div>
+                                        <div className="sp-detail-row"><span>ค่าใช้จ่ายทั้งหมด</span><strong>฿{money(expense)}</strong></div>
+                                      </div></details>
+                                    </section>
+                                
+                                    <section className="sp-panel">
+                                      <div className="sp-panel-head"><div><span className="sp-index">02</span><h2>ความสม่ำเสมอในการบันทึก</h2><p>Transaction Recording Consistency (TRC)</p></div><span className="sp-tag">TRC</span></div>
+                                      <div className="sp-trc-top"><div><small>คะแนน TRC</small><strong>{number(trc)} <span>/ 100</span></strong></div><p>เฉลี่ยจากความถี่ (RF) และการกระจายการบันทึก (RD)</p></div>
+                                      <ScoreBar value={trc}/>
+                                      <div className="sp-mini-grid"><div><small>RF · ความถี่</small><strong>{number(rf)} <span>/ 100</span></strong><p>{recordedDays === null ? 'ไม่พบจำนวนวันที่บันทึก' : `บันทึก ${number(recordedDays)} วัน · เป้าหมาย 8 วัน`}</p></div>
+                                        <div><small>RD · การกระจาย</small><strong>{number(rd)} <span>/ 100</span></strong><p>{recordedPeriods === null ? 'ไม่พบจำนวนช่วงที่บันทึก' : `มีบันทึก ${number(recordedPeriods)} จาก 4 ช่วง`}</p></div></div>
+                                      <h3 className="sp-subtitle">การบันทึกใน 4 ช่วงของรอบ</h3>
+                                      {periods.length ? <div className="sp-period-grid">{periods.map((item, index) => <div className={`sp-period ${item.has_records ? 'is-recorded' : ''}`} key={item.period ?? index}>
+                                        <span>ช่วง {item.period ?? index + 1}</span><strong>{item.has_records ? <><CheckCircle2 size={17}/> มีบันทึก</> : 'ไม่มีบันทึก'}</strong>
+                                        <small>{item.start_day != null && item.end_day != null ? `วันที่ ${item.start_day}–${item.end_day}` : 'ไม่ระบุช่วงวันที่'}</small>
+                                      </div>)}</div> : <p className="sp-muted">Backend ยังไม่ได้ส่งรายละเอียดการบันทึกทั้ง 4 ช่วง</p>}
+                                      <details className="sp-details"><summary><CircleHelp size={16}/> ดูสูตรและรายการบันทึก</summary><div className="sp-details-content">
+                                        <p>RF = min(100, จำนวนวันที่มีการบันทึกจริง ÷ 8 × 100)</p>
+                                        <p>RD = จำนวนช่วงที่มีการบันทึก ÷ 4 × 100</p>
+                                        <p>TRC = (RF + RD) ÷ 2</p>
+                                        <p>ช่วงที่ 1–3 มีช่วงละ 7 วัน และช่วงที่ 4 คือวันที่ 22 ถึงวันสุดท้ายของรอบการเงิน</p>
+                                        {daily.length > 0 && <div className="sp-daily-list">{daily.map((item, index) => <div className="sp-detail-row" key={item.date ?? index}><span>{dateLabel(item.date) ?? `วันที่ ${item.day ?? '—'}`}</span><strong>รายรับ {item.income_count ?? 0} · รายจ่าย {item.expense_count ?? 0}</strong></div>)}</div>}
+                                      </div></details>
+                                    </section>
+                                
+                                    <section className="sp-tip"><strong>แนวทางปรับปรุง</strong><p>{recommendation}</p></section>
+                                    <p className="sp-footnote">หมายเหตุ: คะแนนและช่วงวันที่อ้างอิงข้อมูลจาก API ปัจจุบัน การคำนวณตามรอบการเงินที่กำหนดเองต้องให้ Backend ส่งข้อมูลในช่วงเดียวกันก่อน</p>
+                                  </div>
+                            );
+                        })()
+                    ) : (
+                        <section className="fhd-card"><p className="fhd-message">ยังไม่มีข้อมูลสำหรับคำนวณ</p></section>
+                    )
                 )}
 
                 {criterion.id === 'save' && (
@@ -1522,10 +1250,12 @@ function FinHealthDetail() {
                     </>
                 )}
 
-                <section className="fhd-card">
-                    <h2>เป้าหมายการประเมิน</h2>
-                    <p>{criterion.target}</p>
-                </section>
+                {criterion.id !== 'spend' && (
+                    <section className="fhd-card">
+                        <h2>เป้าหมายการประเมิน</h2>
+                        <p>{criterion.target}</p>
+                    </section>
+                )}
             </main>
 
             <Navbar />

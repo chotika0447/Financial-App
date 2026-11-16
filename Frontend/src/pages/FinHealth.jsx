@@ -362,7 +362,7 @@ function FinHealth() {
                             htmlFor="cycle-start-day"
                             className="fh-cycle-label"
                         >
-                            วันเริ่มรอบการเงิน
+                            วันที่เริ่มบันทึกทึกรอบการประเมิณสุขภาพทางการเงิน
                         </label>
 
                         <div className="fh-cycle-controls">
@@ -376,7 +376,7 @@ function FinHealth() {
                                 {Array.from({ length: 31 }, (_, i) => i + 1)
                                     .map((day) => (
                                         <option key={day} value={day}>
-                                            วันที่ {day} ของเดือน
+                                            วันที่ {day} 
                                         </option>
                                     ))}
                             </select>
