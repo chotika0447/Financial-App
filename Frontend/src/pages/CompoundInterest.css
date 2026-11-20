@@ -1,55 +1,88 @@
+/* Responsive layout for CompoundInterest */
 .compound-interest-page {
-    min-height: 100vh;
-    background-color: #f3f9f9;
+  min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  background: #f3f9f9;
+  padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px));
+  overflow-wrap: anywhere;
 }
+.compound-interest-page *, .compound-interest-page *::before, .compound-interest-page *::after { box-sizing: border-box; }
 .compound-interest-header {
-    min-height: 105px;
-    padding: 24px;
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    background: #bbeceb;
-    color: white;
+  min-height: 96px;
+  padding: 22px clamp(16px, 4vw, 36px);
+  display: flex;
+  align-items: center;
+  background: #bbeceb;
 }
-.compound-interest-title {
-    text-align: left;
-    font-size: 21px;
-    color: black;
-    font-weight: bold;
+.compound-interest-title { margin: 0; color: #142c2d; font-size: clamp(20px, 2.5vw, 28px); line-height: 1.4; font-weight: 700; }
+.compound-interest-page > :not(.compound-interest-header):not(.cal-nav):not(nav):not(.navbar):not(.bottom-navbar) {
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
 }
+.compound-interest-page > .cal-nav { width: calc(100% - 32px); max-width: 760px; }
 .compound-interest-label {
-    text-align: left;
-    margin-left: 10px;
-    margin-bottom: 10px;
-    font-size: 14px;
-    color: black;
+  display: block;
+  width: calc(100% - 32px);
+  margin-top: 18px;
+  margin-bottom: 8px;
+  color: #233c3d;
+  font-size: 15px;
+  line-height: 1.6;
 }
-
+.compound-interest-label h3 { margin: 0; font-size: 17px; }
 .compound-interest-input {
-    display: block;
-    width: 200px;
-    padding: 10px;
-    margin-left: 10px;
-    margin-top: 10px;
-    margin-bottom: 20px;
-    font-size: 16px;
-    border: 2px solid #000000;
-    border-radius: 10px;
-    box-sizing: border-box;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  display: block;
+  width: calc(100% - 32px);
+  max-width: 760px;
+  min-width: 0;
+  min-height: 46px;
+  margin-top: 0;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid #b9d6d6;
+  border-radius: 10px;
+  background: #fff;
+  color: #173436;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.05);
 }
-
+.compound-interest-input:focus-visible { outline: 2px solid #55aead; outline-offset: 2px; }
 .compound-interest-result {
-    margin-left: 10px;
-    margin-top: 20px;
-    font-size: 16px;
-    font-weight: bold;
-    color: black;
+  width: calc(100% - 32px);
+  max-width: 760px;
+  min-height: 80px;
+  height: auto;
+  margin-top: 22px;
+  margin-bottom: 20px;
+  padding: clamp(16px, 3vw, 24px);
+  border: 1px solid #cce5e4;
+  border-radius: 14px;
+  background: white;
+  color: #173436;
+  box-shadow: 0 4px 16px rgba(0,0,0,.05);
+  font-size: clamp(17px, 2.3vw, 23px);
+  font-weight: 700;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
 }
-
+.compound-interest-result h3 { margin: 6px 0; font-size: clamp(14px, 2vw, 18px); line-height: 1.6; }
 .compound-interest-chart {
-    display: block;
-    margin: 40px auto;
-    width: 90%;
-    max-width: 800px;
+  display: block;
+  width: calc(100% - 32px);
+  max-width: 760px;
+  height: auto;
+  min-width: 0;
+  margin: 20px auto;
+  padding: 0;
+}
+.compound-interest-page canvas, .compound-interest-page svg, .compound-interest-page img { max-width: 100%; }
+@media (max-width: 600px) {
+  .compound-interest-header { min-height: 76px; padding: 16px; }
+  .compound-interest-page > .cal-nav { width: calc(100% - 24px); }
+  .compound-interest-page > :not(.compound-interest-header):not(.cal-nav):not(nav):not(.navbar):not(.bottom-navbar) { max-width: calc(100% - 24px); }
+  .compound-interest-label, .compound-interest-input, .compound-interest-result, .compound-interest-chart { width: calc(100% - 24px); }
+  .compound-interest-result { padding: 16px; }
 }

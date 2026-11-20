@@ -53,9 +53,7 @@ function SavingPlan() {
             <SavingPlanChart
                 monthlyIncome={monthlyIncome}
             />
-
-            <Navbar />
-
+            
             <Navbar />
         </div>
     );

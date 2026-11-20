@@ -456,10 +456,6 @@ function App() {
           path="/saving-plan"
           element={<SavingPlan />}
         />
-        <Route
-          path="/calculator"
-          element={<Retirement />}
-        />
 
         <Route
           path="/financial-health"

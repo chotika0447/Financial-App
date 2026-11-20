@@ -360,7 +360,7 @@ function Wallet() {
                     <button
                         type="button"
                         className="wallet-calculator-button"
-                        onClick={() => navigate('/calculator')}
+                        onClick={() => navigate('/retirement')}
                         aria-label="เครื่องมือคำนวณ"
                         title="เครื่องมือคำนวณ"
                     >
