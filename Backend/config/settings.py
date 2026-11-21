@@ -309,28 +309,3 @@ else:
         }
     }
 
-
-# =================== Celery ===================
-
-# ใช้ Redis เป็น Message Broker สำหรับส่งงาน OCR
-CELERY_BROKER_URL = os.getenv(
-    "CELERY_BROKER_URL"
-) or REDIS_URL
-
-# ส่งข้อมูลระหว่าง Django และ Celery เป็น JSON
-CELERY_TASK_SERIALIZER = "json"
-CELERY_ACCEPT_CONTENT = ["json"]
-
-# ไม่เก็บผลลัพธ์ของ Task ใน Backend
-# เพราะเราส่งผล OCR กลับ LINE ผ่าน Push API โดยตรง
-CELERY_TASK_IGNORE_RESULT = True
-
-# กำหนดเขตเวลา
-CELERY_TIMEZONE = "Asia/Bangkok"
-
-# ป้องกันการใช้ RabbitMQ เริ่มต้นโดยไม่ตั้งใจ
-if not CELERY_BROKER_URL:
-    logging.getLogger(__name__).warning(
-        "CELERY_BROKER_URL is not configured. "
-        "Background OCR tasks cannot be queued."
-    )

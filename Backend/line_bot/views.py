@@ -4,6 +4,7 @@ import hmac
 import json
 import logging
 import httpx
+import threading
 
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -11,7 +12,6 @@ from uuid import uuid4
 from io import BytesIO
 from urllib.parse import parse_qs, urlencode
 from collections import defaultdict
-from celery import shared_task
 
 from django.conf import settings
 from django.core.cache import cache
@@ -2795,32 +2795,24 @@ def handle_image_message(message_id, line_user_id):
 
 # ==================== Celery Image Task ====================
 
-@shared_task
-def process_line_image_task(message_id, line_user_id):
-    """
-    ประมวลผลรูปภาพด้วย Celery Worker
-    แล้วส่งผลลัพธ์กลับไปยัง LINE OA
-    """
-
+def process_line_image_background(message_id, line_user_id):
     try:
-        result = handle_image_message(
-            message_id,
-            line_user_id
-        )
+        result = handle_image_message(message_id, line_user_id)
+
+        if result is not None:
+            push_to_line(line_user_id, result)
 
     except Exception:
-        logger.exception(
-            "LINE image processing failed: %s",
-            message_id
-        )
+        logger.exception("LINE image processing failed")
 
-        result = (
-            "ไม่สามารถประมวลผลรูปภาพได้ค่ะ "
-            "กรุณาลองใหม่อีกครั้ง"
-        )
+        try:
+            push_to_line(
+                line_user_id,
+                "ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองใหม่อีกครั้ง"
+            )
+        except Exception:
+            logger.exception("Failed to send LINE error message")
 
-    if result is not None:
-        push_to_line(line_user_id, result)
 # ==================== LINE Webhook ====================
 
 @csrf_exempt
@@ -2932,10 +2924,11 @@ def line_webhook(request):
 
             # รับข้อมูลรูปภาพ
             elif message.get("type") == "image":
-                process_line_image_task.delay(
-                    message.get("id"),
-                    line_user_id
-                )
+                threading.Thread(
+                    target=process_line_image_background,
+                    args=(message.get("id"), line_user_id),
+                    daemon=True
+                ).start()
 
                 answer = "กำลังอ่านข้อมูลจากภาพ กรุณารอสักครู่..."
 
