@@ -2453,29 +2453,6 @@ def handle_image_message(message_id, line_user_id):
                 "กรุณาส่งรูปอีกครั้ง"
             )
 
-    #Celery Worker เรียก handle_image_message() ให้ประมวลผล OCR แล้วส่งผลลัพธ์กลับด้วย push_to_line()
-    @shared_task
-    def process_line_image_task(message_id, line_user_id):
-
-        try:
-            result = handle_image_message(
-                message_id,
-                line_user_id
-            )
-
-        except Exception:
-            logger.exception(
-                "LINE image processing failed: %s",
-                message_id
-            )
-
-            result = (
-                "ไม่สามารถประมวลผลรูปภาพได้ค่ะ "
-                "กรุณาลองใหม่อีกครั้ง"
-            )
-
-        if result is not None:
-            push_to_line(line_user_id, result)
     # ==================== Savings Check ====================
 
     if get_savings_state(line_user_id):
@@ -2816,6 +2793,34 @@ def handle_image_message(message_id, line_user_id):
             "รูปที่ส่งมาจะยังถูกแนบเป็นหลักฐานค่ะ"
         )
 
+# ==================== Celery Image Task ====================
+
+@shared_task
+def process_line_image_task(message_id, line_user_id):
+    """
+    ประมวลผลรูปภาพด้วย Celery Worker
+    แล้วส่งผลลัพธ์กลับไปยัง LINE OA
+    """
+
+    try:
+        result = handle_image_message(
+            message_id,
+            line_user_id
+        )
+
+    except Exception:
+        logger.exception(
+            "LINE image processing failed: %s",
+            message_id
+        )
+
+        result = (
+            "ไม่สามารถประมวลผลรูปภาพได้ค่ะ "
+            "กรุณาลองใหม่อีกครั้ง"
+        )
+
+    if result is not None:
+        push_to_line(line_user_id, result)
 # ==================== LINE Webhook ====================
 
 @csrf_exempt
