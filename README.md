@@ -8,19 +8,17 @@ ____________________________________________________________________________
 # เริ่มรันโปรเจค
 ตอนพัฒนา จะเปิด 2 Terminal และ frontend
 
-Terminal 1:
+Terminal 1: cd backend
 
-cd backend
 pip install -r requirements.txt (ติดตั้งไฟล์ทั้งหมดที่ใช้ในโปรเจคนี้ รันแค่ครั้งแรกหลังclone project)
-
+*ถ้ามีการติดตั้ง pip เพิ่มให้รัน pip freeze > requirements.txt ด้วย
 ในส่วนของไฟล์.env (สร้างเองได้เลย เอาไว้ที่ Backend/.env)
 
 รันbackend : python manage.py runserver (หยุดรันกด ctrl+c)
 
 ------------------------------------------------------------------
-Terminal 2: 
+Terminal 2: cd frontend
 
-cd frontend
 npm install(เพื่อสร้างโฟล์เดอร์ node_modules ของตัวเอง รันแค่ครั้งแรกหลังclone project)
 
 รันfrontend: npm run dev (หยุดรันกด ctrl+c)

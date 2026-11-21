@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import logging
+import httpx
 
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -10,8 +11,7 @@ from uuid import uuid4
 from io import BytesIO
 from urllib.parse import parse_qs, urlencode
 from collections import defaultdict
-
-import httpx
+from celery import shared_task
 
 from django.conf import settings
 from django.core.cache import cache
@@ -27,11 +27,15 @@ from categories.category_matching import accessible_category, fallback_category,
 from .supabase_storage import (
     upload_receipt,
     delete_receipt,
+    get_receipt_signed_url,
 )
 
 from categories.models import Category
 
 from transactions.models import Transaction
+from transactions.ocr_api import run_ocr
+from transactions.slip_parser import parse_slip
+
 from users.models import User
 from friends.models import Friends
 from savings.models import Savings, SavingsTransaction
@@ -697,7 +701,32 @@ def reply_to_line(reply_token, message):
 
     response.raise_for_status()
 
+#ส่งผลลัพธ์ ocr หลังประมวลผลรูปเสร็จ
+def push_to_line(line_user_id, message):
 
+    if isinstance(message, dict):
+        line_message = message
+    else:
+        line_message = {
+            "type": "text",
+            "text": str(message)
+        }
+
+    response = httpx.post(
+        "https://api.line.me/v2/bot/message/push",
+        headers={
+            "Authorization": (
+                f"Bearer {settings.LINE_BOT_CHANNEL_ACCESS_TOKEN}"
+            )
+        },
+        json={
+            "to": line_user_id,
+            "messages": [line_message]
+        },
+        timeout=10
+    )
+
+    response.raise_for_status()
 # ==================== Category ====================
 
 def find_category(name, transaction_type, user):
@@ -2327,7 +2356,7 @@ def handle_text_message(text, line_user_id):
     return build_attach_receipt_flex()
 
 # ==================== Image Message / OCR ====================
-
+#upload รูปไป supabase storage
 def attach_receipt_to_pending(data, image_bytes, message_id):
     """Upload a transaction receipt without changing pending data on failure."""
     old_path = data.get("receipt_path")
@@ -2424,6 +2453,29 @@ def handle_image_message(message_id, line_user_id):
                 "กรุณาส่งรูปอีกครั้ง"
             )
 
+    #Celery Worker เรียก handle_image_message() ให้ประมวลผล OCR แล้วส่งผลลัพธ์กลับด้วย push_to_line()
+    @shared_task
+    def process_line_image_task(message_id, line_user_id):
+
+        try:
+            result = handle_image_message(
+                message_id,
+                line_user_id
+            )
+
+        except Exception:
+            logger.exception(
+                "LINE image processing failed: %s",
+                message_id
+            )
+
+            result = (
+                "ไม่สามารถประมวลผลรูปภาพได้ค่ะ "
+                "กรุณาลองใหม่อีกครั้ง"
+            )
+
+        if result is not None:
+            push_to_line(line_user_id, result)
     # ==================== Savings Check ====================
 
     if get_savings_state(line_user_id):
@@ -2610,17 +2662,160 @@ def handle_image_message(message_id, line_user_id):
             "กรุณาส่งรูปอีกครั้ง"
         )
 
-    set_pending(
-        line_user_id,
-        data
-    )
+
+    # ==========================================
+    # เก็บ Draft และรูปหลักฐานไว้ก่อนเรียก OCR
+    # ==========================================
+
+    set_pending(line_user_id, data)
 
     set_transaction_flow(
         line_user_id,
         {"step": "await_note"}
     )
 
-    return build_image_note_prompt()
+    try:
+        # 1. สร้าง URL ชั่วคราวของรูปใน Supabase
+        signed_url = get_receipt_signed_url(
+            data["receipt_path"]
+        )
+
+        if not signed_url:
+            raise ValueError(
+                "Cannot create signed URL for OCR"
+            )
+
+        # 2. ส่งรูปให้ PaddleOCR อ่านข้อความ
+        raw_pages = run_ocr(signed_url)
+
+        # 3. แยกข้อมูลจากสลิป
+        slip = parse_slip(raw_pages)
+
+        # 4. เลือกชื่อรายการตามประเภทที่ผู้ใช้เลือก
+        if transaction_type == "income":
+            name = slip.get("sender")
+        else:
+            name = slip.get("receiver")
+
+        name = str(name or "").strip()
+
+        # 5. อ่านจำนวนเงินจากผล OCR
+        amount = Decimal(
+            str(slip.get("amount") or "0")
+        )
+
+        # 6. ตรวจสอบข้อมูลสำคัญ
+        if (
+            not name
+            or not amount.is_finite()
+            or amount <= 0
+        ):
+            return (
+                "อ่านชื่อรายการหรือจำนวนเงินจากสลิปไม่ครบค่ะ\n"
+                "กรุณาพิมพ์ชื่อรายการและจำนวนเงิน "
+                "เช่น ข้าวมันไก่ 40\n"
+                "รูปสลิปที่ส่งมาจะยังเป็นหลักฐานของรายการนี้ค่ะ"
+            )
+
+        # 7. ตรวจสอบจำนวนเงินให้อยู่ในช่วงที่รองรับ
+        if (
+            amount > Decimal("999999.99")
+            or amount.as_tuple().exponent < -2
+        ):
+            return (
+                "จำนวนเงินจากสลิปไม่อยู่ในรูปแบบที่รองรับค่ะ\n"
+                "กรุณาพิมพ์ชื่อรายการและจำนวนเงิน "
+                "เช่น ข้าวมันไก่ 40"
+            )
+
+        # 8. เติมชื่อรายการและจำนวนเงินลง Draft
+        data["name"] = name[:100]
+        data["amount"] = str(amount)
+
+        # 9. ใช้วันที่จากสลิป หากอ่านได้ถูกต้อง
+        slip_date = slip.get("date")
+
+        if slip_date:
+            try:
+                datetime.strptime(
+                    slip_date,
+                    "%Y-%m-%d"
+                )
+
+                data["transaction_date"] = slip_date
+
+            except (TypeError, ValueError):
+                logger.warning(
+                    "OCR returned invalid slip date"
+                )
+
+        # 10. ใช้เวลาจากสลิป หากอ่านได้ถูกต้อง
+        slip_time = slip.get("time")
+
+        if slip_time:
+            try:
+                parsed_time = datetime.strptime(
+                    slip_time,
+                    "%H:%M"
+                ).time()
+
+                data["transaction_time"] = (
+                    parsed_time.strftime("%H:%M:%S")
+                )
+
+            except (TypeError, ValueError):
+                logger.warning(
+                    "OCR returned invalid slip time"
+                )
+
+        # 11. จัดหมวดหมู่ด้วยระบบเดิม
+        category = match_category(
+            name,
+            transaction_type,
+            user,
+            rule_category="อื่นๆ",
+        )
+
+        if category is not None:
+            data["category_id"] = category.pk
+
+        # 12. ตรวจสอบว่า Draft ยังเป็นรายการเดิม
+        current = get_pending(line_user_id, user)
+        current_flow = get_transaction_flow(line_user_id)
+
+        if (
+            not current
+            or current.get("token") != data["token"]
+            or not current_flow
+            or current_flow.get("step") != "await_note"
+        ):
+            return (
+                "มีการเปลี่ยนแปลงรายการระหว่างอ่านสลิปค่ะ "
+                "กรุณาตรวจสอบข้อความล่าสุด"
+            )
+
+        # 13. บันทึกข้อมูล OCR ลง Pending
+        set_pending(line_user_id, data)
+
+        # 14. เปลี่ยนสถานะเป็นรอยืนยัน
+        set_transaction_flow(
+            line_user_id,
+            {"step": "await_confirmation"}
+        )
+
+        # 15. เรียก Flex Message เดิม
+        return build_transaction_preview_flex(data)
+
+    except Exception:
+        logger.exception("LINE receipt OCR failed")
+
+        return (
+            "ไม่สามารถอ่านข้อมูลจากรูปสลิปอัตโนมัติได้ค่ะ\n"
+            "กรุณาพิมพ์ชื่อรายการและจำนวนเงิน "
+            "เช่น ข้าวมันไก่ 40\n"
+            "รูปที่ส่งมาจะยังถูกแนบเป็นหลักฐานค่ะ"
+        )
+
 # ==================== LINE Webhook ====================
 
 @csrf_exempt
@@ -2730,13 +2925,14 @@ def line_webhook(request):
                     line_user_id
                 )
 
-            # รูปภาพ
+            # รับข้อมูลรูปภาพ
             elif message.get("type") == "image":
-
-                answer = handle_image_message(
+                process_line_image_task.delay(
                     message.get("id"),
                     line_user_id
                 )
+
+                answer = "กำลังอ่านข้อมูลจากภาพ กรุณารอสักครู่..."
 
             else:
                 continue
