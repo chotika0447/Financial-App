@@ -496,12 +496,7 @@ def save_line_debt_payment(
                 else "approved"
             )
 
-            scheduled_amount = (
-                debt.payment_amount
-                if debt.payment_type == "monthly"
-                else None
-            )
-
+            scheduled_amount = debt.payment_amount
             # กำหนดสถานะการชำระให้เหมือนระบบเว็บไซต์
             if paid_amount <= 0:
                 payment_status = "pending"
@@ -531,8 +526,7 @@ def save_line_debt_payment(
 
             # เลื่อนงวดถัดไปเฉพาะหนี้รายเดือนที่อนุมัติแล้ว
             if (
-                debt.payment_type == "monthly"
-                and debt.payment_amount is not None
+                debt.payment_amount is not None
                 and approvement_status == "approved"
             ):
                 installment_paid_total = (
