@@ -704,13 +704,15 @@ def reply_to_line(reply_token, message):
 #ส่งผลลัพธ์ ocr หลังประมวลผลรูปเสร็จ
 def push_to_line(line_user_id, message):
 
-    if isinstance(message, dict):
-        line_message = message
+    if isinstance(message, list):
+        messages = message
+    elif isinstance(message, dict):
+        messages = [message]
     else:
-        line_message = {
+        messages = [{
             "type": "text",
             "text": str(message)
-        }
+        }]
 
     response = httpx.post(
         "https://api.line.me/v2/bot/message/push",
@@ -721,12 +723,13 @@ def push_to_line(line_user_id, message):
         },
         json={
             "to": line_user_id,
-            "messages": [line_message]
+            "messages": messages
         },
         timeout=10
     )
 
     response.raise_for_status()
+    
 # ==================== Category ====================
 
 def find_category(name, transaction_type, user):
@@ -841,7 +844,18 @@ def build_transaction_preview_flex(data):
     if data.get("sub_category"):
         category_text += f" / {data['sub_category']}"
 
-    amount = Decimal(str(data["amount"]))
+    raw_amount = data.get("amount")
+
+    try:
+        amount = Decimal(str(raw_amount)) if raw_amount is not None else None
+    except (InvalidOperation, ValueError, TypeError):
+        amount = None
+
+    amount_text = (
+        f"฿{amount:,.2f}"
+        if amount is not None and amount.is_finite() and amount > 0
+        else "ยังไม่ทราบจำนวนเงิน"
+    )
 
     date_value = datetime.strptime(
         data["transaction_date"],
@@ -891,9 +905,64 @@ def build_transaction_preview_flex(data):
             ]
         }
 
+    #----------------ตั้งค่า ปุ่ม flex messege ตรวจสอบรายการรายรับ-รายจ่ายก่อนบันทึก ----------------------------
+    #ปิดปุ่มยืนยันรายการถ้า ocr อ่านค่าไม่ครบ
+    try:
+        valid_amount = Decimal(str(data.get("amount")))
+        amount_ok = (
+            valid_amount.is_finite()
+            and valid_amount > 0
+            and valid_amount <= Decimal("999999.99")
+            and valid_amount.as_tuple().exponent >= -2
+        )
+    except (InvalidOperation, ValueError, TypeError):
+        amount_ok = False
+
+    can_confirm = (
+        bool(str(data.get("name") or "").strip())
+        and amount_ok
+    )
+
+    #กำหนดเงื่อนไขการแสดงปุ่ม
+    buttons = []
+    if can_confirm:
+        buttons.append({
+            "type": "button",
+            "style": "primary",
+            "color": "#B8D95A",
+            "action": {
+                "type": "postback",
+                "label": "ยืนยันบันทึกรายการ",
+                "data": f"action=transaction_confirm&token={token}",
+                "displayText": "ยืนยันบันทึกรายการ"
+            }
+        })
+
+    buttons.extend([
+        {
+            "type": "button",
+            "style": "secondary",
+            "action": {
+                "type": "postback",
+                "label": "แก้ไขรายการ",
+                "data": f"action=transaction_edit&token={token}",
+                "displayText": "แก้ไขรายการ"
+            }
+        },
+        {
+            "type": "button",
+            "style": "secondary",
+            "action": {
+                "type": "postback",
+                "label": "ยกเลิกรายการ",
+                "data": f"action=transaction_cancel&token={token}",
+                "displayText": "ยกเลิกรายการ"
+            }
+        }
+    ])
     return {
         "type": "flex",
-        "altText": f"ตรวจสอบรายการ{type_label} {amount:,.2f} บาท",
+        "altText": f"ตรวจสอบรายการ{type_label} {amount_text}",
         "contents": {
             "type": "bubble",
             "size": "mega",
@@ -919,7 +988,7 @@ def build_transaction_preview_flex(data):
                     },
                     {
                         "type": "text",
-                        "text": f"฿{amount:,.2f}",
+                        "text": amount_text,
                         "weight": "bold",
                         "size": "xxl",
                         "color": "#805035"
@@ -950,48 +1019,7 @@ def build_transaction_preview_flex(data):
                 "layout": "vertical",
                 "backgroundColor": "#FFF9EE",
                 "spacing": "sm",
-                "contents": [
-                    {
-                        "type": "button",
-                        "style": "primary",
-                        "color": "#B8D95A",
-                        "action": {
-                            "type": "postback",
-                            "label": "ยืนยันบันทึกรายการ",
-                            "data": (
-                                "action=transaction_confirm"
-                                f"&token={token}"
-                            ),
-                            "displayText": "ยืนยันบันทึกรายการ"
-                        }
-                    },
-                    {
-                        "type": "button",
-                        "style": "secondary",
-                        "action": {
-                            "type": "postback",
-                            "label": "แก้ไขรายการ",
-                            "data": (
-                                "action=transaction_edit"
-                                f"&token={token}"
-                            ),
-                            "displayText": "แก้ไขรายการ"
-                        }
-                    },
-                    {
-                        "type": "button",
-                        "style": "secondary",
-                        "action": {
-                            "type": "postback",
-                            "label": "ยกเลิกรายการ",
-                            "data": (
-                                "action=transaction_cancel"
-                                f"&token={token}"
-                            ),
-                            "displayText": "ยกเลิกรายการ"
-                        }
-                    }
-                ]
+                "contents": buttons
             }
         }
     }
@@ -1043,10 +1071,32 @@ def confirm_pending_transaction(line_user_id, user, token):
         if not data or data.get("token") != token:
             return "รายการนี้หมดอายุหรือถูกยกเลิกไปแล้วค่ะ"
 
-        amount = Decimal(str(data["amount"]))
+        # ตรวจสอบชื่อรายการ
+        if not str(data.get("name") or "").strip():
+            return (
+                "ยังไม่พบชื่อรายการค่ะ "
+                "กรุณากดแก้ไขรายการก่อนยืนยัน"
+            )
 
-        if amount <= 0:
-            return "จำนวนเงินไม่ถูกต้องค่ะ กรุณาเริ่มรายการใหม่"
+        # ตรวจสอบจำนวนเงิน
+        try:
+            amount = Decimal(str(data.get("amount")))
+        except (InvalidOperation, ValueError, TypeError):
+            return (
+                "ยังไม่พบจำนวนเงินค่ะ "
+                "กรุณากดแก้ไขรายการก่อนยืนยัน"
+            )
+
+        if (
+            not amount.is_finite()
+            or amount <= 0
+            or amount > Decimal("999999.99")
+            or amount.as_tuple().exponent < -2
+        ):
+            return (
+                "จำนวนเงินไม่ถูกต้องค่ะ "
+                "กรุณากดแก้ไขรายการก่อนยืนยัน"
+            )
 
         transaction_type = data["transaction_type"]
 
@@ -2652,7 +2702,7 @@ def handle_image_message(message_id, line_user_id):
     )
 
     try:
-        # 1. สร้าง URL ชั่วคราวของรูปใน Supabase
+        #สร้าง URL ชั่วคราวของรูปใน Supabase
         signed_url = get_receipt_signed_url(
             data["receipt_path"]
         )
@@ -2662,13 +2712,13 @@ def handle_image_message(message_id, line_user_id):
                 "Cannot create signed URL for OCR"
             )
 
-        # 2. ส่งรูปให้ PaddleOCR อ่านข้อความ
+        #ส่งรูปให้ PaddleOCR อ่านข้อความ
         raw_pages = run_ocr(signed_url)
 
-        # 3. แยกข้อมูลจากสลิป
+        #แยกข้อมูลจากสลิป
         slip = parse_slip(raw_pages)
 
-        # 4. เลือกชื่อรายการตามประเภทที่ผู้ใช้เลือก
+        #เลือกชื่อรายการตามประเภทที่ผู้ใช้เลือก
         if transaction_type == "income":
             name = slip.get("sender")
         else:
@@ -2676,40 +2726,29 @@ def handle_image_message(message_id, line_user_id):
 
         name = str(name or "").strip()
 
-        # 5. อ่านจำนวนเงินจากผล OCR
-        amount = Decimal(
-            str(slip.get("amount") or "0")
+        #อ่านจำนวนเงินจากผลอ่าน OCR
+        try:
+            amount = Decimal(
+                str(slip.get("amount") or "0")
+            )
+        except (InvalidOperation, ValueError, TypeError):
+            amount = Decimal("0")
+
+        #ตรวจสอบข้อมูลที่ OCR อ่านได้
+        amount_valid = (
+            amount.is_finite()
+            and amount > 0
+            and amount <= Decimal("999999.99")
+            and amount.as_tuple().exponent >= -2
         )
 
-        # 6. ตรวจสอบข้อมูลสำคัญ
-        if (
-            not name
-            or not amount.is_finite()
-            or amount <= 0
-        ):
-            return (
-                "อ่านชื่อรายการหรือจำนวนเงินจากสลิปไม่ครบค่ะ\n"
-                "กรุณาพิมพ์ชื่อรายการและจำนวนเงิน "
-                "เช่น ข้าวมันไก่ 40\n"
-                "รูปสลิปที่ส่งมาจะยังเป็นหลักฐานของรายการนี้ค่ะ"
-            )
+        incomplete = not name or not amount_valid
 
-        # 7. ตรวจสอบจำนวนเงินให้อยู่ในช่วงที่รองรับ
-        if (
-            amount > Decimal("999999.99")
-            or amount.as_tuple().exponent < -2
-        ):
-            return (
-                "จำนวนเงินจากสลิปไม่อยู่ในรูปแบบที่รองรับค่ะ\n"
-                "กรุณาพิมพ์ชื่อรายการและจำนวนเงิน "
-                "เช่น ข้าวมันไก่ 40"
-            )
-
-        # 8. เติมชื่อรายการและจำนวนเงินลง Draft
+        #เก็บเฉพาะข้อมูลที่อ่านได้จริง
         data["name"] = name[:100]
-        data["amount"] = str(amount)
+        data["amount"] = str(amount) if amount_valid else None
 
-        # 9. ใช้วันที่จากสลิป หากอ่านได้ถูกต้อง
+        #ใช้วันที่จากสลิป หากอ่านได้ถูกต้อง
         slip_date = slip.get("date")
 
         if slip_date:
@@ -2726,7 +2765,7 @@ def handle_image_message(message_id, line_user_id):
                     "OCR returned invalid slip date"
                 )
 
-        # 10. ใช้เวลาจากสลิป หากอ่านได้ถูกต้อง
+        #ใช้เวลาจากสลิป หากอ่านได้ถูกต้อง
         slip_time = slip.get("time")
 
         if slip_time:
@@ -2745,18 +2784,19 @@ def handle_image_message(message_id, line_user_id):
                     "OCR returned invalid slip time"
                 )
 
-        # 11. จัดหมวดหมู่ด้วยระบบเดิม
-        category = match_category(
-            name,
-            transaction_type,
-            user,
-            rule_category="อื่นๆ",
-        )
+        #จัดหมวดหมู่ด้วยระบบเดิม
+        if name:
+            category = match_category(
+                name,
+                transaction_type,
+                user,
+                rule_category="อื่นๆ",
+            )
 
-        if category is not None:
-            data["category_id"] = category.pk
+            if category is not None:
+                data["category_id"] = category.pk
 
-        # 12. ตรวจสอบว่า Draft ยังเป็นรายการเดิม
+        #ตรวจสอบว่า Draft ยังเป็นรายการเดิม
         current = get_pending(line_user_id, user)
         current_flow = get_transaction_flow(line_user_id)
 
@@ -2771,29 +2811,56 @@ def handle_image_message(message_id, line_user_id):
                 "กรุณาตรวจสอบข้อความล่าสุด"
             )
 
-        # 13. บันทึกข้อมูล OCR ลง Pending
         set_pending(line_user_id, data)
 
-        # 14. เปลี่ยนสถานะเป็นรอยืนยัน
         set_transaction_flow(
             line_user_id,
             {"step": "await_confirmation"}
         )
 
-        # 15. เรียก Flex Message เดิม
-        return build_transaction_preview_flex(data)
+        flex = build_transaction_preview_flex(data)
+
+        if incomplete:
+            warning = (
+                "อ่านชื่อรายการหรือจำนวนเงินจากสลิปไม่ครบค่ะ\n"
+                "กรุณากดแก้ไขรายการหากต้องการเปลี่ยนแปลงข้อมูลรายการ "
+                "โดยรูปสลิปที่ส่งมาจะยังเป็นหลักฐานของรายการนี้ค่ะ"
+            )
+
+            return [flex, {"type": "text", "text": warning}]
+
+        return flex
 
     except Exception:
         logger.exception("LINE receipt OCR failed")
 
-        return (
-            "ไม่สามารถอ่านข้อมูลจากรูปสลิปอัตโนมัติได้ค่ะ\n"
-            "กรุณาพิมพ์ชื่อรายการและจำนวนเงิน "
-            "เช่น ข้าวมันไก่ 40\n"
-            "รูปที่ส่งมาจะยังถูกแนบเป็นหลักฐานค่ะ"
-        )
+        # ใช้ Draft ที่เก็บก่อน OCR เพื่อรักษารูปหลักฐานไว้
+        current = get_pending(line_user_id, user)
+        current_flow = get_transaction_flow(line_user_id)
+        if (
+            not current
+            or current.get("token") != data["token"]
+            or not current_flow
+            or current_flow.get("step") != "await_note"
+        ):
+            return (
+                "มีการเปลี่ยนแปลงรายการระหว่างอ่านสลิปค่ะ "
+                "กรุณาตรวจสอบข้อความล่าสุด"
+            )
 
-# ==================== Celery Image Task ====================
+        set_transaction_flow(
+            line_user_id,
+            {"step": "await_confirmation"}
+        )
+        flex = build_transaction_preview_flex(current)
+        warning = (
+            "อ่านชื่อรายการหรือจำนวนเงินจากสลิปไม่ครบค่ะ\n"
+            "กรุณากดแก้ไขรายการหากต้องการเปลี่ยนแปลงข้อมูลรายการ "
+            "โดยรูปสลิปที่ส่งมาจะยังเป็นหลักฐานของรายการนี้ค่ะ"
+        )
+        return [flex, {"type": "text", "text": warning}]
+
+# ==================== Background Image Processing (Thread) ====================
 
 def process_line_image_background(message_id, line_user_id):
     try:
