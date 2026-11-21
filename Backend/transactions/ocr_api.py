@@ -208,7 +208,8 @@ def run_ocr(file_url):
     )
 
     # ตรวจสอบ TLS ก่อนเรียก PaddleOCR
-    _check_tls_connection()
+    # TLS preflight is diagnostic only; the API request performs its own TLS check.
+    # _check_tls_connection()
 
     result = None
 
@@ -225,8 +226,8 @@ def run_ocr(file_url):
 
             client = PaddleOCRClient(
                 token=token,
-                request_timeout=60,
-                poll_timeout=120,
+                request_timeout=20,
+                poll_timeout=40,
             )
 
             result = client.parse_document(

@@ -1014,6 +1014,9 @@ def confirm_pending_transaction(line_user_id, user, token):
         if not data or data.get("token") != token:
             return "รายการนี้หมดอายุหรือถูกยกเลิกไปแล้วค่ะ"
 
+        if not str(data.get("item_name") or "").strip():
+            return "กรุณาระบุชื่อรายการก่อนยืนยันบันทึกค่ะ"
+
         amount = Decimal(str(data["amount"]))
 
         if amount <= 0:
@@ -2326,6 +2329,119 @@ def handle_text_message(text, line_user_id):
 
     return build_attach_receipt_flex()
 
+
+
+# ==================== Additive Transaction Receipt OCR ====================
+def extract_transaction_receipt_fields(raw_pages):
+    """Read only total paid, date and time; never infer item_name."""
+    import re
+    from datetime import datetime
+    from decimal import Decimal, InvalidOperation
+
+    lines = []
+    for page in raw_pages or []:
+        data = page.get("res", page) if isinstance(page, dict) else {}
+        for item in data.get("rec_texts", []):
+            lines.extend(str(item).splitlines())
+    lines = [line.strip() for line in lines if line.strip()]
+    total_labels = re.compile(
+        r"ยอดสุทธิ|ยอดชำระ(?:สุทธิ)?|ยอดที่ต้องชำระ|รวมทั้งสิ้น|"
+        r"ยอดรวมสุทธิ|ยอดรวมทั้งหมด|ยอดโอน|จำนวนเงิน|"
+        r"GRAND\s*TOTAL|TOTAL\s*(?:PAID|AMOUNT|DUE)|NET\s*TOTAL|AMOUNT\s*PAID",
+        re.IGNORECASE,
+    )
+    amount_pattern = re.compile(r"(?<![\w.])(?:฿\s*)?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?(?![\w.])")
+    amount = None
+    # Prefer a clearly labelled final amount; never guess from arbitrary item prices.
+    for index in range(len(lines) - 1, -1, -1):
+        line = lines[index]
+        label = total_labels.search(line)
+        if not label:
+            continue
+        candidates = [line[label.end():]]
+        if index + 1 < len(lines):
+            candidates.append(lines[index + 1])
+        for candidate in candidates:
+            for match in amount_pattern.finditer(candidate):
+                try:
+                    value = Decimal(match.group(1).replace(",", "") + ("." + match.group(2) if match.group(2) else ""))
+                except InvalidOperation:
+                    continue
+                if value > 0:
+                    amount = f"{value:.2f}"
+                    break
+            if amount:
+                break
+        if amount:
+            break
+
+    date = None
+    time_value = None
+    months = {"ม.ค.": 1, "ก.พ.": 2, "มี.ค.": 3, "เม.ย.": 4, "พ.ค.": 5, "มิ.ย.": 6, "ก.ค.": 7, "ส.ค.": 8, "ก.ย.": 9, "ต.ค.": 10, "พ.ย.": 11, "ธ.ค.": 12}
+    for line in lines:
+        if date is None:
+            match = re.search(r"(?<!\d)(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?!\d)", line)
+            if match:
+                day, month, year = map(int, match.groups())
+                if year < 100:
+                    year += 2000
+                if year >= 2400:
+                    year -= 543
+                try:
+                    date = datetime(year, month, day).strftime("%Y-%m-%d")
+                except ValueError:
+                    pass
+            if date is None:
+                match = re.search(r"(\d{1,2})\s*(ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.)\s*(\d{4})", line)
+                if match:
+                    day, month, year = int(match.group(1)), months[match.group(2)], int(match.group(3))
+                    try:
+                        date = datetime(year - 543 if year >= 2400 else year, month, day).strftime("%Y-%m-%d")
+                    except ValueError:
+                        pass
+        if time_value is None:
+            match = re.search(r"(?<!\d)([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?(?!\d)", line)
+            if match:
+                time_value = f"{int(match.group(1)):02d}:{match.group(2)}:00"
+    return {"amount": amount, "date": date, "time": time_value}
+
+
+def apply_transaction_receipt_ocr(data):
+    """Enrich an existing pending transaction without changing its receipt or name."""
+    from transactions.ocr_api import run_ocr
+    from .supabase_storage import get_receipt_signed_url
+
+    path = data.get("receipt_path")
+    if not path:
+        return False
+    try:
+        url = get_receipt_signed_url(path)
+        if not url:
+            raise ValueError("Cannot create signed receipt URL")
+        fields = extract_transaction_receipt_fields(run_ocr(url))
+        if fields["amount"] and not data.get("amount"):
+            data["amount"] = fields["amount"]
+        if fields["date"]:
+            data["transaction_date"] = fields["date"]
+        if fields["time"]:
+            data["transaction_time"] = fields["time"]
+        data["ocr_fields"] = fields
+        return bool(fields["amount"] or fields["date"] or fields["time"])
+    except Exception:
+        logger.exception("LINE transaction receipt OCR failed; original receipt preserved")
+        return False
+
+
+
+def build_ocr_image_note_prompt(data):
+    fields = data.get("ocr_fields") or {}
+    amount = fields.get("amount")
+    if amount:
+        return (f"อ่านยอดเงินจากรูปได้ {amount} บาทค่ะ 📷\n"
+                "กรุณาพิมพ์ชื่อรายการ เช่น กาแฟ\n"
+                "หากยอดไม่ถูกต้อง พิมพ์ชื่อรายการพร้อมยอด เช่น กาแฟ 80 บาท")
+    return build_image_note_prompt()
+
 # ==================== Image Message / OCR ====================
 
 def attach_receipt_to_pending(data, image_bytes, message_id):
@@ -2610,6 +2726,9 @@ def handle_image_message(message_id, line_user_id):
             "กรุณาส่งรูปอีกครั้ง"
         )
 
+    # Additive OCR: retain the original image and pending state on failure.
+    apply_transaction_receipt_ocr(data)
+
     set_pending(
         line_user_id,
         data
@@ -2620,7 +2739,7 @@ def handle_image_message(message_id, line_user_id):
         {"step": "await_note"}
     )
 
-    return build_image_note_prompt()
+    return build_ocr_image_note_prompt(data)
 # ==================== LINE Webhook ====================
 
 @csrf_exempt

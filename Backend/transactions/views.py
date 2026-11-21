@@ -68,6 +68,16 @@ class TransactionListCreateView(APIView):
 
     def post(self, request):
 
+        # Require a category for transactions created through this HTTP endpoint.
+        # Do not change TransactionSerializer's global required setting: LINE OA
+        # may use it independently and retains its existing matching/fallback flow.
+        category_value = request.data.get("category")
+        if category_value is None or not str(category_value).strip():
+            return Response(
+                {"category": ["กรุณาเลือกหมวดหมู่ก่อนบันทึกรายการ"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         serializer = TransactionSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
