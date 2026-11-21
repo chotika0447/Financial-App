@@ -308,10 +308,7 @@ class DebtListCreateView(APIView):
         with transaction.atomic():
             debt = serializer.save(user=request.user)
             # กำหนดวันครบกำหนดงวดแรกสำหรับหนี้รายเดือน
-            if (
-                debt.payment_type == "monthly"
-                and not debt.current_due_date
-            ):
+            if not debt.current_due_date:
                 debt.current_due_date = (
                     get_initial_monthly_due_date(debt)
                 )
@@ -336,7 +333,6 @@ class DebtListCreateView(APIView):
                     type=opposite_type,
                     total_amount=debt.total_amount,
                     remaining_amount=debt.total_amount,
-                    payment_type=debt.payment_type,
                     payment_amount=debt.payment_amount,
                     due_date=debt.due_date,
                     payment_date=debt.payment_date,
@@ -416,55 +412,100 @@ class DebtDetailView(APIView):
 
         return Response(serializer.data)
 
-    # แก้ไขหนี้
+    # แก้ไขหนี้และซิงก์ข้อมูลร่วมกันกับบัญชีเพื่อน
+    @transaction.atomic
     def put(self, request, debt_id):
-        
         debt = self.get_debt(request, debt_id)
         data = request.data.copy()
-
-        # ไม่รับยอดคงเหลือจาก Frontend
-        # เพราะ Backend จะคำนวณจาก Payments ใหม่
         data.pop("remaining_amount", None)
 
-        # ถ้ามีการเลือกรูปใหม่
         image_file = request.FILES.get("image")
-
         if image_file:
             try:
-                image_url = upload_debt_image(image_file)
-                data["image"] = image_url
-
+                data["image"] = upload_debt_image(image_file)
             except Exception as error:
                 return Response(
                     {"detail": str(error)},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
-
         elif data.get("image") == "":
             data["image"] = None
 
-        serializer = DebtSerializer(
-            debt,
-            data=data,
-            partial=True
-        )
+        serializer = DebtSerializer(debt, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        changes = serializer.validated_data
 
-        serializer.is_valid(
-            raise_exception=True
-        )
+        paired_debt = None
+        if debt.paired_debt_id:
+            paired_debt = Debts.objects.select_for_update().filter(
+                pk=debt.paired_debt_id, paired_debt_id=debt.pk
+            ).first()
+            if paired_debt is None:
+                return Response(
+                    {"detail": "ไม่พบหนี้คู่ที่เชื่อมกลับมาอย่างถูกต้อง"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            # ไม่อนุญาตให้เปลี่ยนคู่สัญญาหรือประเภทผ่านการแก้ไขทั่วไป
+            if (
+                ("counterparty" in changes and changes["counterparty"] != debt.counterparty)
+                or ("type" in changes and changes["type"] != debt.type)
+            ):
+                return Response(
+                    {"detail": "ไม่สามารถเปลี่ยนคู่สัญญาหรือประเภทของหนี้ที่เชื่อมบัญชีแล้ว"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
+        # ห้ามลดเงินต้นให้ต่ำกว่ายอดที่ส่งชำระไว้แล้วทั้งสองบัญชี
+        if "total_amount" in changes:
+            ids = [debt.pk] + ([paired_debt.pk] if paired_debt else [])
+            submitted = (
+                Payments.objects.filter(
+                    debt_id__in=ids,
+                    approvement_status__in=["approved", "pending"],
+                ).aggregate(total=Sum("paid_amount"))["total"]
+                or Decimal("0.00")
+            )
+            if changes["total_amount"] < submitted:
+                return Response(
+                    {"total_amount": "ยอดหนี้ต้องไม่น้อยกว่ายอดชำระที่ส่งไว้แล้ว"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        old_payment_date = debt.payment_date
+        old_current_due_date = debt.current_due_date
         serializer.save()
 
-        # คำนวณยอดคงเหลือใหม่
+        # รักษาเดือนของงวดปัจจุบันไว้ แต่ปรับวันตามวันที่ชำระใหม่
+        if debt.payment_date != old_payment_date:
+            if old_current_due_date:
+                debt.current_due_date = get_monthly_due_date(
+                    old_current_due_date.year,
+                    old_current_due_date.month,
+                    debt.payment_date,
+                )
+            else:
+                debt.current_due_date = get_initial_monthly_due_date(debt)
+            debt.save(update_fields=["current_due_date", "updated_at"])
+
+        if paired_debt:
+            # ฟิลด์ข้อมูลหนี้ที่ต้องเหมือนกันทั้งสองฝั่ง
+            shared_fields = (
+                "name", "total_amount", "payment_amount", "due_date",
+                "payment_date", "current_due_date", "reminder_enabled",
+                "reminder_days_before", "reminder_time", "reminder_repeat",
+                "note", "icon", "color", "image",
+            )
+            fields_to_sync = [f for f in shared_fields if f in changes]
+            if debt.payment_date != old_payment_date:
+                fields_to_sync.append("current_due_date")
+            for field in set(fields_to_sync):
+                setattr(paired_debt, field, getattr(debt, field))
+            if fields_to_sync:
+                paired_debt.save(update_fields=list(set(fields_to_sync)) + ["updated_at"])
+
         recalculate_debt_remaining(debt)
-
-        # โหลดข้อมูลล่าสุดหลังคำนวณ
         debt.refresh_from_db()
-
-        return Response(
-            DebtSerializer(debt).data,
-            status=status.HTTP_200_OK
-        )
+        return Response(DebtSerializer(debt).data, status=status.HTTP_200_OK)
 
     # ลบหนี้
     
@@ -567,28 +608,41 @@ def get_next_monthly_due_date(current_due_date, payment_day):
     )
 
 
+def get_installment_target(debt, installment_due_date):
+    """ยอดที่ต้องชำระของงวด โดยหักเฉพาะยอดอนุมัติของงวดก่อนหน้า
+
+    ไม่หักยอดที่ชำระในงวดปัจจุบัน เพื่อไม่ให้เป้าหมายลดลง
+    ระหว่างการทยอยชำระหลายครั้งในงวดเดียวกัน
+    """
+    related_ids = [item.pk for item in get_related_debts(debt)]
+    approved_before = (
+        Payments.objects.filter(
+            debt_id__in=related_ids,
+            due_date__lt=installment_due_date,
+            approvement_status="approved",
+        ).aggregate(total=Sum("paid_amount"))["total"]
+        or Decimal("0.00")
+    )
+    remaining_at_start = max(
+        Decimal("0.00"), Decimal(debt.total_amount) - approved_before
+    )
+    return min(Decimal(debt.payment_amount), remaining_at_start)
+
+
 def calculate_payment_due_date(debt):
     """
-    คืนวันครบกำหนดของงวดปัจจุบัน
+    คืนวันครบกำหนดชำระของงวดปัจจุบัน
+    ระบบรองรับการชำระรายเดือนเท่านั้น
     """
-    if debt.payment_type == "flexible":
-        return debt.due_date
+    if not debt.payment_date:
+        raise ValueError(
+            "กรุณาระบุวันที่ต้องชำระรายเดือน"
+        )
 
-    if debt.payment_type == "monthly":
-        if not debt.payment_date:
-            raise ValueError(
-                "หนี้แบบรายเดือนต้องระบุ payment_date"
-            )
+    if debt.current_due_date:
+        return debt.current_due_date
 
-        if debt.current_due_date:
-            return debt.current_due_date
-
-        return get_initial_monthly_due_date(debt)
-
-    raise ValueError(
-        "ไม่พบประเภทการชำระหนี้ที่ถูกต้อง"
-    )
-
+    return get_initial_monthly_due_date(debt)
 
 class SendDebtReminderView(APIView):
     permission_classes = [IsAuthenticated]
@@ -733,8 +787,7 @@ class PaymentListCreateView(APIView):
                 )
 
         if (
-            debt.payment_type == "monthly"
-            and debt.payment_amount is not None
+            debt.payment_amount is not None
             and not data.get("scheduled_amount")
         ):
             data["scheduled_amount"] = debt.payment_amount
@@ -810,8 +863,7 @@ class PaymentListCreateView(APIView):
 
         # เลื่อนงวดเฉพาะเมื่อเป็นหนี้รายเดือนและตอนยอดที่ชำระรวมของงวดนี้ครบแล้วเท่านั้น
         if (
-            debt.payment_type == "monthly"
-            and debt.payment_amount is not None
+            debt.payment_amount is not None
             and paid_amount > Decimal("0.00")
         ):
             debt.refresh_from_db()
@@ -835,9 +887,8 @@ class PaymentListCreateView(APIView):
 
             # ยอดที่ต้องจ่ายในงวดนี้
             # งวดสุดท้ายไม่ควรเกินยอดหนี้ที่เหลือก่อนชำระ
-            installment_target = min(
-                Decimal(debt.payment_amount),
-                Decimal(shared_remaining),
+            installment_target = get_installment_target(
+                debt, current_installment_due_date
             )
 
             if (
@@ -1007,8 +1058,7 @@ class PaymentDetailView(APIView):
 
             # จัดการวันครบกำหนดของหนี้รายเดือน
             if (
-                debt.payment_type == "monthly"
-                and debt.payment_amount is not None
+                debt.payment_amount is not None
                 and payment.due_date is not None
             ):
                 installment_paid_total = (
@@ -1023,9 +1073,8 @@ class PaymentDetailView(APIView):
                 debt.refresh_from_db()
 
                 if action == "approve":
-                    installment_target = min(
-                        Decimal(debt.payment_amount),
-                        Decimal(debt.remaining_amount) + Decimal(payment.paid_amount),
+                    installment_target = get_installment_target(
+                        debt, payment.due_date
                     )
 
                     # เลื่อนงวดเมื่อยอดที่อนุมัติแล้วครบงวด
@@ -1050,9 +1099,8 @@ class PaymentDetailView(APIView):
 
                 elif action == "revoke":
                     # หากยกเลิกการอนุมัติงวดนี้ ให้ย้อนวันครบกำหนดกลับมาที่งวดเดิม
-                    installment_target = min(
-                        Decimal(debt.payment_amount),
-                        Decimal(debt.remaining_amount),
+                    installment_target = get_installment_target(
+                        debt, payment.due_date
                     )
 
                     if installment_paid_total < installment_target:
@@ -1336,25 +1384,39 @@ class FinHealthBorrowView(APIView):
         on_time_count = 0
         due_total = Decimal("0")
         details = []
+
         for debt in debts:
-            created = timezone.localtime(debt.created_at).date() if debt.created_at else today
-            if debt.payment_type == "monthly":
-                if not debt.payment_date or not debt.payment_amount: continue
-                due = get_monthly_due_date(created.year,created.month,debt.payment_date)
-                if due < created:
-                    due = get_next_monthly_due_date(due,debt.payment_date)
-                increment = lambda d: get_next_monthly_due_date(d,debt.payment_date)
-            elif debt.payment_type == "flexible":
-                if not debt.due_date: continue
-                due = debt.due_date
-                increment = lambda d: cutoff + timedelta(days=1)
-            else:
+            created = (
+                timezone.localtime(debt.created_at).date()
+                if debt.created_at else today
+            )
+
+            if not debt.payment_date or not debt.payment_amount:
                 continue
+
+            due = get_monthly_due_date(
+                created.year,
+                created.month,
+                debt.payment_date
+            )
+
+            if due < created:
+                due = get_next_monthly_due_date(
+                    due,
+                    debt.payment_date
+                )
+
+            increment = lambda d: get_next_monthly_due_date(
+                d,
+                debt.payment_date
+            )
             payment_ids = [debt.pk]
+
             if debt.paired_debt_id: payment_ids.append(debt.paired_debt_id)
             payments = list(Payments.objects.filter(
                 debt_id__in=payment_ids, due_date__isnull=False
             ).order_by("paid_date","id"))
+
             # De-duplicate mirrored payment records by primary key; the same
             # payment is normally stored once on one side of the paired debt.
             accepted = [p for p in payments if p.approvement_status == "approved"
@@ -1363,10 +1425,12 @@ class FinHealthBorrowView(APIView):
             debt_due = debt_on_time = 0
             while due <= cutoff:
                 matching = [p for p in accepted if p.due_date == due]
-                target = (min(Decimal(debt.payment_amount),
-                              max(Decimal("0"),Decimal(debt.total_amount)-previous_paid))
-                          if debt.payment_type == "monthly"
-                          else max(Decimal("0"),Decimal(debt.total_amount)-previous_paid))
+                target = min(Decimal(debt.payment_amount),
+                    max(
+                        Decimal("0.00"),
+                        Decimal(debt.total_amount) - previous_paid
+                    )
+                )
                 if target <= 0: break
                 if due >= start:
                     debt_due += 1
@@ -1397,7 +1461,7 @@ class FinHealthBorrowView(APIView):
             "income_is_provisional": len(incomes) in (1,2),
             "monthly_debt_total": due_total, "dsr_percentage": dsr,
             "dsr_score": dsr_score,
-            "monthly_debt_count": debts.filter(payment_type="monthly").count(),
+            "monthly_debt_count": debts.count(),
             "on_time_installments": on_time_count, "due_installments": due_count,
             "odp_percentage": odp, "odp_score": odp,
             "debt_score": mean(dsr_score,odp),

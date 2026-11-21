@@ -30,7 +30,6 @@ class DebtSerializer(serializers.ModelSerializer):
             'confirmed_amount',
             'pending_amount',
             'submitted_amount',
-            'payment_type',
             'payment_amount',
             'due_date',
             'payment_date',
@@ -114,11 +113,6 @@ class DebtSerializer(serializers.ModelSerializer):
             getattr(self.instance, 'total_amount', None)
         )
 
-        payment_type = data.get(
-            'payment_type',
-            getattr(self.instance, 'payment_type', None)
-        )
-
         payment_amount = data.get(
             'payment_amount',
             getattr(self.instance, 'payment_amount', None)
@@ -129,45 +123,25 @@ class DebtSerializer(serializers.ModelSerializer):
             getattr(self.instance, 'payment_date', None)
         )
 
-        # จำนวนหนี้ต้องมากกว่า 0
-        if total_amount is not None and total_amount <= 0:
+        if total_amount is None or total_amount <= 0:
             raise serializers.ValidationError({
                 'total_amount': 'จำนวนหนี้ต้องมากกว่า 0'
             })
 
-        # flexible ไม่ควรมี payment_amount/payment_date
-        if payment_type == 'flexible':
-            if payment_amount is not None:
-                raise serializers.ValidationError({
-                    'payment_amount': 'หนี้แบบทยอยชำระไม่ควรกำหนดจำนวนเงินรายเดือน'
-                })
+        if payment_amount is None or payment_amount <= 0:
+            raise serializers.ValidationError({
+                'payment_amount': 'จำนวนเงินต่อเดือนต้องมากกว่า 0'
+            })
 
-            if payment_date is not None:
-                raise serializers.ValidationError({
-                    'payment_date': 'หนี้แบบทยอยชำระไม่ควรกำหนดวันชำระรายเดือน'
-                })
+        if payment_date is None:
+            raise serializers.ValidationError({
+                'payment_date': 'กรุณาระบุวันชำระรายเดือน'
+            })
 
-        # monthly ต้องมี payment_amount และ payment_date
-        if payment_type == 'monthly':
-            if payment_amount is None:
-                raise serializers.ValidationError({
-                    'payment_amount': 'หนี้แบบรายเดือนต้องระบุจำนวนเงินต่อเดือน'
-                })
-
-            if payment_amount <= 0:
-                raise serializers.ValidationError({
-                    'payment_amount': 'จำนวนเงินต่อเดือนต้องมากกว่า 0'
-                })
-
-            if payment_date is None:
-                raise serializers.ValidationError({
-                    'payment_date': 'หนี้แบบรายเดือนต้องระบุวันชำระ'
-                })
-
-            if not 1 <= payment_date <= 31:
-                raise serializers.ValidationError({
-                    'payment_date': 'วันชำระต้องอยู่ระหว่าง 1-31'
-                })
+        if not 1 <= payment_date <= 31:
+            raise serializers.ValidationError({
+                'payment_date': 'วันชำระต้องอยู่ระหว่าง 1-31'
+            })
 
         return data
 

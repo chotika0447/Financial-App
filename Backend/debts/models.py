@@ -1,6 +1,6 @@
 from django.db import models
 from users.models import User
-from django.core.validators import MaxValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 class Debts(models.Model):
 
@@ -12,11 +12,6 @@ class Debts(models.Model):
     DEBT_TYPE_CHOICES = [
         ('borrowed', 'ยืมเงิน'),
         ('lent', 'ให้ยืมเงิน'),
-    ]
-
-    PAYMENT_TYPE_CHOICES = [
-        ('flexible', 'ทยอยชำระ'),
-        ('monthly', 'รายเดือน'),
     ]
 
     id = models.AutoField(
@@ -73,14 +68,8 @@ class Debts(models.Model):
         max_digits=12,
         decimal_places=2
     )
-    #ทยอยชำระ/รายเดือน
-    payment_type = models.CharField(
-        max_length=20,
-        choices=PAYMENT_TYPE_CHOICES
-    )
     
-    # จำนวนเงินที่ต้องจ่ายรายเดือนจะแบ่งงวดเท่าๆกัน
-    # แต่ถ้า payment_type = ทยอยชำระ จะเป็น NULL
+    # จำนวนเงินที่ต้องชำระรายงวด
     payment_amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -90,12 +79,16 @@ class Debts(models.Model):
 
     # วันครบกำหนดสุดท้ายในการชำระหนี้ก้อนนี้
     due_date = models.DateField()
-    # วันครบกำหนดชำระเงินในแต่ละเดือน (สำหรับ monthly)
+    # วันที่ต้องชำระในแต่ละเดือน
     payment_date = models.PositiveSmallIntegerField(
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(31)
+        ],
         null=True,
         blank=True
     )
-    # วันครบกำหนดของงวดปัจจุบัน สำหรับ monthly เท่านั้น ส่วน flexible ปล่อยเป็น NULL
+
     current_due_date = models.DateField(
         null=True,
         blank=True
@@ -180,7 +173,7 @@ class Payments(models.Model):
     scheduled_amount  = models.DecimalField(
         max_digits=12,
         decimal_places=2,
-        null=True, #สำหรับ flexible สามารถเป็น NULL ได้
+        null=True, 
         blank=True
     )
     # จำนวนเงินที่จ่ายจริงในงวดนั้น

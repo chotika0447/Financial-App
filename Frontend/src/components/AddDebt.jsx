@@ -67,7 +67,6 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
         counterpartyId: editingDebt.counterparty || null,
         totalAmount: editingDebt.total_amount || "",
         remainingAmount: Math.max(0, totalAmount - paid),
-        paymentType: editingDebt.payment_type || "monthly",
         paymentAmount: editingDebt.payment_amount || "",
         paymentDate: editingDebt.payment_date || "",
         dueDate: editingDebt.due_date || "",
@@ -198,21 +197,18 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
       validationError = "กรุณากรอกจำนวนหนี้ที่มากกว่า 0";
     } else if (!form.dueDate) {
       validationError = "กรุณากำหนดวันสิ้นสุดการชำระหนี้";
+
     } else if (
-      form.paymentType === "monthly"
-      && (
-        !Number.isFinite(Number(form.paymentAmount))
-        || Number(form.paymentAmount) <= 0
-      )
+      form.paymentAmount === "" ||
+      !Number.isFinite(Number(form.paymentAmount)) ||
+      Number(form.paymentAmount) <= 0
     ) {
       validationError = "กรุณากรอกจำนวนเงินที่ต้องชำระรายงวดให้มากกว่า 0";
     } else if (
-      form.paymentType === "monthly"
-      && (
-        !Number.isInteger(Number(form.paymentDate))
-        || Number(form.paymentDate) < 1
-        || Number(form.paymentDate) > 31
-      )
+      form.paymentDate === "" ||
+      !Number.isInteger(Number(form.paymentDate)) ||
+      Number(form.paymentDate) < 1 ||
+      Number(form.paymentDate) > 31
     ) {
       validationError = "กรุณากำหนดวันชำระรายเดือนระหว่างวันที่ 1-31";
     }
@@ -238,29 +234,8 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
 
       formData.append("type", currentDebtType === "borrow" ? "borrowed" : "lent");
       formData.append("total_amount", form.totalAmount);
-      formData.append("payment_type", form.paymentType);
-      formData.append("icon", form.icon);
-      formData.append("color", form.color);
-      // หนี้แบบรายเดือน
-      if (
-        form.paymentType === "monthly"
-        && form.paymentAmount
-      ) {
-        formData.append(
-          "payment_amount",
-          form.paymentAmount
-        );
-      }
-
-      if (
-        form.paymentType === "monthly"
-        && form.paymentDate
-      ) {
-        formData.append(
-          "payment_date",
-          form.paymentDate
-        );
-      }
+      formData.append("payment_amount", form.paymentAmount);
+      formData.append("payment_date", form.paymentDate);
 
       // ตั้งค่าการแจ้งเตือนชำระหนี้
       if (form.reminderEnabled) {
@@ -801,94 +776,45 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
 
           </div>
 
+          {/* =================กำหนดการชำระหนี้รายเดือน=============== */}
+          <div className="mb-3 rounded-[10px] bg-gray-100 p-3">
 
-          {/* =========================
-              ประเภทชำระ
-          ========================= */}
-          <div className="mb-3">
+            <div className="mb-2">
+              <label className="mb-1 block text-[11px]">
+                จำนวนเงินที่ต้องชำระรายงวด
+              </label>
 
-            <label className="mb-1 block text-[12px]">
-              ประเภทการชำระหนี้
-            </label>
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={form.paymentAmount}
+                onChange={(e) =>
+                  handleChange("paymentAmount", e.target.value)
+                }
+                className="h-[30px] w-full rounded-[8px] border border-gray-300 bg-white px-2 text-[12px]"
+              />
+            </div>
 
-            <select
-              value={form.paymentType}
-              onChange={(e) =>
-                handleChange(
-                  "paymentType",
-                  e.target.value
-                )
-              }
-              className="
-                h-[34px]
-                w-full
-                rounded-[9px]
-                border border-gray-300
-                bg-gray-100
-                px-2
-                text-[12px]
-                outline-none
-              "
-            >
-              <option value="flexible">
-                ทยอยจ่าย
-              </option>
+            <div>
+              <label className="mb-1 block text-[11px]">
+                งวดชำระทุกวันที่
+              </label>
 
-              <option value="monthly">
-                รายเดือน
-              </option>
-            </select>
+              <input
+                type="number"
+                min="1"
+                max="31"
+                step="1"
+                value={form.paymentDate}
+                onChange={(e) =>
+                  handleChange("paymentDate", e.target.value)
+                }
+                className="h-[30px] w-full rounded-[8px] border border-gray-300 bg-white px-2 text-[12px]"
+              />
+            </div>
 
           </div>
-
-
-          {/* =========================
-              เฉพาะรายเดือน
-          ========================= */}
-          {form.paymentType === "monthly" && (
-            <div className="mb-3 rounded-[10px] bg-gray-100 p-3">
-
-              <div className="mb-2">
-
-                <label className="mb-1 block text-[11px]">
-                  จำนวนเงินที่ต้องชำระรายงวด
-                </label>
-
-                <input
-                  type="number"
-                  value={form.paymentAmount}
-                  onChange={(e) =>
-                    handleChange(
-                      "paymentAmount",
-                      e.target.value
-                    )
-                  }
-                  className="
-                    h-[30px]
-                    w-full
-                    rounded-[8px]
-                    border border-gray-300
-                    bg-white
-                    px-2
-                    text-[12px]
-                  "
-                />
-
-              </div>
-
-
-              <div>
-
-                <label className="mb-1 block text-[11px]">
-                  งวดชำระทุกวันที่
-                </label>
-
-                <input type="number" min="1" max="31" value={form.paymentDate} onChange={(e) => handleChange("paymentDate", e.target.value)}
-                  className="h-[30px] w-full rounded-[8px] border border-gray-300 bg-white px-2 text-[12px]" />
-              </div>
-            </div>
-          )}
-
 
           {/* =========================
               วันสิ้นสุด
