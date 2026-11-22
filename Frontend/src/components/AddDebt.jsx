@@ -6,7 +6,6 @@ import {
   Gamepad2,
   Car,
   Home,
-  CalendarDays,
   Utensils,
   ShoppingBag,
   Plane,
@@ -120,7 +119,8 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
   const minimumEndDate = hasPreviousPayments
     ? (editingDebt?.current_due_date || schedule?.first || "")
     : (schedule?.last || "");
-  const invalidEndDate = Boolean(form.dueDate && minimumEndDate && form.dueDate < minimumEndDate);
+  const effectiveEndDate = form.dueDate || (!editingDebt ? schedule?.last || "" : "");
+  const invalidEndDate = Boolean(effectiveEndDate && minimumEndDate && effectiveEndDate < minimumEndDate);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({
@@ -220,7 +220,7 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
       || Number(form.totalAmount) <= 0
     ) {
       validationError = "กรุณากรอกจำนวนหนี้ที่มากกว่า 0";
-    } else if (!form.dueDate) {
+    } else if (!effectiveEndDate) {
       validationError = "กรุณากำหนดวันสิ้นสุดการชำระหนี้";
 
     } else if (
@@ -295,11 +295,8 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
       }
 
       // วันสิ้นสุด
-      if (form.dueDate) {
-        formData.append(
-          "due_date",
-          form.dueDate
-        );
+      if (effectiveEndDate) {
+        formData.append("due_date", effectiveEndDate);
       }
 
       formData.append(
@@ -738,127 +735,88 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
           </div>
 
 
-          {/* =========================
-              จำนวนเงิน
-          ========================= */}
-          <div className="mb-4 grid grid-cols-2 gap-3">
-
-            <div>
-
-              <label className="mb-1 block text-[12px]">
-                ยอดทั้งหมด
-              </label>
-
-              <input
-                type="number"
-                value={form.totalAmount}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  const newTotal = Number(value || 0);
-                  handleChange("totalAmount", value);
-
-                  // ยอดคงเหลือ = ยอดทั้งหมด - ยอดที่ชำระ/ได้รับคืนแล้ว
-                  const newRemaining = Math.max(0, newTotal - paidAmount);
-                  handleChange("remainingAmount", String(newRemaining));
-                }}
-                className="
-                  h-[30px]
-                  w-full
-                  rounded-[9px]
-                  border border-gray-300
-                  bg-gray-100
-                  px-2
-                  text-[12px]
-                  outline-none
-                "
-              />
-
-            </div>
-
-
-            <div>
-
-              <label className="mb-1 block text-[12px]">
-                ยอดคงเหลือ
-              </label>
-
-              <input
-                type="number"
-                value={form.remainingAmount}
-                readOnly
-                onChange={(e) =>
-                  handleChange("totalAmount", e.target.value)
-                }
-                className="
-                  h-[30px]
-                  w-full
-                  rounded-[9px]
-                  border border-gray-300
-                  bg-gray-100
-                  px-2
-                  text-[12px]
-                  outline-none
-                "
-              />
-
-            </div>
-
-          </div>
-
-          {/* =================กำหนดการชำระหนี้รายเดือน=============== */}
-          <div className="mb-3 rounded-[10px] bg-gray-100 p-3">
-
-            <div className="mb-2">
-              <label className="mb-1 block text-[11px]">
-                จำนวนเงินที่ต้องชำระรายงวด
-              </label>
-
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={form.paymentAmount}
-                onChange={(e) =>
-                  handleChange("paymentAmount", e.target.value)
-                }
-                className="h-[30px] w-full rounded-[8px] border border-gray-300 bg-white px-2 text-[12px]"
-              />
+          {/* แผนผ่อนชำระ: เรียงตามแบบฟอร์มตัวอย่าง */}
+          <div className="mb-4 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="min-w-0">
+                <label className="mb-1 block text-[11px] font-medium text-gray-700">ยอดหนี้ทั้งหมด (บาท)</label>
+                <input
+                  type="number" min="0.01" step="0.01"
+                  value={form.totalAmount}
+                  onChange={(e) => handleChange("totalAmount", e.target.value)}
+                  placeholder="เช่น 1000"
+                  className="h-10 w-full rounded-xl border border-gray-300 bg-gray-100 px-3 text-[12px] outline-none focus:border-green-500"
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="mb-1 block text-[11px] font-medium text-gray-700">ยอดชำระต่องวด (บาท)</label>
+                <input
+                  type="number" min="0.01" step="0.01"
+                  value={form.paymentAmount}
+                  onChange={(e) => handleChange("paymentAmount", e.target.value)}
+                  placeholder="เช่น 100"
+                  className="h-10 w-full rounded-xl border border-gray-300 bg-gray-100 px-3 text-[12px] outline-none focus:border-green-500"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="mb-1 block text-[11px]">
-                งวดชำระทุกวันที่
-              </label>
-
-              <input
-                type="number"
-                min="1"
-                max="31"
-                step="1"
+              <label className="mb-1 block text-[12px] font-medium text-gray-700">ชำระทุกวันที่ของเดือน</label>
+              <select
                 value={form.paymentDate}
-                onChange={(e) =>
-                  handleChange("paymentDate", e.target.value)
-                }
-                className="h-[30px] w-full rounded-[8px] border border-gray-300 bg-white px-2 text-[12px]"
+                onChange={(e) => handleChange("paymentDate", e.target.value)}
+                className="h-10 w-full rounded-xl border border-gray-300 bg-gray-100 px-3 text-[12px] outline-none focus:border-green-500"
+              >
+                <option value="">เลือกวันชำระ</option>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                  <option key={day} value={day}>วันที่ {day}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-[10px] text-gray-500">หากเดือนใดไม่มีวันที่เลือก ระบบจะใช้วันสุดท้ายของเดือน</p>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[12px] font-medium text-gray-700">วันสิ้นสุดการชำระหนี้</label>
+              <input
+                type="date"
+                min={minimumEndDate || undefined}
+                value={effectiveEndDate}
+                onChange={(e) => handleChange("dueDate", e.target.value)}
+                className={`h-10 w-full rounded-xl border bg-gray-100 px-3 text-[12px] outline-none ${invalidEndDate ? "border-red-400" : "border-gray-300"}`}
               />
             </div>
 
-          </div>
+            {schedule && (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-[12px] text-gray-800">
+                <div className="grid grid-cols-2 gap-3 pb-3">
+                  <div>
+                    <p className="text-[11px] text-gray-500">จำนวนงวดที่ต้องชำระ</p>
+                    <p className="mt-1 font-semibold">{schedule.count} งวด</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-gray-500">งวดแรก</p>
+                    <p className="mt-1 font-semibold">{hasPreviousPayments ? (editingDebt?.current_due_date || schedule.first) : schedule.first}</p>
+                  </div>
+                </div>
+                <div className="border-t border-gray-200 pt-3">
+                  <p className="text-[11px] text-gray-500">วันชำระงวดสุดท้ายโดยประมาณ</p>
+                  <p className="mt-1 text-[14px] font-semibold">{hasPreviousPayments ? "อ้างอิงงวดปัจจุบันของรายการเดิม" : schedule.last}</p>
+                </div>
+              </div>
+            )}
 
-          {schedule && (
-            <div className="mb-3 rounded-lg border border-green-200 bg-green-50 p-3 text-[11px] text-gray-700">
-              <p className="font-semibold text-green-800">สรุปแผนชำระรายเดือน</p>
-              <p className="mt-1">งวดแรก: {schedule.first}</p>
-              {!hasPreviousPayments ? (
-                <>
-                  <p>จำนวนงวด: {schedule.count} งวด</p>
-                  <p>วันสิ้นสุดที่แนะนำ: {schedule.last}</p>
-                </>
-              ) : (
-                <p>รายการนี้มีประวัติการชำระแล้ว ระบบจะรักษางวดปัจจุบันไว้</p>
-              )}
-            </div>
-          )}
+            {hasPreviousPayments && (
+              <p className="text-[11px] text-gray-500">รายการนี้มีประวัติชำระแล้ว ระบบจะรักษางวดปัจจุบันไว้</p>
+            )}
+            {invalidEndDate && (
+              <div className="rounded-lg bg-red-50 p-3 text-[11px] text-red-700" role="alert">
+                <p className="font-semibold">⚠ วันสิ้นสุดการชำระหนี้ไม่สอดคล้องกับยอดผ่อน</p>
+                <p className="mt-1 leading-relaxed">
+                  กรุณาเลือกวันสิ้นสุดตั้งแต่ {minimumEndDate} เป็นต้นไป หรือเพิ่มยอดชำระต่องวด
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* การแจ้งเตือนชำระหนี้ */}
           <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3">
@@ -958,62 +916,6 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
               </div>
             )}
           </div>
-
-          {/* =========================
-              วันสิ้นสุด
-          ========================= */}
-          <div className="mb-3">
-
-            <label className="mb-1 block text-[12px]">
-              กำหนดสิ้นสุดการชำระหนี้
-            </label>
-
-            <div className="relative">
-
-              <CalendarDays
-                size={15}
-                className="
-                  pointer-events-none
-                  absolute
-                  left-2
-                  top-1/2
-                  -translate-y-1/2
-                  text-gray-400
-                "
-              />
-
-              <input
-                type="date"
-                min={minimumEndDate || undefined}
-                value={form.dueDate}
-                onChange={(e) =>
-                  handleChange(
-                    "dueDate",
-                    e.target.value
-                  )
-                }
-                className="
-                  h-[32px]
-                  w-full
-                  rounded-[9px]
-                  border border-gray-300
-                  bg-gray-100
-                  pl-8
-                  pr-2
-                  text-[11px]
-                "
-              />
-
-            </div>
-
-          </div>
-
-
-          {invalidEndDate && (
-            <p className="mb-3 text-[11px] font-medium text-red-600">
-              วันสิ้นสุดเร็วเกินไป กรุณาเลือกตั้งแต่ {minimumEndDate} เป็นต้นไป
-            </p>
-          )}
 
           {/* =========================
               หมายเหตุ
