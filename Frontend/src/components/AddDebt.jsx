@@ -16,6 +16,25 @@ import {
   Image,
 } from "lucide-react";
 
+// Monthly schedule helpers; all dates are local calendar dates (no UTC parsing).
+const dateToISO = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const dueInMonth = (year, monthIndex, paymentDay) => {
+  const last = new Date(year, monthIndex + 1, 0).getDate();
+  return new Date(year, monthIndex, Math.min(paymentDay, last));
+};
+const calculateSchedule = (paymentDay, total, installment, reference = new Date()) => {
+  const day = Number(paymentDay);
+  const amount = Number(total);
+  const perMonth = Number(installment);
+  if (!Number.isInteger(day) || day < 1 || day > 31 || !Number.isFinite(amount) || amount <= 0 || !Number.isFinite(perMonth) || perMonth <= 0) return null;
+  let first = dueInMonth(reference.getFullYear(), reference.getMonth(), day);
+  const today = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate());
+  if (first < today) first = dueInMonth(reference.getFullYear(), reference.getMonth() + 1, day);
+  const count = Math.ceil(amount / perMonth);
+  const last = dueInMonth(first.getFullYear(), first.getMonth() + count - 1, day);
+  return { first: dateToISO(first), last: dateToISO(last), count };
+};
+
 function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDebt, onSubmit, friends = [], }) {
 
   const initialForm = {
@@ -24,7 +43,6 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
     counterpartyId: null,
     totalAmount: "",
     remainingAmount: "",
-    paymentType: "monthly",
     paymentAmount: "",
     paymentDate: "",
     dueDate: "",
@@ -96,6 +114,13 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
   }, [editingDebt]);
 
   if (!open) return null;
+
+  const hasPreviousPayments = Boolean(editingDebt && paidAmount > 0);
+  const schedule = calculateSchedule(form.paymentDate, form.totalAmount, form.paymentAmount);
+  const minimumEndDate = hasPreviousPayments
+    ? (editingDebt?.current_due_date || schedule?.first || "")
+    : (schedule?.last || "");
+  const invalidEndDate = Boolean(form.dueDate && minimumEndDate && form.dueDate < minimumEndDate);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({
@@ -211,6 +236,10 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
       Number(form.paymentDate) > 31
     ) {
       validationError = "กรุณากำหนดวันชำระรายเดือนระหว่างวันที่ 1-31";
+    }
+
+    if (!validationError && invalidEndDate) {
+      validationError = `วันสิ้นสุดการชำระหนี้ต้องไม่ก่อน ${minimumEndDate} กรุณาปรับวันที่หรือยอดชำระรายงวด`;
     }
 
     if (validationError) {
@@ -816,6 +845,21 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
 
           </div>
 
+          {schedule && (
+            <div className="mb-3 rounded-lg border border-green-200 bg-green-50 p-3 text-[11px] text-gray-700">
+              <p className="font-semibold text-green-800">สรุปแผนชำระรายเดือน</p>
+              <p className="mt-1">งวดแรก: {schedule.first}</p>
+              {!hasPreviousPayments ? (
+                <>
+                  <p>จำนวนงวด: {schedule.count} งวด</p>
+                  <p>วันสิ้นสุดที่แนะนำ: {schedule.last}</p>
+                </>
+              ) : (
+                <p>รายการนี้มีประวัติการชำระแล้ว ระบบจะรักษางวดปัจจุบันไว้</p>
+              )}
+            </div>
+          )}
+
           {/* การแจ้งเตือนชำระหนี้ */}
           <div className="mb-4 rounded-xl border border-gray-200 bg-white p-3">
             <div className="flex items-center justify-between gap-3">
@@ -940,6 +984,7 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
 
               <input
                 type="date"
+                min={minimumEndDate || undefined}
                 value={form.dueDate}
                 onChange={(e) =>
                   handleChange(
@@ -963,6 +1008,12 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
 
           </div>
 
+
+          {invalidEndDate && (
+            <p className="mb-3 text-[11px] font-medium text-red-600">
+              วันสิ้นสุดเร็วเกินไป กรุณาเลือกตั้งแต่ {minimumEndDate} เป็นต้นไป
+            </p>
+          )}
 
           {/* =========================
               หมายเหตุ

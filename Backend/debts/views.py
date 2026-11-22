@@ -29,6 +29,7 @@ import os
 import uuid
 import requests
 from calendar import monthrange
+from .debt_schedule import initial_monthly_due_date
 from datetime import date
 import logging
 
@@ -477,13 +478,17 @@ class DebtDetailView(APIView):
 
         # รักษาเดือนของงวดปัจจุบันไว้ แต่ปรับวันตามวันที่ชำระใหม่
         if debt.payment_date != old_payment_date:
-            if old_current_due_date:
+            related_ids = [debt.pk] + ([paired_debt.pk] if paired_debt else [])
+            has_payments = Payments.objects.filter(debt_id__in=related_ids).exists()
+            if has_payments and old_current_due_date:
+                # Keep the existing installment month once payments have been recorded.
                 debt.current_due_date = get_monthly_due_date(
                     old_current_due_date.year,
                     old_current_due_date.month,
                     debt.payment_date,
                 )
             else:
+                # No payment history: a changed payment day starts a new schedule.
                 debt.current_due_date = get_initial_monthly_due_date(debt)
             debt.save(update_fields=["current_due_date", "updated_at"])
 
@@ -564,7 +569,7 @@ def get_initial_monthly_due_date(debt, today=None):
         )
 
     if today is None:
-        today = date.today()
+        today = timezone.localdate()
 
     due_date = get_monthly_due_date(
         today.year,
