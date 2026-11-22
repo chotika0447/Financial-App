@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from django.test import SimpleTestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from .management.commands.send_due_debt_reminders import is_reminder_date
+from .management.commands.send_debt_reminders import is_reminder_date
 from .models import Debts
 from .views import DebtListCreateView
 
