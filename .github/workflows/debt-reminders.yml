@@ -1,0 +1,35 @@
+
+name: Send Debt Reminders
+
+on:
+  schedule:
+    - cron: "2-59/5 * * * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: debt-reminders
+  cancel-in-progress: false
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+
+    steps:
+      - name: Trigger Django debt reminders
+        env:
+          CRON_TOKEN: ${{ secrets.DEBT_REMINDER_CRON_TOKEN }}
+          CRON_URL: ${{ vars.DEBT_REMINDER_CRON_URL }}
+        run: |
+          curl --fail-with-body --show-error --silent \
+            --retry 2 \
+            --retry-delay 5 \
+            --connect-timeout 30 \
+            --max-time 210 \
+            --request POST \
+            --header "X-Cron-Token: $CRON_TOKEN" \
+            "$CRON_URL"

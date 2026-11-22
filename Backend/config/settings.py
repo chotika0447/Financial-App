@@ -309,3 +309,8 @@ else:
         }
     }
 
+# =================== cron - github ===================
+
+DEBT_REMINDER_CRON_TOKEN = os.getenv(
+    "DEBT_REMINDER_CRON_TOKEN", ""
+)
