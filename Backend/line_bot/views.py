@@ -2432,6 +2432,83 @@ def attach_receipt_to_pending(data, image_bytes, message_id):
     return True
 
 
+def _read_transaction_slip_with_rotation(signed_url, image_bytes, message_id):
+    """OCR once normally; try right-angle rotations only if key fields are missing.
+
+    Temporary rotated images are deleted. Original receipt is never replaced.
+    Pillow is optional: without it, the original OCR result/error is retained.
+    """
+    original_error = None
+    original_slip = None
+    try:
+        original_slip = parse_slip(run_ocr(signed_url))
+        if original_slip.get("amount") and original_slip.get("date"):
+            return original_slip
+    except Exception as error:
+        original_error = error
+        logger.warning("Original receipt OCR failed; checking rotated image", exc_info=True)
+
+    try:
+        from PIL import Image, ImageOps
+    except ImportError:
+        logger.warning("Pillow unavailable: rotated OCR fallback skipped")
+        if original_slip is not None:
+            return original_slip
+        raise original_error
+
+    try:
+        with Image.open(BytesIO(image_bytes)) as image:
+            oriented = ImageOps.exif_transpose(image).convert("RGB")
+            # Copy into memory before closing the input stream.
+            oriented.load()
+    except Exception:
+        logger.exception("Unable to decode receipt for rotation")
+        if original_slip is not None:
+            return original_slip
+        raise original_error
+
+    best = original_slip
+    best_score = (
+        int(bool(best.get("amount"))) + int(bool(best.get("date")))
+        if best else -1
+    )
+    for angle in (90, 180, 270):
+        temp_path = None
+        try:
+            rotated = oriented.rotate(angle, expand=True)
+            buffer = BytesIO()
+            rotated.save(buffer, format="JPEG", quality=88, optimize=True)
+            temp_path = upload_receipt(
+                buffer.getvalue(),
+                f"line_ocr_rotation_{message_id}_{angle}.jpg",
+            )
+            if not temp_path:
+                raise ValueError("Cannot upload temporary rotated image")
+            rotated_url = get_receipt_signed_url(temp_path)
+            if not rotated_url:
+                raise ValueError("Cannot sign temporary rotated image")
+            candidate = parse_slip(run_ocr(rotated_url))
+            score = int(bool(candidate.get("amount"))) + int(bool(candidate.get("date")))
+            if score > best_score:
+                best, best_score = candidate, score
+            if score == 2:
+                return candidate
+        except Exception:
+            logger.warning("Rotated OCR attempt failed angle=%s", angle, exc_info=True)
+        finally:
+            if temp_path:
+                try:
+                    delete_receipt(temp_path)
+                except Exception:
+                    logger.exception("Failed to delete temporary rotated receipt")
+
+    if best is not None:
+        return best
+    if original_error is not None:
+        raise original_error
+    raise ValueError("No readable OCR result")
+
+
 def handle_image_message(message_id, line_user_id):
 
     user = User.objects.filter(
@@ -2706,19 +2783,13 @@ def handle_image_message(message_id, line_user_id):
                 "Cannot create signed URL for OCR"
             )
 
-        #ส่งรูปให้ PaddleOCR อ่านข้อความ
-        raw_pages = run_ocr(signed_url)
+        # อ่านทิศทางปกติก่อน และลองหมุนเฉพาะเมื่อยอดเงิน/วันที่ไม่ครบ
+        slip = _read_transaction_slip_with_rotation(
+            signed_url, image_bytes, message_id
+        )
 
-        #แยกข้อมูลจากสลิป
-        slip = parse_slip(raw_pages)
-
-        #เลือกชื่อรายการตามประเภทที่ผู้ใช้เลือก
-        if transaction_type == "income":
-            name = slip.get("sender")
-        else:
-            name = slip.get("receiver")
-
-        name = str(name or "").strip()
+        # ชื่อผู้โอน/ผู้รับไม่ใช่ชื่อรายการซื้อขาย จึงให้ผู้ใช้ระบุเอง
+        name = str(data.get("name") or "").strip()
 
         #อ่านจำนวนเงินจากผลอ่าน OCR
         try:

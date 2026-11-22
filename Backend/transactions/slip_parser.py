@@ -6,7 +6,7 @@ from decimal import Decimal, InvalidOperation
 THAI_MONTHS = {"ม.ค.": 1, "ก.พ.": 2, "มี.ค.": 3, "เม.ย.": 4, "พ.ค.": 5, "มิ.ย.": 6, "ก.ค.": 7, "ส.ค.": 8, "ก.ย.": 9, "ต.ค.": 10, "พ.ย.": 11, "ธ.ค.": 12}
 SENDER_KEYWORDS = [r"จาก", r"FROM", r"ผู้โอน", r"ชื่อผู้โอน", r"ผู้ชำระ", r"ผู้ชำระเงิน", r"โอนจาก", r"ต้นทาง"]
 RECEIVER_KEYWORDS = [r"ไปยัง", r"TO", r"ผู้รับ", r"ชื่อผู้รับ", r"ผู้รับเงิน", r"ผู้รับโอน", r"ปลายทาง", r"โอนไปยัง"]
-AMOUNT_KEYWORDS = [r"จำนวนเงิน", r"จำนวน", r"AMOUNT", r"TRANSFER\s+AMOUNT", r"TOTAL\s+AMOUNT", r"ยอดเงิน", r"ยอดโอน", r"ยอดชำระ", r"เงินที่โอน"]
+AMOUNT_KEYWORDS = [r"จำนวนเงิน", r"จำนวน", r"AMOUNT", r"TRANSFER\s+AMOUNT", r"TOTAL\s+AMOUNT", r"ยอดเงิน", r"ยอดโอน", r"ยอดชำระ", r"เงินที่โอน", r"ยอดชำระสุทธิ", r"ยอดสุทธิ", r"สุทธิ", r"NET\s+TOTAL", r"GRAND\s+TOTAL"]
 MEMO_KEYWORDS = [r"บันทึกช่วยจำ", r"NOTE", r"MEMO", r"REMARKS?", r"หมายเหตุ", r"รายละเอียด"]
 FEE_KEYWORDS = [r"ค่าธรรมเนียม", r"FEE", r"SERVICE\s+FEE", r"TRANSACTION\s+FEE"]
 PROVIDER_INFO_KEYWORDS = [r"ข้อมูลเพิ่มเติมจากผู้ให้บริการ", r"ADDITIONAL\s+INFORMATION", r"PROVIDER\s+INFORMATION", r"ข้อมูลเพิ่มเติม"]
@@ -117,19 +117,29 @@ def find_people_by_order(lines):
 
 
 def parse_date(lines):
+    """Accept Thai abbreviated dates and numeric DD/MM/YYYY dates."""
     months = "|".join(re.escape(m) for m in sorted(THAI_MONTHS, key=len, reverse=True))
-    pattern = re.compile(rf"(\d{{1,2}})\s+({months})\s+(\d{{4}})")
+    thai = re.compile(rf"(?<!\d)(\d{{1,2}})\s*({months})\s*(\d{{2,4}})(?!\d)")
+    numeric = re.compile(r"(?<!\d)(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?!\d)")
     for item in lines:
-        match = pattern.search(str(item.get("text") or ""))
-        if not match:
-            continue
-        day, month, year = int(match.group(1)), THAI_MONTHS[match.group(2)], int(match.group(3))
+        text = str(item.get("text") or "")
+        match = thai.search(text)
+        if match:
+            day, month, year = int(match[1]), THAI_MONTHS[match[2]], int(match[3])
+        else:
+            match = numeric.search(text)
+            if not match:
+                continue
+            day, month, year = map(int, match.groups())
+        if year < 100:
+            # Thai slips with two-digit Buddhist years (e.g. 69 = 2569).
+            year += 2500
         if year >= 2400:
             year -= 543
         try:
             return datetime(year, month, day).strftime("%Y-%m-%d")
         except ValueError:
-            return None
+            continue
     return None
 
 
@@ -143,37 +153,52 @@ def parse_time(lines):
 
 
 def parse_amount(lines):
-    """Find a labeled positive THB amount; reject ambiguous/invalid values."""
-    label_pattern = _label_pattern(AMOUNT_KEYWORDS)
-    number_pattern = re.compile(r"(?<![\w.,-])(-?\d[\d,]*)(?:\.(\d+))?(?![\w.,])")
-    for index, item in enumerate(lines):
-        text = str(item.get("text") or "").strip()
-        match_label = re.search(rf"(?:{label_pattern})\s*[:：]?\s*(.*)", text, re.IGNORECASE)
-        if not match_label:
-            continue
-        candidates = [match_label.group(1).strip()]
-        if index + 1 < len(lines):
-            next_text = str(lines[index + 1].get("text") or "").strip()
-            if not _is_other_label(next_text):
-                candidates.append(next_text)
-        for candidate in candidates:
-            # Do not read a partial number from malformed decimal notation.
-            for match in number_pattern.finditer(candidate):
-                integer_part, fraction = match.group(1), match.group(2)
-                if fraction is not None and len(fraction) > 2:
-                    continue
-                digits = integer_part.lstrip("-")
-                if "," in digits and not re.fullmatch(r"\d{1,3}(?:,\d{3})+", digits):
-                    continue
-                value = integer_part.replace(",", "")
-                if fraction is not None:
-                    value += "." + fraction
-                try:
-                    amount = Decimal(value)
-                except InvalidOperation:
-                    continue
-                if amount > 0:
-                    return f"{amount:.2f}"
+    """Extract a labeled payment amount, prioritizing net paid over subtotals.
+
+    Never use arbitrary account numbers, dates, item prices or reference IDs.
+    """
+    number = re.compile(r"(?<![\w.,/-])(-?\d[\d,]*)(?:\.(\d{1,2}))?(?![\w.,/-])")
+    groups = (
+        (r"ยอดชำระสุทธิ", r"ยอดสุทธิ", r"ยอดชำระรวม", r"สุทธิ", r"NET\s+TOTAL", r"GRAND\s+TOTAL", r"ยอดจ่ายจริง"),
+        (r"จำนวนเงิน", r"ยอดโอน", r"เงินที่โอน", r"TRANSFER\s+AMOUNT", r"TOTAL\s+AMOUNT", r"ยอดชำระ", r"ยอดเงิน", r"AMOUNT", r"จำนวน(?=\s*[:：])"),
+        (r"ยอดรวม", r"TOTAL"),
+    )
+    excluded = re.compile(r"ค่าธรรมเนียม|ภาษี|VAT|SERVICE\s*CHARGE|ส่วนลด|DISCOUNT|เงินทอน|CHANGE|BEFORE\s+TAX", re.I)
+    for group in groups:
+        label = _label_pattern(group)
+        for i, item in enumerate(lines):
+            text = str(item.get("text") or "").strip()
+            if excluded.search(text):
+                continue
+            found = re.match(rf"^\s*(?:{label})\s*[:：]?\s*(.*)$", text, re.I)
+            if not found:
+                continue
+            candidates = [found.group(1).strip()]
+            if i + 1 < len(lines):
+                nxt = str(lines[i + 1].get("text") or "").strip()
+                if not _is_other_label(nxt) and not excluded.search(nxt):
+                    candidates.append(nxt)
+            for candidate in candidates:
+                # Ignore dates and long IDs, and prefer decimal amounts.
+                matches = []
+                for m in number.finditer(candidate):
+                    whole, fractional = m.groups()
+                    digits = whole.lstrip("-")
+                    if len(digits.replace(",", "")) > 9:
+                        continue
+                    if "," in digits and not re.fullmatch(r"\d{1,3}(?:,\d{3})+", digits):
+                        continue
+                    try:
+                        value = Decimal(whole.replace(",", "") + ("." + fractional if fractional else ""))
+                    except InvalidOperation:
+                        continue
+                    if value.is_finite() and Decimal("0") < value <= Decimal("999999.99"):
+                        matches.append((fractional is not None, m.start(), value))
+                if matches:
+                    # If OCR combines a quantity and a price on one line,
+                    # the decimal-formatted amount is more reliable.
+                    matches.sort(key=lambda x: (not x[0], x[1]))
+                    return f"{matches[0][2]:.2f}"
     return None
 
 
