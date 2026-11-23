@@ -873,14 +873,42 @@ function AddDebt({ open, onClose, currentDebtType, setCurrentDebtType, editingDe
                   <label className="mb-1 block text-xs text-gray-700">
                     เวลาแจ้งเตือน
                   </label>
-                  <input
-                    type="time"
-                    value={form.reminderTime}
-                    onChange={(e) =>
-                      handleChange("reminderTime", e.target.value)
-                    }
-                    className="h-9 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm"
-                  />
+                  <div className="flex items-center gap-2">
+                    <select
+                      aria-label="ชั่วโมงแจ้งเตือน (00-23)"
+                      value={form.reminderTime.split(":")[0] || "09"}
+                      onChange={(e) => {
+                        const minute = form.reminderTime.split(":")[1] || "00";
+                        handleChange("reminderTime", `${e.target.value}:${minute}`);
+                      }}
+                      className="h-9 min-w-0 flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm"
+                    >
+                      {Array.from({ length: 24 }, (_, hour) =>
+                        String(hour).padStart(2, "0")
+                      ).map((hour) => (
+                        <option key={hour} value={hour}>{hour}</option>
+                      ))}
+                    </select>
+                    <span className="text-sm font-semibold text-gray-600">:</span>
+                    <select
+                      aria-label="นาทีแจ้งเตือน (00-59)"
+                      value={form.reminderTime.split(":")[1] || "00"}
+                      onChange={(e) => {
+                        const hour = form.reminderTime.split(":")[0] || "09";
+                        handleChange("reminderTime", `${hour}:${e.target.value}`);
+                      }}
+                      className="h-9 min-w-0 flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 text-sm"
+                    >
+                      {Array.from({ length: 60 }, (_, minute) =>
+                        String(minute).padStart(2, "0")
+                      ).map((minute) => (
+                        <option key={minute} value={minute}>{minute}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="mt-1 text-[10px] text-gray-500">
+                    รูปแบบ 24 ชั่วโมง เช่น 00:37 = หลังเที่ยงคืน, 12:37 = เที่ยงวัน
+                  </p>
 
                 </div>
 
