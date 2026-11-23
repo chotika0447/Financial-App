@@ -2738,7 +2738,7 @@ def handle_image_message(message_id, line_user_id):
         "user_id": user.uid,
         "amount": None,
         "transaction_type": transaction_type,
-        "name": "",
+        "name": "รายการจากสลิป",
         "description": "",
         "category_id": category.pk if category else None,
         "sub_category": "",
@@ -2788,8 +2788,11 @@ def handle_image_message(message_id, line_user_id):
             signed_url, image_bytes, message_id
         )
 
-        # ชื่อผู้โอน/ผู้รับไม่ใช่ชื่อรายการซื้อขาย จึงให้ผู้ใช้ระบุเอง
-        name = str(data.get("name") or "").strip()
+        # ไม่บังคับกรอกชื่อรายการเมื่อ OCR อ่านไม่ได้
+        # ชื่อผู้โอน/ผู้รับไม่ใช่ชื่อรายการซื้อขาย
+        name = str(slip.get("item_name") or data.get("name") or "").strip()
+        if not name:
+            name = "รายการจากสลิป"
 
         #อ่านจำนวนเงินจากผลอ่าน OCR
         try:
@@ -2807,7 +2810,7 @@ def handle_image_message(message_id, line_user_id):
             and amount.as_tuple().exponent >= -2
         )
 
-        incomplete = not name or not amount_valid
+        incomplete = not amount_valid
 
         #เก็บเฉพาะข้อมูลที่อ่านได้จริง
         data["name"] = name[:100]
@@ -2887,8 +2890,8 @@ def handle_image_message(message_id, line_user_id):
 
         if incomplete:
             warning = (
-                "อ่านชื่อรายการหรือจำนวนเงินจากสลิปไม่ครบค่ะ\n"
-                "กรุณากดแก้ไขรายการหากต้องการเปลี่ยนแปลงข้อมูลรายการ "
+                "ยังอ่านจำนวนเงินจากสลิปไม่ได้ค่ะ\n"
+                "กรุณากดแก้ไขรายการเพื่อระบุจำนวนเงิน "
                 "โดยรูปสลิปที่ส่งมาจะยังเป็นหลักฐานของรายการนี้ค่ะ"
             )
 
@@ -2919,8 +2922,8 @@ def handle_image_message(message_id, line_user_id):
         )
         flex = build_transaction_preview_flex(current)
         warning = (
-            "อ่านชื่อรายการหรือจำนวนเงินจากสลิปไม่ครบค่ะ\n"
-            "กรุณากดแก้ไขรายการหากต้องการเปลี่ยนแปลงข้อมูลรายการ "
+            "ระบบอ่านสลิปไม่สำเร็จค่ะ\n"
+            "กรุณากดแก้ไขรายการเพื่อระบุจำนวนเงิน "
             "โดยรูปสลิปที่ส่งมาจะยังเป็นหลักฐานของรายการนี้ค่ะ"
         )
         return [flex, {"type": "text", "text": warning}]

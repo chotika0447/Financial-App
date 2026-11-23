@@ -159,9 +159,9 @@ def parse_amount(lines):
     """
     number = re.compile(r"(?<![\w.,/-])(-?\d[\d,]*)(?:\.(\d{1,2}))?(?![\w.,/-])")
     groups = (
-        (r"ยอดชำระสุทธิ", r"ยอดสุทธิ", r"ยอดชำระรวม", r"สุทธิ", r"NET\s+TOTAL", r"GRAND\s+TOTAL", r"ยอดจ่ายจริง"),
+        (r"ยอดชำระสุทธิ", r"ยอดสุทธิ", r"ยอดชำระรวม", r"สุทธิ", r"NET\s+TOTAL", r"NET\s+BAHT", r"GRAND\s+TOTAL", r"ยอดจ่ายจริง", r"จำนวนเงินที่ต้องชำระ", r"รวมเงินที่ต้องชำระทั้งสิ้น", r"รวมเงินที่ต้องชำระ", r"ยอดเงินที่ต้องชำระ"),
         (r"จำนวนเงิน", r"ยอดโอน", r"เงินที่โอน", r"TRANSFER\s+AMOUNT", r"TOTAL\s+AMOUNT", r"ยอดชำระ", r"ยอดเงิน", r"AMOUNT", r"จำนวน(?=\s*[:：])"),
-        (r"ยอดรวม", r"TOTAL"),
+        (r"ยอดรวม", r"TOTAL", r"TOTAL\s+BAHT", r"ยอดรวมสุทธิ"),
     )
     excluded = re.compile(r"ค่าธรรมเนียม|ภาษี|VAT|SERVICE\s*CHARGE|ส่วนลด|DISCOUNT|เงินทอน|CHANGE|BEFORE\s+TAX", re.I)
     for group in groups:
@@ -227,6 +227,20 @@ def parse_notes(lines):
     }
 
 
+def detect_receipt_item(lines):
+    """Use a conservative generic label for known receipt types."""
+    text = " ".join(str(item.get("text") or "") for item in lines).casefold()
+    if "cafe amazon" in text or "café amazon" in text:
+        return "ซื้อเครื่องดื่ม"
+    if "7-eleven" in text or "cp all" in text:
+        return "ซื้อสินค้าที่ 7-Eleven"
+    if "การไฟฟ้า" in text or "ค่าไฟฟ้า" in text:
+        return "ค่าไฟฟ้า"
+    if "การประปา" in text or "ค่าน้ำประปา" in text:
+        return "ค่าน้ำประปา"
+    return None
+
+
 def parse_slip(raw_pages):
     lines = get_ocr_texts(raw_pages)
     date = parse_date(lines)
@@ -247,6 +261,7 @@ def parse_slip(raw_pages):
         "sender": sender,
         "receiver": receiver,
         "amount": amount,
+        "item_name": detect_receipt_item(lines),
         "note": note,
         "needs_review": bool(needs_review),
         "ocr_text": [item["text"] for item in lines],
