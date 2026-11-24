@@ -57,8 +57,34 @@ function PayDebt({ open, debt, onClose, onSaved }) {
   });
 
   const totalAmount = Number(debt?.total_amount || 0);
-  const submittedAmount = Number(debt?.submitted_amount ?? 0 );
-  const availableAmount = Math.max( 0, totalAmount - submittedAmount);
+  const submittedAmount = Number(
+    debt?.submitted_amount ?? (totalAmount - Number(debt?.remaining_amount ?? totalAmount))
+  );
+  const availableAmount = Math.max(0, Math.round((totalAmount - submittedAmount) * 100) / 100);
+  const installmentAmount = Number(debt?.payment_amount ?? 0);
+  const defaultPaymentAmount = Math.min(installmentAmount, availableAmount);
+  const debtId = debt?.id;
+  const initializedDebtRef = useRef(null);
+
+  // เติมยอดรายงวดเมื่อเปิดหน้าต่างหรือเปลี่ยนรายการหนี้เท่านั้น
+  useEffect(() => {
+    if (!open || debtId == null) {
+      initializedDebtRef.current = null;
+      return;
+    }
+    if (initializedDebtRef.current === debtId) return;
+    initializedDebtRef.current = debtId;
+
+    setForm({
+      amount: Number.isFinite(defaultPaymentAmount) && defaultPaymentAmount > 0
+        ? defaultPaymentAmount.toFixed(2)
+        : "",
+      paymentDate: "",
+      proof: null,
+      description: "",
+    });
+    setShowProofPreview(false);
+  }, [open, debtId, defaultPaymentAmount]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({
@@ -250,7 +276,8 @@ function PayDebt({ open, debt, onClose, onSaved }) {
 
             <input
               type="number"
-              min="0"
+              min="0.01"
+              step="0.01"
               max={availableAmount}
               value={form.amount}
               onChange={(e) =>
