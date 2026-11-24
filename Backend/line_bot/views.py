@@ -811,6 +811,23 @@ def build_transaction_flex(item):
             }
         }
     }
+def parse_transaction_amount(value):
+    try:
+        amount = Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+
+    if (
+        not amount.is_finite()
+        or amount <= 0
+        or amount > Decimal("999999.99")
+        or amount.as_tuple().exponent < -2
+    ):
+        return None
+
+    return amount
+
+
 def build_transaction_preview_flex(data):
 
     transaction_type = data["transaction_type"]
@@ -901,21 +918,10 @@ def build_transaction_preview_flex(data):
 
     #----------------ตั้งค่า ปุ่ม flex messege ตรวจสอบรายการรายรับ-รายจ่ายก่อนบันทึก ----------------------------
     #ปิดปุ่มยืนยันรายการถ้า ocr อ่านค่าไม่ครบ
-    try:
-        valid_amount = Decimal(str(data.get("amount")))
-        amount_ok = (
-            valid_amount.is_finite()
-            and valid_amount > 0
-            and valid_amount <= Decimal("999999.99")
-            and valid_amount.as_tuple().exponent >= -2
-        )
-    except (InvalidOperation, ValueError, TypeError):
-        amount_ok = False
+    amount_ok = parse_transaction_amount(data.get("amount")) is not None
 
-    can_confirm = (
-        bool(str(data.get("name") or "").strip())
-        and amount_ok
-    )
+    display_name = data.get("name") or data.get("item_name") or ""
+    can_confirm = bool(str(display_name).strip()) and amount_ok
 
     #กำหนดเงื่อนไขการแสดงปุ่ม
     buttons = []
@@ -992,7 +998,7 @@ def build_transaction_preview_flex(data):
                         "color": "#E8DCC8"
                     },
                     detail("ประเภท", type_label),
-                    detail("รายการ", data.get("name") or "-"),
+                    detail("รายการ", display_name or "-"),
                     detail("หมวดหมู่", category_text),
                     detail("ช่องทาง", data.get("account") or "-"),
                     detail("วันที่", date_text),
@@ -1065,28 +1071,18 @@ def confirm_pending_transaction(line_user_id, user, token):
         if not data or data.get("token") != token:
             return "รายการนี้หมดอายุหรือถูกยกเลิกไปแล้วค่ะ"
 
-        # ตรวจสอบชื่อรายการ
-        if not str(data.get("name") or "").strip():
-            return (
-                "ยังไม่พบชื่อรายการค่ะ "
-                "กรุณากดแก้ไขรายการก่อนยืนยัน"
-            )
+        data["name"] = str(
+            data.get("name") or data.get("item_name") or "รายการจากสลิป"
+        ).strip() or "รายการจากสลิป"
 
         # ตรวจสอบจำนวนเงิน
-        try:
-            amount = Decimal(str(data.get("amount")))
-        except (InvalidOperation, ValueError, TypeError):
+        amount = parse_transaction_amount(data.get("amount"))
+        if amount is None and data.get("amount") in (None, ""):
             return (
                 "ยังไม่พบจำนวนเงินค่ะ "
                 "กรุณากดแก้ไขรายการก่อนยืนยัน"
             )
-
-        if (
-            not amount.is_finite()
-            or amount <= 0
-            or amount > Decimal("999999.99")
-            or amount.as_tuple().exponent < -2
-        ):
+        if amount is None:
             return (
                 "จำนวนเงินไม่ถูกต้องค่ะ "
                 "กรุณากดแก้ไขรายการก่อนยืนยัน"
@@ -2232,7 +2228,7 @@ def handle_text_message(text, line_user_id):
 
             parsed_amount = result.get("amount")
 
-            if parsed_amount and parsed_amount > 0:
+            if parsed_amount is not None:
                 data["amount"] = str(parsed_amount)
 
             data["name"] = (
@@ -2282,15 +2278,14 @@ def handle_text_message(text, line_user_id):
 
             data["description"] = command
 
-            if not data.get("name"):
+            if not data.get("name") or data.get("name") == "รายการจากสลิป":
                 data["name"] = command
 
-        if not data.get("amount") or Decimal(str(data["amount"])) <= 0:
-
+        if parse_transaction_amount(data.get("amount")) is None:
             return (
-                "ยังไม่พบจำนวนเงินของรายการค่ะ "
-                "กรุณาส่งรายละเอียดพร้อมจำนวนเงิน "
-                "เช่น ซื้อกาแฟ 85 บาท"
+                "จำนวนเงินไม่ถูกต้องหรือยังไม่พบค่ะ "
+                "กรุณาระบุมากกว่า 0 ไม่เกิน 999999.99 "
+                "และมีทศนิยมไม่เกิน 2 ตำแหน่ง"
             )
 
         set_pending(line_user_id, data)
@@ -2399,6 +2394,110 @@ def handle_text_message(text, line_user_id):
 
     return build_attach_receipt_flex()
 
+
+
+# ==================== Additive Transaction Receipt OCR ====================
+def extract_transaction_receipt_fields(raw_pages):
+    """Read only total paid, date and time; never infer item_name."""
+    import re
+    from datetime import datetime
+    from decimal import Decimal, InvalidOperation
+
+    lines = []
+    for page in raw_pages or []:
+        data = page.get("res", page) if isinstance(page, dict) else {}
+        for item in data.get("rec_texts", []):
+            lines.extend(str(item).splitlines())
+    lines = [line.strip() for line in lines if line.strip()]
+    total_labels = re.compile(
+        r"ยอดสุทธิ|ยอดชำระ(?:สุทธิ)?|ยอดที่ต้องชำระ|รวมทั้งสิ้น|"
+        r"ยอดรวมสุทธิ|ยอดรวมทั้งหมด|ยอดโอน|จำนวนเงิน|"
+        r"GRAND\s*TOTAL|TOTAL\s*(?:PAID|AMOUNT|DUE)|NET\s*TOTAL|AMOUNT\s*PAID",
+        re.IGNORECASE,
+    )
+    amount_pattern = re.compile(r"(?<![\w.])(?:฿\s*)?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?(?![\w.])")
+    amount = None
+    # Prefer a clearly labelled final amount; never guess from arbitrary item prices.
+    for index in range(len(lines) - 1, -1, -1):
+        line = lines[index]
+        label = total_labels.search(line)
+        if not label:
+            continue
+        candidates = [line[label.end():]]
+        if index + 1 < len(lines):
+            candidates.append(lines[index + 1])
+        for candidate in candidates:
+            for match in amount_pattern.finditer(candidate):
+                try:
+                    value = Decimal(match.group(1).replace(",", "") + ("." + match.group(2) if match.group(2) else ""))
+                except InvalidOperation:
+                    continue
+                if value > 0:
+                    amount = f"{value:.2f}"
+                    break
+            if amount:
+                break
+        if amount:
+            break
+
+    date = None
+    time_value = None
+    months = {"ม.ค.": 1, "ก.พ.": 2, "มี.ค.": 3, "เม.ย.": 4, "พ.ค.": 5, "มิ.ย.": 6, "ก.ค.": 7, "ส.ค.": 8, "ก.ย.": 9, "ต.ค.": 10, "พ.ย.": 11, "ธ.ค.": 12}
+    for line in lines:
+        if date is None:
+            match = re.search(r"(?<!\d)(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?!\d)", line)
+            if match:
+                day, month, year = map(int, match.groups())
+                if year < 100:
+                    year += 2000
+                if year >= 2400:
+                    year -= 543
+                try:
+                    date = datetime(year, month, day).strftime("%Y-%m-%d")
+                except ValueError:
+                    pass
+            if date is None:
+                match = re.search(r"(\d{1,2})\s*(ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.)\s*(\d{4})", line)
+                if match:
+                    day, month, year = int(match.group(1)), months[match.group(2)], int(match.group(3))
+                    try:
+                        date = datetime(year - 543 if year >= 2400 else year, month, day).strftime("%Y-%m-%d")
+                    except ValueError:
+                        pass
+        if time_value is None:
+            match = re.search(r"(?<!\d)([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?(?!\d)", line)
+            if match:
+                time_value = f"{int(match.group(1)):02d}:{match.group(2)}:00"
+    return {"amount": amount, "date": date, "time": time_value}
+
+
+def apply_transaction_receipt_ocr(data, image_bytes, message_id):
+    """Read an existing pending receipt once, with rotation fallback if needed."""
+    from .supabase_storage import get_receipt_signed_url
+
+    path = data.get("receipt_path")
+    if not path:
+        return None
+    url = get_receipt_signed_url(path)
+    if not url:
+        raise ValueError("Cannot create signed receipt URL")
+    return _read_transaction_slip_with_rotation(
+        url,
+        image_bytes,
+        message_id,
+    )
+
+
+
+def build_ocr_image_note_prompt(data):
+    fields = data.get("ocr_fields") or {}
+    amount = fields.get("amount")
+    if amount:
+        return (f"อ่านยอดเงินจากรูปได้ {amount} บาทค่ะ 📷\n"
+                "กรุณาพิมพ์ชื่อรายการ เช่น กาแฟ\n"
+                "หากยอดไม่ถูกต้อง พิมพ์ชื่อรายการพร้อมยอด เช่น กาแฟ 80 บาท")
+    return build_image_note_prompt()
+
 # ==================== Image Message / OCR ====================
 #upload รูปไป supabase storage
 def attach_receipt_to_pending(data, image_bytes, message_id):
@@ -2440,8 +2539,22 @@ def _read_transaction_slip_with_rotation(signed_url, image_bytes, message_id):
     """
     original_error = None
     original_slip = None
+
+    def parse_ocr_result(raw_pages):
+        slip = parse_slip(raw_pages)
+        try:
+            fields = extract_transaction_receipt_fields(raw_pages)
+        except Exception:
+            logger.exception("Unable to extract labelled receipt fields")
+            return slip
+
+        for field in ("amount", "date", "time"):
+            if fields.get(field):
+                slip[field] = fields[field]
+        return slip
+
     try:
-        original_slip = parse_slip(run_ocr(signed_url))
+        original_slip = parse_ocr_result(run_ocr(signed_url))
         if original_slip.get("amount") and original_slip.get("date"):
             return original_slip
     except Exception as error:
@@ -2487,7 +2600,7 @@ def _read_transaction_slip_with_rotation(signed_url, image_bytes, message_id):
             rotated_url = get_receipt_signed_url(temp_path)
             if not rotated_url:
                 raise ValueError("Cannot sign temporary rotated image")
-            candidate = parse_slip(run_ocr(rotated_url))
+            candidate = parse_ocr_result(run_ocr(rotated_url))
             score = int(bool(candidate.get("amount"))) + int(bool(candidate.get("date")))
             if score > best_score:
                 best, best_score = candidate, score
@@ -2760,7 +2873,6 @@ def handle_image_message(message_id, line_user_id):
             "กรุณาส่งรูปอีกครั้ง"
         )
 
-
     # ==========================================
     # เก็บ Draft และรูปหลักฐานไว้ก่อนเรียก OCR
     # ==========================================
@@ -2773,42 +2885,26 @@ def handle_image_message(message_id, line_user_id):
     )
 
     try:
-        #สร้าง URL ชั่วคราวของรูปใน Supabase
-        signed_url = get_receipt_signed_url(
-            data["receipt_path"]
+        slip = apply_transaction_receipt_ocr(
+            data,
+            image_bytes,
+            message_id,
         )
-
-        if not signed_url:
-            raise ValueError(
-                "Cannot create signed URL for OCR"
-            )
-
-        # อ่านทิศทางปกติก่อน และลองหมุนเฉพาะเมื่อยอดเงิน/วันที่ไม่ครบ
-        slip = _read_transaction_slip_with_rotation(
-            signed_url, image_bytes, message_id
-        )
+        if slip is None:
+            raise ValueError("No receipt is available for OCR")
 
         # ไม่บังคับกรอกชื่อรายการเมื่อ OCR อ่านไม่ได้
         # ชื่อผู้โอน/ผู้รับไม่ใช่ชื่อรายการซื้อขาย
-        name = str(slip.get("item_name") or data.get("name") or "").strip()
-        if not name:
-            name = "รายการจากสลิป"
+        ocr_name = str(slip.get("item_name") or "").strip()
+        name = ocr_name or "รายการจากสลิป"
+        data["ocr_fields"] = {
+            field: slip.get(field)
+            for field in ("amount", "date", "time")
+        }
 
         #อ่านจำนวนเงินจากผลอ่าน OCR
-        try:
-            amount = Decimal(
-                str(slip.get("amount") or "0")
-            )
-        except (InvalidOperation, ValueError, TypeError):
-            amount = Decimal("0")
-
-        #ตรวจสอบข้อมูลที่ OCR อ่านได้
-        amount_valid = (
-            amount.is_finite()
-            and amount > 0
-            and amount <= Decimal("999999.99")
-            and amount.as_tuple().exponent >= -2
-        )
+        amount = parse_transaction_amount(slip.get("amount"))
+        amount_valid = amount is not None
 
         incomplete = not amount_valid
 
@@ -2838,10 +2934,18 @@ def handle_image_message(message_id, line_user_id):
 
         if slip_time:
             try:
-                parsed_time = datetime.strptime(
-                    slip_time,
-                    "%H:%M"
-                ).time()
+                parsed_time = None
+                for time_format in ("%H:%M:%S", "%H:%M"):
+                    try:
+                        parsed_time = datetime.strptime(
+                            slip_time,
+                            time_format,
+                        ).time()
+                        break
+                    except (TypeError, ValueError):
+                        continue
+                if parsed_time is None:
+                    raise ValueError("Invalid OCR time")
 
                 data["transaction_time"] = (
                     parsed_time.strftime("%H:%M:%S")
@@ -2853,7 +2957,7 @@ def handle_image_message(message_id, line_user_id):
                 )
 
         #จัดหมวดหมู่ด้วยระบบเดิม
-        if name:
+        if ocr_name:
             category = match_category(
                 name,
                 transaction_type,

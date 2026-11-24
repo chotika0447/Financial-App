@@ -208,7 +208,7 @@ def run_ocr(file_url):
     )
 
     # ตรวจสอบ TLS ก่อนเรียก PaddleOCR
-    # Skip the redundant TLS preflight; the HTTPS OCR request validates TLS.
+    # Skip redundant TLS preflight; the HTTPS request validates TLS.
 
     result = None
 
@@ -299,4 +299,3 @@ def run_ocr(file_url):
     )
 
     return raw_pages
-
