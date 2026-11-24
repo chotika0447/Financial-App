@@ -1,3 +1,4 @@
+
 import {
   GraduationCap,
   Gamepad2,
@@ -40,46 +41,75 @@ const colorMap = {
   gray: "bg-gray-300",
 };
 
-function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDelete, onSendReminder, sendingReminderId }) {
+function DebtCard({
+  debt,
+  onPayment,
+  onViewHistory,
+  onCheckPayment,
+  onEdit,
+  onDelete,
+  onSendReminder,
+  sendingReminderId
+}) {
 
   const isBorrow = debt.type === "borrowed";
 
+  // ตรวจสอบว่าผูกบัญชีเพื่อนหรือไม่
+  const isLinkedFriend = Boolean(debt.counterparty);
+
   // แปลงยอดเงินเป็นตัวเลข
-  const totalAmount = Number(debt.total_amount) || 0;
+  const totalAmount = Math.max(0, Number(debt.total_amount) || 0);
   const remainingAmount = Number(debt.remaining_amount) || 0;
 
-  // ยอดที่อนุมัติแล้ว
-  const confirmedAmount = Math.max(
+  // ยอดชำระจริงจากยอดหนี้คงเหลือ
+  const actualPaidAmount = Math.max(
     0,
     Math.min(
-      Number(debt.confirmed_amount ?? (totalAmount - remainingAmount)),
+      totalAmount - remainingAmount,
       totalAmount
     )
   );
 
-  // ยอดที่กำลังรออนุมัติ
-  const pendingAmount = Math.max(
-    0,
-    Math.min(
-      Number(debt.pending_amount || 0),
-      totalAmount - confirmedAmount
-    )
-  );
+  // ยอดชำระแล้ว
+  // หากผูกบัญชีเพื่อน ให้ใช้ยอดที่อนุมัติแล้ว
+  // หากไม่ได้ผูกบัญชีเพื่อน ให้ใช้ยอดชำระจริง
+  const confirmedAmount = isLinkedFriend
+    ? Math.max(
+        0,
+        Math.min(
+          Number(debt.confirmed_amount ?? actualPaidAmount),
+          totalAmount
+        )
+      )
+    : actualPaidAmount;
 
-  // เปอร์เซ็นต์ของแต่ละส่วน
+  // ยอดรออนุมัติ เฉพาะรายการที่ผูกบัญชีเพื่อน
+  const pendingAmount = isLinkedFriend
+    ? Math.max(
+        0,
+        Math.min(
+          Number(debt.pending_amount || 0),
+          totalAmount - confirmedAmount
+        )
+      )
+    : 0;
+
+  // เปอร์เซ็นต์ยอดชำระแล้ว
   const confirmedProgress = totalAmount > 0
     ? (confirmedAmount / totalAmount) * 100
     : 0;
 
+  // เปอร์เซ็นต์ยอดรออนุมัติ
   const pendingProgress = totalAmount > 0
     ? (pendingAmount / totalAmount) * 100
     : 0;
 
+  // เปอร์เซ็นต์รวม
   const totalProgress = Math.round(
     confirmedProgress + pendingProgress
   );
 
-  // กำหนดสีตามเปอร์เซ็นต์ยอดที่อนุมัติแล้ว
+  // กำหนดสีตามเปอร์เซ็นต์ยอดชำระแล้ว
   const getProgressColor = (percentage) => {
     if (percentage <= 25) return "#e32828";
     if (percentage <= 50) return "#F97316";
@@ -88,9 +118,7 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
   };
 
   const progressColor = getProgressColor(
-    totalAmount > 0
-      ? (confirmedAmount / totalAmount) * 100
-      : 0
+    confirmedProgress
   );
 
   return (
@@ -98,10 +126,10 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
 
       <div className="flex gap-3">
 
-        {/* icon */}
+        {/* Icon */}
         <div
           className={`w-[48px] h-[48px] rounded-full border border-gray-300 flex items-center justify-center shrink-0 overflow-hidden
-            ${colorMap[debt.color] || "bg-gray-300"} `}
+            ${colorMap[debt.color] || "bg-gray-300"}`}
         >
           {debt.image ? (
             <img
@@ -121,10 +149,13 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
         {/* Main information */}
         <div className="flex-1 min-w-0">
 
-          {/* ข้อมูลส่วนหัวของหนี้สิน+แก้ไข */}
+          {/* ข้อมูลส่วนหัวของหนี้สิน */}
           <div className="flex items-start justify-between">
+
             <div className="min-w-0 flex-1">
+
               <div className="flex flex-wrap items-baseline gap-x-1">
+
                 <h3 className="font-bold text-[12px] text-gray-900">
                   {debt.name}
                 </h3>
@@ -136,31 +167,36 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
                       : debt.due_date
                   }
                 </span>
+
               </div>
-              {/* หมวดหมู่หนี้สิน */}
-              <span className="inline-block mt-1 mr-1 px-2 py-[1px] text-[9px] rounded-full border border-pink-300 text-pink-500">
-                {debt.payment_type === "monthly" ? "รายเดือน" : "ทยอยจ่าย"}
-              </span>
-              {debt.counterparty && (
+
+              {/* แสดงสถานะการผูกบัญชีเพื่อน */}
+              {isLinkedFriend && (
                 <span className="inline-block mt-1 px-2 py-[1px] text-[9px] rounded-full border border-green-500 text-green-600">
                   ผูกบัญชีเพื่อน
                 </span>
               )}
+
             </div>
 
             {/* ปุ่มแก้ไข */}
-            <button onClick={() => onEdit(debt)} className="flex items-center gap-1 text-[10px] text-gray-600">
+            <button
+              type="button"
+              onClick={() => onEdit(debt)}
+              className="flex items-center gap-1 text-[10px] text-gray-600"
+            >
               <Pencil size={11} />
               แก้ไข
             </button>
 
           </div>
 
-          {/* Counterparty */}
+          {/* เจ้าหนี้ / ลูกหนี้ */}
           <p className="text-[9px] text-gray-500 mt-1">
-            {debt.type === "borrowed" ? "เจ้าหนี้:" : "ลูกหนี้:"} {debt.counterparty_name}
+            {isBorrow ? "เจ้าหนี้:" : "ลูกหนี้:"} {debt.counterparty_name}
           </p>
 
+          {/* หมายเหตุ */}
           {debt.note?.trim() && (
             <p className="text-[9px] text-gray-500">
               หมายเหตุ: {debt.note}
@@ -168,11 +204,14 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
           )}
 
         </div>
+
       </div>
 
       {/* Amount */}
       <div className="mt-2">
+
         <div className="flex justify-between items-end gap-2">
+
           <span className="text-[10px] text-gray-600">
             {isBorrow ? "ชำระแล้ว" : "ได้รับคืนแล้ว"} ({totalProgress}%)
           </span>
@@ -180,11 +219,13 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
           <span className="text-[10px] text-gray-600">
             THB {confirmedAmount.toLocaleString()} / {totalAmount.toLocaleString()}
           </span>
+
         </div>
 
         {/* Progress bar */}
         <div className="flex w-full h-[5px] bg-gray-300 rounded-full mt-1 overflow-hidden">
-          {/* ยอดที่อนุมัติแล้ว */}
+
+          {/* ยอดชำระแล้ว / ยอดอนุมัติแล้ว */}
           <div
             className="h-full transition-all duration-500"
             style={{
@@ -193,38 +234,56 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
             }}
           />
 
-          {/* ยอดที่รออนุมัติ */}
-          <div
-            className="h-full bg-gray-600 transition-all duration-500"
-            style={{
-              width: `${pendingProgress}%`,
-            }}
-          />
-        </div>
-
-        {/* คำอธิบายสี */}
-        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
-          <span className="flex items-center gap-1 text-[9px] text-gray-500">
-            <span
-              className="w-[7px] h-[7px] rounded-full"
-              style={{ backgroundColor: progressColor }}
+          {/* ยอดรออนุมัติ เฉพาะรายการที่ผูกบัญชีเพื่อน */}
+          {isLinkedFriend && pendingAmount > 0 && (
+            <div
+              className="h-full bg-gray-600 transition-all duration-500"
+              style={{
+                width: `${pendingProgress}%`,
+              }}
             />
-            อนุมัติแล้ว {confirmedAmount.toLocaleString()} บาท
-          </span>
-
-          {pendingAmount > 0 && (
-            <span className="flex items-center gap-1 text-[9px] text-gray-500">
-              <span className="w-[7px] h-[7px] rounded-full bg-gray-600" />
-              รออนุมัติ {pendingAmount.toLocaleString()} บาท
-            </span>
           )}
+
         </div>
+
+        {/* คำอธิบายสี เฉพาะรายการที่ผูกบัญชีเพื่อน */}
+        {isLinkedFriend && (
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+
+            {/* ยอดอนุมัติแล้ว */}
+            <span className="flex items-center gap-1 text-[9px] text-gray-500">
+
+              <span
+                className="w-[7px] h-[7px] rounded-full"
+                style={{
+                  backgroundColor: progressColor
+                }}
+              />
+
+              อนุมัติแล้ว {confirmedAmount.toLocaleString()} บาท
+
+            </span>
+
+            {/* ยอดรออนุมัติ */}
+            {pendingAmount > 0 && (
+              <span className="flex items-center gap-1 text-[9px] text-gray-500">
+
+                <span className="w-[7px] h-[7px] rounded-full bg-gray-600" />
+
+                รออนุมัติ {pendingAmount.toLocaleString()} บาท
+
+              </span>
+            )}
+
+          </div>
+        )}
+
       </div>
 
       {/* Buttons */}
       <div className="flex gap-2 mt-2">
 
-        {/* Delete */}
+        {/* ปุ่มลบรายการ */}
         <button
           type="button"
           onClick={() => onDelete?.(debt)}
@@ -246,7 +305,7 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
         </button>
 
         {/* ส่งแจ้งเตือนชำระหนี้ไปยัง LINE ของเพื่อน */}
-        {!isBorrow && debt.counterparty && (
+        {!isBorrow && isLinkedFriend && (
           <button
             type="button"
             onClick={() => onSendReminder?.(debt)}
@@ -256,14 +315,22 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
             className="h-[30px] px-2 border border-green-500 rounded-md flex items-center justify-center gap-1 text-green-700 text-[10px] whitespace-nowrap disabled:opacity-50"
           >
             <BellRing size={13} />
-            {sendingReminderId === debt.id ? "กำลังส่ง..." : "ส่งเตือน LINE"}
+
+            {sendingReminderId === debt.id
+              ? "กำลังส่ง..."
+              : "ส่งเตือน LINE"}
+
           </button>
         )}
 
         {/* Action */}
         {isBorrow ? (
+
+          /* กรณีเป็นรายการหนี้สิน */
           <div className="flex flex-1 h-[30px] gap-2">
+
             <button
+              type="button"
               onClick={onViewHistory}
               className="flex-1 border border-gray-300 rounded-md text-[11px] text-gray-600 bg-white"
             >
@@ -271,47 +338,51 @@ function DebtCard({ debt, onPayment, onViewHistory, onCheckPayment, onEdit, onDe
             </button>
 
             <button
+              type="button"
               onClick={onPayment}
               className="flex-1 rounded-md bg-green-500 text-white text-[11px] font-medium"
             >
               ชำระหนี้
             </button>
+
           </div>
-        ) : debt.counterparty ? (
+
+        ) : isLinkedFriend ? (
+
+          /* กรณีให้ยืมและผูกบัญชีเพื่อน */
           <button
+            type="button"
             onClick={onCheckPayment}
             className="flex-1 rounded-md bg-[#202020] text-white text-[11px] font-medium"
           >
             ตรวจสอบการชำระหนี้
           </button>
+
         ) : (
+
+          /* กรณีให้ยืมและไม่ได้ผูกบัญชีเพื่อน */
           <div className="flex flex-1 h-[30px] gap-2">
+
             <button
+              type="button"
               onClick={onViewHistory}
               className="flex-1 border border-gray-300 rounded-md text-[11px] text-gray-600 bg-white"
             >
               ดูประวัติการได้รับเงินคืน
             </button>
-          <div className="flex flex-1 h-[30px] gap-2">
-            <button onClick={onViewHistory} className="flex-1 border border-gray-300 rounded-md text-[11px] text-gray-600 bg-white">
-              ดูประวัติการได้รับเงินคืน
-            </button>
 
             <button
+              type="button"
               onClick={onPayment}
               className="flex-1 rounded-md bg-green-500 text-white text-[11px] font-medium"
             >
               บันทึกการได้รับเงินคืน
             </button>
+
           </div>
-            <button
-              onClick={onPayment}
-              className="flex-1 rounded-md bg-green-500 text-white text-[11px] font-medium"
-            >
-              บันทึกการได้รับเงินคืน
-            </button>
-          </div>
+
         )}
+
       </div>
 
     </div>
