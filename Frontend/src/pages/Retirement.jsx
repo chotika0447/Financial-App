@@ -1,86 +1,55 @@
 import { useState } from "react";
-import './Retirement.css'
 import CalNavbar from "../components/CalNavbar";
-import RetirementChart from "../components/RetirementChart";
-import Navbar from '../components/Navbar';
+import Navbar from "../components/Navbar";
+import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend } from "chart.js";
+import { Line } from "react-chartjs-2";
+import "./Retirement.css";
+import "./CalculatorTools.css";
 
-function Retirement() {
-  const [monthlyExpenses, setMonthlyExpenses] = useState(localStorage.getItem('retirementMonthlyExpenses') || '');
-  const [retirementAge, setRetirementAge] = useState(localStorage.getItem('retirementAge') || '');
-  const [yearsInRetirement, setYearsInRetirement] = useState(localStorage.getItem('retirementYearsInRetirement') || '');
-
-  let retirementMoney = 0;
-  
-  if(monthlyExpenses && retirementAge && yearsInRetirement) {
-    retirementMoney = Number(monthlyExpenses) * 12 * Number(yearsInRetirement)
-  }
-
-  return (
-    <div className="retirement-page">
-      <div className="retirement-header">
-      <h1 className="retirement-title">
-        คำนวณแผนเกษียณเบื้องต้น</h1>
-      </div>
-      
-      <CalNavbar />
-
-      <label className="retirement-label">
-        ค่าใช้จ่ายต่อเดือนหลังเกษียณ (บาท)</label>
-
-      <input
-        className="retirement-input"
-        type="number"
-        value={monthlyExpenses}
-        onChange={(e) => {
-          setMonthlyExpenses(e.target.value);
-          localStorage.setItem('retirementMonthlyExpenses', e.target.value);
-        }}
-      />
-
-      <label className="retirement-label">
-        อายุที่เกษียณ (ปี)</label>
-
-      <input
-        className="retirement-input"
-        type="number"
-        value={retirementAge}
-        onChange={(e) => {
-          setRetirementAge(e.target.value);
-          localStorage.setItem('retirementAge', e.target.value);
-        }}
-      />
-
-      <label className="retirement-label">
-        จำนวนปีที่คาดว่าจะใช้ชีวิตหลังเกษียณ (ปี)</label>
-
-      <input
-        className="retirement-input"
-        type="number"
-        value={yearsInRetirement}
-        onChange={(e) => {
-          setYearsInRetirement(e.target.value);
-          localStorage.setItem('retirementYearsInRetirement', e.target.value);
-        }}
-      />
-
-      <div className="retirement-label">
-        <h3>เงินเกษียณที่ต้องการ</h3> </div>
-
-      <div className="retirement-result">
-        {retirementMoney.toLocaleString()} บาท</div>
-
-      <RetirementChart
-        monthlyExpenses={monthlyExpenses}
-        yearsInRetirement={yearsInRetirement}
-      />
-
-      <div className="retirement-explanation">
-        <h3>คุณควรมีเงินเก็บประมาณ {retirementMoney.toLocaleString()} บาท ก่อนเกษียณเพื่อรองรับค่าใช้จ่ายเดือนละ {Number(monthlyExpenses).toLocaleString()} บาท เป็นเวลา {Number(yearsInRetirement)} ปี</h3>
-      </div>
-
-      <Navbar />
-    </div>
-  );
+ChartJS.register(ArcElement, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
+const fields = [["age", "อายุปัจจุบัน (ปี)", "retirementCurrentAge"], ["retire", "อายุที่ต้องการเกษียณ (ปี)", "retirementAge"], ["life", "อายุขัยที่คาดการณ์ (ปี)", "retirementLifeAge"], ["expense", "ค่าใช้จ่ายต่อเดือนในปัจจุบัน (บาท)", "retirementCurrentExpense"], ["inflation", "อัตราเงินเฟ้อต่อปี (%)", "retirementInflation"]];
+const format = value => value.toLocaleString("th-TH", {maximumFractionDigits: 2});
+function calculate(v) {
+const [age,retire,life,expense,inflation] = v;
+const t = retire-age;
+const n = life-retire;
+const E = expense*Math.pow(1+inflation/100,t);
+const target = E*12*n;
+const labels = Array.from({length:n+1},(_,j)=>`อายุ ${retire+j}`);
+return {rows:[['ระยะเวลาก่อนเกษียณ',t,'ปี'],['ระยะเวลาหลังเกษียณ',n,'ปี'],['ค่าใช้จ่ายต่อเดือน ณ วันเกษียณ',E],['เงินเป้าหมาย ณ วันเกษียณ',target]],labels,series:[{label:'เงินคงเหลือหลังเกษียณ (ประมาณการ)',data:labels.map((_,j)=>Math.max(0,E*12*(n-j))),borderColor:'#729b27'}]};
 }
-
-export default Retirement;
+export default function Retirement() {
+  const [values,setValues] = useState(() => fields.map(([, , key]) => localStorage.getItem(key) ?? ""));
+  const [result,setResult] = useState(null);
+  const [error,setError] = useState("");
+  function submit(e) {
+    e.preventDefault();
+    const v = values.map(Number);
+    if(values.some(x=>x.trim()==="") || !v.every(x=>Number.isFinite(x)&&x>=0)) {setError("กรุณากรอกข้อมูลให้ครบและไม่ติดลบ");setResult(null);return;}
+    if(!(v.slice(0,3).every(Number.isInteger) && v[0]>0 && v[0]<=v[1] && v[1]<v[2] && v[2]<=120 && v[4]<=100)) {setError("อายุต้องเป็นจำนวนเต็ม อายุปัจจุบันไม่เกินอายุเกษียณ และอายุขัยมากกว่าอายุเกษียณ (ไม่เกิน 120 ปี)");setResult(null);return;}
+    const next=calculate(v);
+    if(!next.rows.every(([,x])=>Number.isFinite(x)) || !next.series.every(s=>s.data.every(Number.isFinite))) {setError("ค่าที่กรอกสูงเกินไป");setResult(null);return;}
+    setError("");setResult(next);
+  }
+  function reset() {fields.forEach(([, ,key])=>localStorage.removeItem(key));setValues(fields.map(()=>""));setResult(null);setError("");}
+  return <div className="retirement-page">
+    <div className="retirement-header"><h1 className="retirement-title">คำนวณแผนเกษียณเบื้องต้น</h1></div>
+    <CalNavbar />
+    <main className="kc-calculator">
+      <form onSubmit={submit} noValidate>
+        {fields.map(([id,label,key],index)=><div className="kc-field" key={id}>
+          <label htmlFor={id}>{label}</label>
+          <input id={id} type="number" min="0" step="any" inputMode="decimal" value={values[index]} onChange={e=>{const value=e.target.value;setValues(old=>old.map((x,i)=>i===index?value:x));localStorage.setItem(key,value);setResult(null);setError("");}} />
+        </div>)}
+        <div className="kc-actions"><button type="submit">คำนวณ</button><button type="button" onClick={reset}>ล้างข้อมูล</button></div>
+      </form>
+      {error && <p role="alert" className="kc-error">{error}</p>}
+      {result && <section aria-live="polite" className="kc-results"><h2>ผลการคำนวณ</h2>
+        {result.rows.map(([label,value,unit])=><div className="kc-result" key={label}><span>{label}</span><strong>{format(value)} {unit || "บาท"}</strong></div>)}
+        <div className="kc-chart"><Line data={{labels:result.labels,datasets:result.series}} options={{responsive:true,maintainAspectRatio:false}} /></div>
+      </section>}
+      <p className="kc-note">สมมติค่าใช้จ่ายหลังเกษียณคงที่ ณ วันเกษียณ ไม่รวมผลตอบแทนการลงทุนหรือเงินเฟ้อหลังเกษียณ</p>
+    </main>
+    <Navbar />
+  </div>;
+}

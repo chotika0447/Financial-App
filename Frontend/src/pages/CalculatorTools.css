@@ -1,0 +1,15 @@
+.kc-calculator { box-sizing: border-box; width: min(100%, 720px); margin: 0 auto; padding: 20px 16px 120px; color: #263322; }
+.kc-calculator * { box-sizing: border-box; }
+.kc-field { display: grid; gap: 8px; margin-bottom: 16px; }
+.kc-field label { font-weight: 600; }
+.kc-field input { width: 100%; min-width: 0; padding: 12px; border: 1px solid #d6ddcf; border-radius: 12px; font-size: 16px; background: white; color: #263322; }
+.kc-actions { display: flex; gap: 12px; }
+.kc-actions button { flex: 1; border: 0; border-radius: 12px; padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer; background: #B8D95A; color: #263322; }
+.kc-actions button + button { background: #eef1e8; }
+.kc-results { margin-top: 24px; padding: 16px; background: #fff; border: 1px solid #e2e8d9; border-radius: 16px; }
+.kc-results h2 { font-size: 20px; margin: 0 0 12px; }
+.kc-result { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 12px 0; border-bottom: 1px solid #eef1e8; }
+.kc-result strong { color: #385b16; overflow-wrap: anywhere; }
+.kc-chart { position: relative; height: 300px; margin-top: 20px; }
+.kc-note { font-size: 13px; line-height: 1.6; color: #64705e; }
+.kc-error { color: #b42318; }
