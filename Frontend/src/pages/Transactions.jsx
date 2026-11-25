@@ -555,23 +555,25 @@ function Transactions() {
           account: '',
         };
 
-        if (data.amount != null && Number(data.amount) > 0) {
-          updated.amount = String(data.amount);
-        }
-        if (data.transaction_datetime) {
-          const [date, time] = data.transaction_datetime.split(' ');
-          if (date) updated.transaction_date = date;
-          updated.transaction_time = time?.slice(0, 5) || '';
-        }
-        if (data.memo) {
-          updated.description = data.memo;
-        }
+        updated.amount = data.amount != null && Number.isFinite(Number(data.amount)) && Number(data.amount) > 0
+          ? String(data.amount) : '';
+        updated.name = String(data.name || data.item_name || 'รายการจากสลิป').slice(0, 200);
+        updated.category = data.category ?? '';
+        const [legacyDate, legacyTime] = (data.transaction_datetime || '').split(' ');
+        updated.transaction_date = data.date || legacyDate || getTodayString();
+        updated.transaction_time = (data.time || legacyTime || new Date().toTimeString()).slice(0, 5);
+        updated.description = String(data.memo || data.note?.memo || '').slice(0, 100);
         return updated;
       });
 
-      setOcrMessage(data.amount_status === 'estimated_from_items'
-        ? 'OCR ประมาณยอดจากรายการสินค้า กรุณาตรวจสอบก่อนบันทึก'
-        : 'อ่านใบเสร็จแล้ว กรุณาตรวจสอบยอดเงินและวันที่ก่อนบันทึก');
+      const missing = [];
+      if (!(Number(data.amount) > 0)) missing.push('กรอกจำนวนเงิน');
+      if (!data.date && !data.transaction_datetime) missing.push('ตรวจสอบวันที่เริ่มต้น');
+      if (!data.time && !data.transaction_datetime?.includes(' ')) missing.push('ตรวจสอบเวลาเริ่มต้น');
+      if (!data.category) missing.push('เลือกหมวดหมู่');
+      setOcrMessage(missing.length
+        ? `OCR อ่านข้อมูลไม่ครบ กรุณา${missing.join(' / ')} ก่อนบันทึก`
+        : 'อ่านใบเสร็จแล้ว กรุณาตรวจสอบข้อมูลทั้งหมดก่อนบันทึก');
     } catch (err) {
       setOcrMessage(err.message);
     } finally {

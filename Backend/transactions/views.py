@@ -20,6 +20,7 @@ from .ocr_api import run_ocr
 from .slip_parser import parse_slip
 
 from users.models import PersonalProfile
+from categories.category_matching import match_category, fallback_category
 
 from line_bot.supabase_storage import (
     upload_receipt,
@@ -247,16 +248,31 @@ class ReceiptOCRView(APIView):
                 "Receipt OCR: parsing completed"
             )
 
+            date = parsed.get("date")
+            time = parsed.get("time")
+            item_name = str(parsed.get("item_name") or "").strip()
+            name = item_name or (
+                "รายการจากใบเสร็จ" if parsed.get("document_type") == "receipt"
+                else "รายการจากสลิป"
+            )
+            note = parsed.get("note") or {}
+            category = (
+                match_category(item_name, "expense", request.user, rule_category="อื่นๆ")
+                if item_name else None
+            ) or fallback_category("expense", request.user)
             return Response({
-                "date": parsed.get("date"),
-                "time": parsed.get("time"),
+                "date": date,
+                "time": time,
+                "transaction_datetime": f"{date} {time or ''}".strip() if date else None,
                 "amount": parsed.get("amount"),
-                "note": parsed.get("note") or {},
-                "needs_review": parsed.get(
-                    "needs_review",
-                    True
-                ),
-                "ocr_text": parsed.get("ocr_text") or []
+                "name": name[:200],
+                "item_name": parsed.get("item_name"),
+                "category": category.pk if category else None,
+                "note": note,
+                "memo": str(note.get("memo") or "")[:100],
+                "needs_review": parsed.get("needs_review", True) or category is None,
+                "review_reasons": parsed.get("review_reasons") or [],
+                "ocr_text": parsed.get("ocr_text") or [],
             })
 
         except (UnidentifiedImageError, OSError):
