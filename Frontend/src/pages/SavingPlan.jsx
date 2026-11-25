@@ -25,18 +25,25 @@ export default function SavingPlan() {
   useEffect(() => {
     let active = true;
     async function loadProfile() {
-      if (!accessToken) return;
+      if (!accessToken) {
+        setProfileNotice("กรุณาเข้าสู่ระบบเพื่อโหลดเงินเดือน หรือกรอกข้อมูลด้วยตนเอง");
+        return;
+      }
       try {
         const response = await authenticatedFetch("/users/me/", {
           method: "GET",
-          headers: { Authorization: `Bearer ${accessToken}` },
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         });
         if (!response.ok) throw new Error("Profile request failed");
         const data = await response.json();
         if (!active || edited.current) return;
-        const raw = data.monthly_income;
+        const raw = data.salary;
         const value = Number(raw);
-        if (raw == null || String(raw).trim() === "" || !Number.isFinite(value) || value <= 0) return;
+        if (raw == null || String(raw).trim() === "" || !Number.isFinite(value) || value < 0) {
+          setProfileNotice("ไม่พบข้อมูลเงินเดือนในโปรไฟล์ กรุณากรอกข้อมูลด้วยตนเอง");
+          return;
+        }
+        setProfileNotice("");
         setValues(old => old.map((x, index) => index === 0 ? String(raw) : x));
         setResult(calculate([value]));
         setHasCalculated(true);
@@ -51,7 +58,7 @@ export default function SavingPlan() {
     e.preventDefault();
     const v = values.map(Number);
     if(values.some(x=>x.trim()==="") || !v.every(x=>Number.isFinite(x)&&x>=0)) {setError("กรุณากรอกข้อมูลให้ครบและไม่ติดลบ");setResult(null);return;}
-    if(!(v[0] > 0)) {setError("รายรับควรมากกว่า 0");setResult(null);return;}
+    
     const next=calculate(v);
     if(!next.rows.every(([,x])=>Number.isFinite(x)) || !next.series.every(s=>s.data.every(Number.isFinite))) {setError("ค่าที่กรอกสูงเกินไป");setResult(null);return;}
     setError("");setResult(next);setHasCalculated(true);
@@ -64,7 +71,7 @@ export default function SavingPlan() {
       <form onSubmit={submit} noValidate>
         {fields.map(([id,label,key],index)=><div className="kc-field" key={id}>
           <label htmlFor={id}>{label}</label>
-          <input id={id} type="number" min="0" step="any" inputMode="decimal" value={values[index]} onChange={e=>{const value=e.target.value;if(index===0) edited.current=true;setValues(old=>old.map((x,i)=>i===index?value:x));if(index!==0) localStorage.setItem(key,value);setResult(null);setError("");}} />
+          <input id={id} type="number" min="0" step="any" inputMode="decimal" value={values[index]} onChange={e=>{const value=e.target.value;if(index===0) edited.current=true;setValues(old=>old.map((x,i)=>i===index?value:x));if(index!==0) localStorage.setItem(key,value);setResult(null);setError("");setProfileNotice("");}} />
         </div>)}
         <div className="kc-actions"><button type="submit">{hasCalculated ? "คำนวณใหม่" : "คำนวณ"}</button><button type="button" onClick={reset}>ล้างข้อมูล</button></div>
       </form>
