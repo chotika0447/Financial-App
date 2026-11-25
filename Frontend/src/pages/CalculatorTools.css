@@ -4,7 +4,7 @@
 .kc-field label { font-weight: 600; }
 .kc-field input { width: 100%; min-width: 0; padding: 12px; border: 1px solid #d6ddcf; border-radius: 12px; font-size: 16px; background: white; color: #263322; }
 .kc-actions { display: flex; gap: 12px; }
-.kc-actions button { flex: 1; border: 0; border-radius: 12px; padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer; background: #B8D95A; color: #263322; }
+.kc-actions button { flex: 1; border: 0; border-radius: 12px; padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer; background: #245e63; color: #e7edec; }
 .kc-actions button + button { background: #eef1e8; }
 .kc-results { margin-top: 24px; padding: 16px; background: #fff; border: 1px solid #e2e8d9; border-radius: 16px; }
 .kc-results h2 { font-size: 20px; margin: 0 0 12px; }

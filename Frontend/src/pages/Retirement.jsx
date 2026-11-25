@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { authenticatedFetch } from "../utils/auth";
 import CalNavbar from "../components/CalNavbar";
 import Navbar from "../components/Navbar";
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend } from "chart.js";
@@ -19,9 +20,36 @@ const labels = Array.from({length:n+1},(_,j)=>`อายุ ${retire+j}`);
 return {rows:[['ระยะเวลาก่อนเกษียณ',t,'ปี'],['ระยะเวลาหลังเกษียณ',n,'ปี'],['ค่าใช้จ่ายต่อเดือน ณ วันเกษียณ',E],['เงินเป้าหมาย ณ วันเกษียณ',target]],labels,series:[{label:'เงินคงเหลือหลังเกษียณ (ประมาณการ)',data:labels.map((_,j)=>Math.max(0,E*12*(n-j))),borderColor:'#729b27'}]};
 }
 export default function Retirement() {
-  const [values,setValues] = useState(() => fields.map(([, , key]) => localStorage.getItem(key) ?? ""));
+  const [values,setValues] = useState(() => fields.map(([, , key], index) => index === 0 ? "" : localStorage.getItem(key) ?? ""));
   const [result,setResult] = useState(null);
   const [error,setError] = useState("");
+  const [profileNotice, setProfileNotice] = useState("");
+  const edited = useRef(false);
+  const accessToken = sessionStorage.getItem("accessToken");
+  useEffect(() => {
+    let active = true;
+    async function loadProfile() {
+      if (!accessToken) return;
+      try {
+        const response = await authenticatedFetch("/users/me/", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!response.ok) throw new Error("Profile request failed");
+        const data = await response.json();
+        if (!active || edited.current) return;
+        const raw = data.age;
+        const value = Number(raw);
+        if (raw == null || String(raw).trim() === "" || !Number.isFinite(value) || value <= 0 || value > 120 || !Number.isInteger(value)) return;
+        setValues(old => old.map((x, index) => index === 0 ? String(raw) : x));
+
+      } catch {
+        if (active && !edited.current) setProfileNotice("ไม่สามารถโหลดข้อมูลโปรไฟล์ได้ กรุณากรอกข้อมูลด้วยตนเอง");
+      }
+    }
+    loadProfile();
+    return () => { active = false; };
+  }, [accessToken]);
   function submit(e) {
     e.preventDefault();
     const v = values.map(Number);
@@ -31,7 +59,7 @@ export default function Retirement() {
     if(!next.rows.every(([,x])=>Number.isFinite(x)) || !next.series.every(s=>s.data.every(Number.isFinite))) {setError("ค่าที่กรอกสูงเกินไป");setResult(null);return;}
     setError("");setResult(next);
   }
-  function reset() {fields.forEach(([, ,key])=>localStorage.removeItem(key));setValues(fields.map(()=>""));setResult(null);setError("");}
+  function reset() {edited.current = true;setProfileNotice("");fields.forEach(([, ,key])=>localStorage.removeItem(key));setValues(fields.map(()=>""));setResult(null);setError("");}
   return <div className="retirement-page">
     <div className="retirement-header"><h1 className="retirement-title">คำนวณแผนเกษียณเบื้องต้น</h1></div>
     <CalNavbar />
@@ -39,10 +67,11 @@ export default function Retirement() {
       <form onSubmit={submit} noValidate>
         {fields.map(([id,label,key],index)=><div className="kc-field" key={id}>
           <label htmlFor={id}>{label}</label>
-          <input id={id} type="number" min="0" step="any" inputMode="decimal" value={values[index]} onChange={e=>{const value=e.target.value;setValues(old=>old.map((x,i)=>i===index?value:x));localStorage.setItem(key,value);setResult(null);setError("");}} />
+          <input id={id} type="number" min="0" step="any" inputMode="decimal" value={values[index]} onChange={e=>{const value=e.target.value;if(index===0) edited.current=true;setValues(old=>old.map((x,i)=>i===index?value:x));if(index!==0) localStorage.setItem(key,value);setResult(null);setError("");}} />
         </div>)}
         <div className="kc-actions"><button type="submit">คำนวณ</button><button type="button" onClick={reset}>ล้างข้อมูล</button></div>
       </form>
+      {profileNotice && <p className="kc-note">{profileNotice}</p>}
       {error && <p role="alert" className="kc-error">{error}</p>}
       {result && <section aria-live="polite" className="kc-results"><h2>ผลการคำนวณ</h2>
         {result.rows.map(([label,value,unit])=><div className="kc-result" key={label}><span>{label}</span><strong>{format(value)} {unit || "บาท"}</strong></div>)}
