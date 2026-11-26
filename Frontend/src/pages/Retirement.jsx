@@ -20,7 +20,7 @@ const labels = Array.from({length:n+1},(_,j)=>`อายุ ${retire+j}`);
 return {rows:[['ระยะเวลาก่อนเกษียณ',t,'ปี'],['ระยะเวลาหลังเกษียณ',n,'ปี'],['ค่าใช้จ่ายต่อเดือน ณ วันเกษียณ',E],['เงินเป้าหมาย ณ วันเกษียณ',target]],labels,series:[{label:'เงินคงเหลือหลังเกษียณ (ประมาณการ)',data:labels.map((_,j)=>Math.max(0,E*12*(n-j))),borderColor:'#729b27'}]};
 }
 export default function Retirement() {
-  const [values,setValues] = useState(() => fields.map(([, , key], index) => index === 0 ? "" : localStorage.getItem(key) ?? ""));
+  const [values,setValues] = useState(() => fields.map(([id, , key], index) => index === 0 ? "" : localStorage.getItem(key) ?? (id === "inflation" ? "3" : "")));
   const [result,setResult] = useState(null);
   const [error,setError] = useState("");
   const [profileNotice, setProfileNotice] = useState("");
@@ -59,7 +59,7 @@ export default function Retirement() {
     if(!next.rows.every(([,x])=>Number.isFinite(x)) || !next.series.every(s=>s.data.every(Number.isFinite))) {setError("ค่าที่กรอกสูงเกินไป");setResult(null);return;}
     setError("");setResult(next);
   }
-  function reset() {edited.current = true;setProfileNotice("");fields.forEach(([, ,key])=>localStorage.removeItem(key));setValues(fields.map(()=>""));setResult(null);setError("");}
+  function reset() {edited.current = true;setProfileNotice("");fields.forEach(([, ,key])=>localStorage.removeItem(key));setValues(fields.map(([id]) => id === "inflation" ? "3" : ""));setResult(null);setError("");}
   return <div className="retirement-page">
     <div className="retirement-header"><h1 className="retirement-title">คำนวณแผนเกษียณเบื้องต้น</h1></div>
     <CalNavbar />

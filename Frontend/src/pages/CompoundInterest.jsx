@@ -11,7 +11,7 @@ const fields = [
   ["monthly", "เงินฝากเพิ่มต่อเดือน (บาท)", "compoundMonthlyDeposit", "0"],
   ["rate", "อัตราดอกเบี้ยต่อปี (%)", "compoundRate", ""],
   ["years", "ระยะเวลาการออม (ปี)", "compoundNumberOfPeriods", ""],
-  ["inflation", "อัตราเงินเฟ้อต่อปี (%)", "compoundInflation", "0"],
+  ["inflation", "อัตราเงินเฟ้อต่อปี (%)", "compoundInflation", "3"],
   ["frequency", "ความถี่ในการทบต้น", "compoundFrequency", "12"],
   ["timing", "ช่วงเวลาการฝากเงิน", "compoundTiming", "end"],
 ];
