@@ -4,7 +4,7 @@ import { Line } from "react-chartjs-2";
 import CalNavbar from "../components/CalNavbar";
 import Navbar from "../components/Navbar";
 import "./CompoundInterest.css";
-
+import "./CalculatorTools.css";
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
 const fields = [
   ["principal", "เงินต้นเริ่มต้น (บาท)", "compoundPresentValue", ""],
@@ -104,7 +104,7 @@ export default function CompoundInterest() {
           </div>
           <p className="ci-note">เงินฝากรายเดือนจะรวมเป็นเงินฝากต่องวดทบต้นตามความถี่ที่เลือก</p>
           {error && <p className="ci-error" role="alert">{error}</p>}
-          <div className="ci-actions"><button type="submit">คำนวณ</button><button type="button" onClick={reset}>ล้างข้อมูล</button></div>
+          <div className="kc-actions"><button type="submit">คำนวณ</button><button type="button" onClick={reset}>ล้างข้อมูล</button></div>
         </form>
         {result && <>
           <section className="ci-card" aria-live="polite">
